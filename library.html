@@ -138,9 +138,12 @@
 
   <p class="notice">※ 같은 반 선생님이 대여한 도서도 함께 표시되며, 같은 반 선생님이면 반납요청을 할 수 있습니다.</p>
 
+  <button id="batch-return-request-btn" class="btn-return">선택 도서 일괄 반납요청</button>
+
   <table>
     <thead>
       <tr>
+        <th>선택</th>
         <th>관리번호</th>
         <th>도서명</th>
         <th>상태</th>
@@ -193,7 +196,8 @@
         <button id="load-rental-filter-btn" class="btn-basic">조회</button>
       </div>
     </div>
-    <table><thead><tr><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
+    <button id="batch-rental-approve-btn" class="btn-approve">선택 도서 일괄 대여승인</button>
+    <table><thead><tr><th>선택</th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
 
     <h3>반납요청 승인</h3>
     <div class="panel">
@@ -210,7 +214,8 @@
         <button id="load-return-filter-btn" class="btn-basic">조회</button>
       </div>
     </div>
-    <table><thead><tr><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
+    <button id="batch-return-approve-btn" class="btn-approve">선택 도서 일괄 반납승인</button>
+    <table><thead><tr><th>선택</th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
 
     <h3>대여기록 출력</h3>
     <div class="panel">
@@ -720,7 +725,7 @@ async function loadMyBooks() {
   list.innerHTML = "";
 
   if (error || !data || !data.length) {
-    list.innerHTML = `<tr><td colspan="6">현재 ${currentUser.class_name}에서 예약 또는 대여중인 도서가 없습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="7">현재 ${currentUser.class_name}에서 예약 또는 대여중인 도서가 없습니다.</td></tr>`;
   } else {
     data.forEach(book => {
       const statusText = getStatusName(book.status);
@@ -739,8 +744,13 @@ async function loadMyBooks() {
         returnBtn = `<button class="btn-wait" disabled>반납대기</button>`;
       }
 
+      const checkBox = book.status === "borrowed"
+        ? `<input type="checkbox" class="my-return-check" value="${book.id}">`
+        : "-";
+
       list.innerHTML += `
         <tr>
+          <td class="btn-cell">${checkBox}</td>
           <td>${book["관리번호"] || ""}</td>
           <td>${book["도서명"] || ""}</td>
           <td>${statusText}</td>
@@ -815,8 +825,8 @@ function resetManagerApproveLists() {
   const rentalList = document.getElementById("rental-approve-list");
   const returnList = document.getElementById("return-approve-list");
 
-  rentalList.innerHTML = `<tr><td colspan="5">연령 또는 반을 선택한 뒤 조회 버튼을 눌러주세요.</td></tr>`;
-  returnList.innerHTML = `<tr><td colspan="5">연령 또는 반을 선택한 뒤 조회 버튼을 눌러주세요.</td></tr>`;
+  rentalList.innerHTML = `<tr><td colspan="6">연령 또는 반을 선택한 뒤 조회 버튼을 눌러주세요.</td></tr>`;
+  returnList.innerHTML = `<tr><td colspan="6">연령 또는 반을 선택한 뒤 조회 버튼을 눌러주세요.</td></tr>`;
 }
 
 async function openBookManagePage() {
@@ -882,7 +892,7 @@ async function loadRentalApproveList() {
   list.innerHTML = "";
 
   if (!sortedData || !sortedData.length) {
-    list.innerHTML = `<tr><td colspan="5">선택한 연령/반의 대여예약 요청이 없습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="6">선택한 연령/반의 대여예약 요청이 없습니다.</td></tr>`;
     return;
   }
 
@@ -891,6 +901,7 @@ async function loadRentalApproveList() {
     const borrowerName = record?.borrower_name || await getUserNameById(book.current_user_id);
     list.innerHTML += `
       <tr>
+        <td class="btn-cell"><input type="checkbox" class="manager-rental-check" value="${book.id}"></td>
         <td>${book["관리번호"] || ""}</td>
         <td>${book["도서명"] || ""}</td>
         <td>${book.current_class || "-"}</td>
@@ -965,7 +976,7 @@ async function loadReturnApproveList() {
   list.innerHTML = "";
 
   if (!sortedData || !sortedData.length) {
-    list.innerHTML = `<tr><td colspan="5">선택한 연령/반의 반납요청이 없습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="6">선택한 연령/반의 반납요청이 없습니다.</td></tr>`;
     return;
   }
 
@@ -974,6 +985,7 @@ async function loadReturnApproveList() {
     const returnUserName = await getUserNameById(record?.returned_by || book.current_user_id);
     list.innerHTML += `
       <tr>
+        <td class="btn-cell"><input type="checkbox" class="manager-return-check" value="${book.id}"></td>
         <td>${book["관리번호"] || ""}</td>
         <td>${book["도서명"] || ""}</td>
         <td>${book.current_class || "-"}</td>
@@ -1468,6 +1480,139 @@ async function restoreDeletedBook(bookId) {
 }
 
 
+
+async function approveRentalWithoutRefresh(bookId) {
+  const bookUpdate = await supabaseClient
+    .from("books")
+    .update({ status: "borrowed" })
+    .eq("id", bookId);
+
+  if (bookUpdate.error) return bookUpdate.error;
+
+  const recordUpdate = await supabaseClient
+    .from("rental_records")
+    .update({ status: "borrowed", approved_at: new Date().toISOString(), approved_by: currentUser.id })
+    .eq("book_id", bookId)
+    .eq("status", "reserved");
+
+  return recordUpdate.error || null;
+}
+
+async function batchApproveRentalBooks() {
+  const checked = Array.from(document.querySelectorAll(".manager-rental-check:checked"));
+
+  if (!checked.length) {
+    alert("대여승인할 도서를 선택해주세요.");
+    return;
+  }
+
+  if (!confirm(`선택한 ${checked.length}권을 일괄 대여승인하시겠습니까?`)) return;
+
+  let success = 0;
+  let fail = 0;
+
+  for (const checkbox of checked) {
+    const error = await approveRentalWithoutRefresh(checkbox.value);
+    if (error) fail++;
+    else success++;
+  }
+
+  alert(`일괄 대여승인 완료\n성공: ${success}권\n실패: ${fail}권`);
+  await loadRentalApproveList();
+  await loadMonthlyRecordList();
+  await loadBooks();
+}
+
+async function requestReturnWithoutAlert(bookId) {
+  const { error } = await supabaseClient
+    .from("books")
+    .update({ status: "return_requested" })
+    .eq("id", bookId)
+    .eq("current_class", currentUser.class_name);
+
+  if (error) return error;
+
+  const recordUpdate = await supabaseClient
+    .from("rental_records")
+    .update({
+      status: "return_requested",
+      returned_by: currentUser.id,
+      return_requested_at: new Date().toISOString()
+    })
+    .eq("book_id", bookId)
+    .eq("class_name", currentUser.class_name)
+    .eq("status", "borrowed");
+
+  return recordUpdate.error || null;
+}
+
+async function batchRequestReturnBooks() {
+  const checked = Array.from(document.querySelectorAll(".my-return-check:checked"));
+
+  if (!checked.length) {
+    alert("반납요청할 도서를 선택해주세요.");
+    return;
+  }
+
+  if (!confirm(`선택한 ${checked.length}권을 일괄 반납요청하시겠습니까?`)) return;
+
+  let success = 0;
+  let fail = 0;
+
+  for (const checkbox of checked) {
+    const error = await requestReturnWithoutAlert(checkbox.value);
+    if (error) fail++;
+    else success++;
+  }
+
+  alert(`일괄 반납요청 완료\n성공: ${success}권\n실패: ${fail}권`);
+  await loadMyBooks();
+  await loadBooks();
+}
+
+async function approveReturnWithoutRefresh(bookId) {
+  const bookUpdate = await supabaseClient
+    .from("books")
+    .update({ status: "available", current_class: null, current_user_id: null })
+    .eq("id", bookId);
+
+  if (bookUpdate.error) return bookUpdate.error;
+
+  const recordUpdate = await supabaseClient
+    .from("rental_records")
+    .update({ status: "returned", returned_at: new Date().toISOString(), return_approved_by: currentUser.id })
+    .eq("book_id", bookId)
+    .eq("status", "return_requested");
+
+  return recordUpdate.error || null;
+}
+
+async function batchApproveReturnBooks() {
+  const checked = Array.from(document.querySelectorAll(".manager-return-check:checked"));
+
+  if (!checked.length) {
+    alert("반납승인할 도서를 선택해주세요.");
+    return;
+  }
+
+  if (!confirm(`선택한 ${checked.length}권을 일괄 반납승인하시겠습니까?`)) return;
+
+  let success = 0;
+  let fail = 0;
+
+  for (const checkbox of checked) {
+    const error = await approveReturnWithoutRefresh(checkbox.value);
+    if (error) fail++;
+    else success++;
+  }
+
+  alert(`일괄 반납승인 완료\n성공: ${success}권\n실패: ${fail}권`);
+  await loadReturnApproveList();
+  await loadMonthlyRecordList();
+  await loadBooks();
+}
+
+
 function switchManagerTab(tabId) {
   document.querySelectorAll('.manager-tab-content').forEach(tab => tab.classList.remove('active'));
   document.querySelectorAll('.manager-tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -1492,6 +1637,7 @@ function bindEvents() {
 
   document.getElementById("my-books-btn").addEventListener("click", loadMyBooks);
   document.getElementById("my-books-back-btn").addEventListener("click", () => showScreen("app-screen"));
+  document.getElementById("batch-return-request-btn").addEventListener("click", batchRequestReturnBooks);
 
   document.getElementById("manager-page-btn").addEventListener("click", openManagerPage);
   document.getElementById("manager-back-btn").addEventListener("click", () => showScreen("app-screen"));
@@ -1505,7 +1651,9 @@ function bindEvents() {
   document.getElementById("print-class-month-btn").addEventListener("click", printClassMonthlyRecords);
   document.getElementById("load-record-month-btn").addEventListener("click", loadMonthlyRecordList);
   document.getElementById("load-rental-filter-btn").addEventListener("click", loadRentalApproveList);
+  document.getElementById("batch-rental-approve-btn").addEventListener("click", batchApproveRentalBooks);
   document.getElementById("load-return-filter-btn").addEventListener("click", loadReturnApproveList);
+  document.getElementById("batch-return-approve-btn").addEventListener("click", batchApproveReturnBooks);
 
   document.getElementById("excel-upload-btn").addEventListener("click", () => document.getElementById("excel-upload").click());
   document.getElementById("excel-upload").addEventListener("change", handleExcelUpload);
