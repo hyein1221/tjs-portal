@@ -199,7 +199,7 @@
       </div>
     </div>
     <button id="batch-rental-approve-btn" class="btn-approve">선택 도서 일괄 대여승인</button>
-    <table><thead><tr><th class="check-col"><input type="checkbox" id="check-all-my-return" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
+    <table><thead><tr><th class="check-col"><input type="checkbox" id="check-all-my-return" data-check-group="my-return-check" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
 
     <h3>반납요청 승인</h3>
     <div class="panel">
@@ -217,7 +217,7 @@
       </div>
     </div>
     <button id="batch-return-approve-btn" class="btn-approve">선택 도서 일괄 반납승인</button>
-    <table><thead><tr><th class="check-col"><input type="checkbox" id="check-all-rental-approve" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
+    <table><thead><tr><th class="check-col"><input type="checkbox" id="check-all-rental-approve" data-check-group="manager-rental-check" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
 
     <h3>대여기록 출력</h3>
     <div class="panel">
@@ -747,7 +747,7 @@ async function loadMyBooks() {
       }
 
       const checkBox = book.status === "borrowed"
-        ? `<input type="checkbox" class="my-return-check" value="${book.id}">`
+        ? `<input type="checkbox" class="my-return-check batch-check" data-group="my-return-check" value="${book.id}">`
         : "-";
 
       list.innerHTML += `
@@ -909,7 +909,7 @@ async function loadRentalApproveList() {
     const borrowerName = record?.borrower_name || await getUserNameById(book.current_user_id);
     list.innerHTML += `
       <tr>
-        <td class="check-cell"><input type="checkbox" class="manager-rental-check" value="${book.id}"></td>
+        <td class="check-cell"><input type="checkbox" class="manager-rental-check batch-check" data-group="manager-rental-check" value="${book.id}"></td>
         <td>${book["관리번호"] || ""}</td>
         <td>${book["도서명"] || ""}</td>
         <td>${book.current_class || "-"}</td>
@@ -994,7 +994,7 @@ async function loadReturnApproveList() {
     const returnUserName = await getUserNameById(record?.returned_by || book.current_user_id);
     list.innerHTML += `
       <tr>
-        <td class="check-cell"><input type="checkbox" class="manager-return-check" value="${book.id}"></td>
+        <td class="check-cell"><input type="checkbox" class="manager-return-check batch-check" data-group="manager-return-check" value="${book.id}"></td>
         <td>${book["관리번호"] || ""}</td>
         <td>${book["도서명"] || ""}</td>
         <td>${book.current_class || "-"}</td>
@@ -1623,7 +1623,7 @@ async function batchApproveReturnBooks() {
 
 
 function setCheckedByClass(className, checked) {
-  document.querySelectorAll(`.${className}`).forEach(box => {
+  document.querySelectorAll(`input[data-group="${className}"]`).forEach(box => {
     box.checked = checked;
   });
 }
@@ -1706,6 +1706,13 @@ function bindEvents() {
   if (checkAllReturnApprove) {
     checkAllReturnApprove.addEventListener("change", (e) => setCheckedByClass("manager-return-check", e.target.checked));
   }
+
+
+  document.querySelectorAll("input[data-check-group]").forEach(master => {
+    master.addEventListener("change", (e) => {
+      setCheckedByClass(e.target.dataset.checkGroup, e.target.checked);
+    });
+  });
 
   document.getElementById("search").addEventListener("input", (e) => {
     currentKeyword = e.target.value.trim();
