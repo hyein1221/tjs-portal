@@ -158,7 +158,14 @@
     .btn-danger { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
     .btn-wait { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; cursor: default; }
 
-    @media (max-width: 700px) {
+    
+    .manager-tabs { display:flex; gap:8px; margin:20px 0; border-bottom:1px solid #ddd; padding-bottom:10px; }
+    .manager-tab-btn { padding:10px 16px; border:1px solid #ccc; background:#f9fafb; cursor:pointer; border-radius:8px; font-weight:700; }
+    .manager-tab-btn.active { background:#dcfce7; color:#047857; }
+    .manager-tab-content { display:none; }
+    .manager-tab-content.active { display:block; }
+
+@media (max-width: 700px) {
       body { padding: 12px; }
       .grid-row, .material-search-row { grid-template-columns: 1fr; }
       .top { align-items: flex-start; }
@@ -195,13 +202,10 @@
   <div class="top">
     <div>
       <strong id="user-info"></strong>
-      <button id="portal-btn" class="btn-basic">통합포털</button>
       <button id="profile-btn" class="btn-basic">내 정보 변경</button>
-      <button id="my-materials-btn" class="btn-basic">내 사용현황</button>
+      <button id="my-materials-btn" class="btn-basic">교재교구 대여 현황</button>
       <button id="manager-page-btn" class="hidden btn-approve">교재교구담당자 페이지</button>
-      <button id="material-manage-page-btn" class="hidden btn-reserve">교재교구관리</button>
-      <button id="admin-page-btn" class="hidden btn-approve">관리자 페이지</button>
-      <button id="deleted-page-btn" class="hidden btn-basic">삭제 교구 복구</button>
+      <button id="portal-btn" class="btn-basic">통합포털로 이동</button>
     </div>
 
     <div class="session-box">
@@ -298,120 +302,88 @@
   <button id="my-materials-back-btn" class="btn-basic">돌아가기</button>
 </div>
 
+
 <div id="manager-screen" class="box hidden">
   <h2>교재교구담당자 페이지</h2>
 
-  <h3>사용예약 승인</h3>
-  <div class="panel">
-    <div class="grid-row">
-      <select id="rental-filter-age">
-        <option value="">연령 선택</option>
-        <option value="만1세">만1세</option>
-        <option value="만2세">만2세</option>
-        <option value="만3세">만3세</option>
-        <option value="만4세">만4세</option>
-        <option value="만5세">만5세</option>
-      </select>
-      <select id="rental-filter-class"><option value="">반 전체</option></select>
-      <button id="load-rental-filter-btn" class="btn-basic">조회</button>
-    </div>
+  <div class="manager-tabs">
+    <button class="manager-tab-btn active" data-tab="rental-tab">대여관리</button>
+    <button class="manager-tab-btn" data-tab="material-tab">교재교구관리</button>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>관리번호</th>
-        <th>분류명</th>
-        <th>물품명</th>
-        <th>요청반</th>
-        <th>요청자</th>
-        <th>처리</th>
-      </tr>
-    </thead>
-    <tbody id="rental-approve-list"></tbody>
-  </table>
-
-  <h3>반납요청 승인</h3>
-  <div class="panel">
-    <div class="grid-row">
-      <select id="return-filter-age">
-        <option value="">연령 선택</option>
-        <option value="만1세">만1세</option>
-        <option value="만2세">만2세</option>
-        <option value="만3세">만3세</option>
-        <option value="만4세">만4세</option>
-        <option value="만5세">만5세</option>
-      </select>
-      <select id="return-filter-class"><option value="">반 전체</option></select>
-      <button id="load-return-filter-btn" class="btn-basic">조회</button>
+  <div id="rental-tab" class="manager-tab-content active">
+    <h3>현재 사용중 / 반납관리</h3>
+    <div class="panel">
+      <div class="grid-row">
+        <select id="return-filter-age">
+          <option value="">연령 선택</option>
+          <option value="만1세">만1세</option>
+          <option value="만2세">만2세</option>
+          <option value="만3세">만3세</option>
+          <option value="만4세">만4세</option>
+          <option value="만5세">만5세</option>
+        </select>
+        <select id="return-filter-class"><option value="">반 전체</option></select>
+        <button id="load-return-filter-btn" class="btn-basic">조회</button>
+      </div>
     </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>관리번호</th>
+          <th>분류명</th>
+          <th>물품명</th>
+          <th>사용반</th>
+          <th>반납자</th>
+          <th>처리</th>
+        </tr>
+      </thead>
+      <tbody id="return-approve-list"></tbody>
+    </table>
+
+    <h3>월별 사용기록 출력</h3>
+    <div class="panel">
+      <div class="grid-row">
+        <select id="print-year">
+          <option value="2026">2026년</option>
+          <option value="2027">2027년</option>
+          <option value="2028">2028년</option>
+        </select>
+        <select id="print-month">
+          <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+          <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+          <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+          <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+        </select>
+        <button id="print-all-month-btn" class="btn-basic">전체 기록 출력</button>
+      </div>
+    </div>
+
+    <h3>월별 사용기록 조회</h3>
+    <button id="load-record-month-btn" class="btn-basic">선택 월 사용기록 불러오기</button>
+
+    <table>
+      <thead>
+        <tr>
+          <th>대여일</th>
+          <th>반</th>
+          <th>관리번호</th>
+          <th>교재교구명</th>
+          <th>대여자</th>
+          <th>반납일</th>
+          <th>반납자</th>
+          <th>반납승인자</th>
+          <th>초기화</th>
+        </tr>
+      </thead>
+      <tbody id="monthly-record-list"></tbody>
+    </table>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>관리번호</th>
-        <th>분류명</th>
-        <th>물품명</th>
-        <th>사용반</th>
-        <th>반납신청자</th>
-        <th>처리</th>
-      </tr>
-    </thead>
-    <tbody id="return-approve-list"></tbody>
-  </table>
+  <div id="material-tab" class="manager-tab-content">
 
-  <h3>월별 사용기록 출력</h3>
-  <div class="panel">
-    <div class="grid-row">
-      <select id="print-year">
-        <option value="2026">2026년</option>
-        <option value="2027">2027년</option>
-        <option value="2028">2028년</option>
-      </select>
-      <select id="print-month">
-        <option value="1">1월</option>
-        <option value="2">2월</option>
-        <option value="3">3월</option>
-        <option value="4">4월</option>
-        <option value="5">5월</option>
-        <option value="6">6월</option>
-        <option value="7">7월</option>
-        <option value="8">8월</option>
-        <option value="9">9월</option>
-        <option value="10">10월</option>
-        <option value="11">11월</option>
-        <option value="12">12월</option>
-      </select>
-      <button id="print-all-month-btn" class="btn-basic">전체 기록 출력</button>
-    </div>
-  </div>
 
-  <h3>월별 사용기록 조회</h3>
-  <button id="load-record-month-btn" class="btn-basic">선택 월 사용기록 불러오기</button>
-
-  <table>
-    <thead>
-      <tr>
-        <th>사용승인일</th>
-        <th>반</th>
-        <th>관리번호</th>
-        <th>물품명</th>
-        <th>요청자</th>
-        <th>승인자</th>
-        <th>반납일</th>
-        <th>반납자</th>
-        <th>반납승인자</th>
-        <th>초기화</th>
-      </tr>
-    </thead>
-    <tbody id="monthly-record-list"></tbody>
-  </table>
-
-  <button id="manager-back-btn" class="btn-basic">돌아가기</button>
-</div>
-
-<div id="admin-screen" class="box hidden">
   <h2>관리자 페이지</h2>
 
   <h3>교재교구담당자 권한 요청</h3>
@@ -444,8 +416,8 @@
   <button id="admin-back-btn" class="btn-basic">돌아가기</button>
 </div>
 
-<div id="material-manage-screen" class="box hidden">
-  <h2>교재교구관리</h2>
+
+  
 
   <h3>엑셀로 교재교구 등록</h3>
   <div class="panel">
@@ -499,28 +471,9 @@
     </table>
   </div>
 
-  <button id="material-manage-back-btn" class="btn-basic">돌아가기</button>
-</div>
+  </div>
 
-<div id="deleted-screen" class="box hidden">
-  <h2>삭제 교재교구 복구</h2>
-  <button id="load-deleted-materials-btn" class="btn-basic">삭제 교재교구 목록 불러오기</button>
-
-  <table>
-    <thead>
-      <tr>
-        <th>관리번호</th>
-        <th>분류명</th>
-        <th>물품명</th>
-        <th>삭제일시</th>
-        <th>삭제자</th>
-        <th>복구</th>
-      </tr>
-    </thead>
-    <tbody id="deleted-material-list"></tbody>
-  </table>
-
-  <button id="deleted-back-btn" class="btn-basic">돌아가기</button>
+  <button id="manager-back-btn" class="btn-basic">메인으로 돌아가기</button>
 </div>
 
 <div id="print-area" class="hidden"></div>
@@ -592,10 +545,7 @@ function showScreen(screenId) {
     "app-screen",
     "profile-screen",
     "my-materials-screen",
-    "manager-screen",
-    "admin-screen",
-    "material-manage-screen",
-    "deleted-screen"
+    "manager-screen"
   ].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add("hidden");
@@ -676,18 +626,15 @@ async function afterLoginSuccess() {
   document.getElementById("user-info").innerText =
     `${currentUser.name} / ${currentUser.class_name} / ${getMaterialRoleName(currentUser.material_role)}`;
 
-  ["manager-page-btn", "material-manage-page-btn", "admin-page-btn", "deleted-page-btn"].forEach(id => {
+  ["manager-page-btn"].forEach(id => {
     document.getElementById(id).classList.add("hidden");
   });
 
   if (currentUser.material_role === "manager" || currentUser.role === "admin") {
     document.getElementById("manager-page-btn").classList.remove("hidden");
-    document.getElementById("material-manage-page-btn").classList.remove("hidden");
   }
 
   if (currentUser.role === "admin") {
-    document.getElementById("admin-page-btn").classList.remove("hidden");
-    document.getElementById("deleted-page-btn").classList.remove("hidden");
   }
 
   resetAutoLogoutTimer();
@@ -861,7 +808,7 @@ function renderMaterials(materials) {
     let returnBtn = "-";
 
     if (!item.status || item.status === "available") {
-      reserveBtn = `<button class="btn-reserve" onclick="reserveMaterial('${item.id}')">예약</button>`;
+      reserveBtn = `<button class="btn-reserve" onclick="reserveMaterial('${item.id}')">대여</button>`;
     }
 
     if (item.status === "reserved" && isSameClass) {
@@ -935,7 +882,7 @@ async function reserveMaterial(materialId) {
   const { error } = await supabaseClient
     .from("materials")
     .update({
-      status: "reserved",
+      status: "borrowed",
       current_class: currentUser.class_name,
       current_user_id: currentUser.id
     })
@@ -951,11 +898,12 @@ async function reserveMaterial(materialId) {
     user_id: currentUser.id,
     class_name: currentUser.class_name,
     borrower_name: currentUser.name,
-    reserved_at: new Date().toISOString(),
-    status: "reserved"
+    approved_at: new Date().toISOString(),
+    approved_by: currentUser.id,
+    status: "borrowed"
   }]);
 
-  alert("사용예약이 완료되었습니다.");
+  alert("교재교구 대여가 완료되었습니다.");
   loadMaterials();
 }
 
@@ -1119,7 +1067,6 @@ async function openManagerPage() {
   if (!currentUser || (currentUser.material_role !== "manager" && currentUser.role !== "admin")) return;
 
   showScreen("manager-screen");
-  loadRentalApproveList();
   loadReturnApproveList();
   loadMonthlyRecordList();
 }
@@ -1204,7 +1151,6 @@ async function approveRental(materialId) {
     .eq("material_id", materialId)
     .eq("status", "reserved");
 
-  loadRentalApproveList();
   loadMaterials();
 }
 
@@ -1242,7 +1188,6 @@ async function rejectRental(materialId) {
   }
 
   alert("사용예약이 반려되었습니다.");
-  loadRentalApproveList();
   loadMaterials();
 }
 
@@ -1899,7 +1844,7 @@ async function loadDeletedMaterials() {
   }
 
   for (const item of data) {
-    const deletedByName = await getUserNameById(item.deleted_by);
+    const deletedByName = item.deleted_by || '-' ;
 
     list.innerHTML += `
       <tr>
@@ -1933,7 +1878,16 @@ async function restoreDeletedMaterial(materialId) {
   loadMaterials();
 }
 
+
+function switchManagerTab(tabId) {
+  document.querySelectorAll('.manager-tab-content').forEach(tab => tab.classList.remove('active'));
+  document.querySelectorAll('.manager-tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+}
+
 function bindEvents() {
+
   document.getElementById("go-portal-btn").onclick = () => location.href = "index.html";
   document.getElementById("portal-btn").onclick = () => location.href = "index.html";
   document.getElementById("logout-btn").onclick = logout;
@@ -1950,22 +1904,14 @@ function bindEvents() {
   document.getElementById("manager-page-btn").onclick = openManagerPage;
   document.getElementById("manager-back-btn").onclick = () => showScreen("app-screen");
 
-  document.getElementById("admin-page-btn").onclick = openAdminPage;
-  document.getElementById("admin-back-btn").onclick = () => showScreen("app-screen");
 
-  document.getElementById("material-manage-page-btn").onclick = () => showScreen("material-manage-screen");
-  document.getElementById("material-manage-back-btn").onclick = () => showScreen("app-screen");
 
-  document.getElementById("deleted-page-btn").onclick = () => showScreen("deleted-screen");
-  document.getElementById("deleted-back-btn").onclick = () => showScreen("app-screen");
 
   document.getElementById("prev-page-btn").onclick = prevPage;
   document.getElementById("next-page-btn").onclick = nextPage;
 
-  document.getElementById("load-rental-filter-btn").onclick = loadRentalApproveList;
   document.getElementById("load-return-filter-btn").onclick = loadReturnApproveList;
 
-  document.getElementById("rental-filter-age").onchange = () => updateClassOptions("rental-filter-age", "rental-filter-class");
   document.getElementById("return-filter-age").onchange = () => updateClassOptions("return-filter-age", "return-filter-class");
 
   document.getElementById("print-all-month-btn").onclick = printMonthlyRecords;
@@ -1976,7 +1922,10 @@ function bindEvents() {
 
   document.getElementById("manage-material-search-btn").onclick = searchManageMaterials;
   document.getElementById("search-material-date-btn").onclick = searchMaterialsByDate;
-  document.getElementById("load-deleted-materials-btn").onclick = loadDeletedMaterials;
+
+  document.querySelectorAll(".manager-tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => switchManagerTab(btn.dataset.tab));
+  });
 
   document.getElementById("page-size").onchange = (e) => {
     pageSize = Number(e.target.value);
