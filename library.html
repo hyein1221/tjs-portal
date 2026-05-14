@@ -20,6 +20,8 @@
     th { background:#f1f1f1; text-align:center; }
     .hidden { display:none; }
     .status, .btn-cell { text-align:center; }
+    .check-col { width:48px; min-width:48px; max-width:48px; text-align:center; }
+    .check-cell { width:48px; min-width:48px; max-width:48px; text-align:center; }
     .message { font-size:14px; margin-top:10px; color:#2563eb; white-space:pre-line; }
     .notice { font-size:13px; color:#666; line-height:1.5; }
     .danger-text { color:#b91c1c; }
@@ -197,7 +199,7 @@
       </div>
     </div>
     <button id="batch-rental-approve-btn" class="btn-approve">선택 도서 일괄 대여승인</button>
-    <table><thead><tr><th>선택</th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
+    <table><thead><tr><th class="check-col"><input type="checkbox" id="check-all-my-return" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
 
     <h3>반납요청 승인</h3>
     <div class="panel">
@@ -215,7 +217,7 @@
       </div>
     </div>
     <button id="batch-return-approve-btn" class="btn-approve">선택 도서 일괄 반납승인</button>
-    <table><thead><tr><th>선택</th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
+    <table><thead><tr><th class="check-col"><input type="checkbox" id="check-all-rental-approve" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
 
     <h3>대여기록 출력</h3>
     <div class="panel">
@@ -762,6 +764,7 @@ async function loadMyBooks() {
     });
   }
 
+  resetCheckAll("check-all-my-return");
   await loadMyRejections();
 }
 
@@ -893,15 +896,20 @@ async function loadRentalApproveList() {
 
   if (!sortedData || !sortedData.length) {
     list.innerHTML = `<tr><td colspan="6">선택한 연령/반의 대여예약 요청이 없습니다.</td></tr>`;
+    resetCheckAll("check-all-rental-approve");
     return;
   }
+
+  resetCheckAll("check-all-rental-approve");
+
+  resetCheckAll("check-all-return-approve");
 
   for (const book of sortedData) {
     const record = await getActiveRentalRecord(book.id, ["reserved"]);
     const borrowerName = record?.borrower_name || await getUserNameById(book.current_user_id);
     list.innerHTML += `
       <tr>
-        <td class="btn-cell"><input type="checkbox" class="manager-rental-check" value="${book.id}"></td>
+        <td class="check-cell"><input type="checkbox" class="manager-rental-check" value="${book.id}"></td>
         <td>${book["관리번호"] || ""}</td>
         <td>${book["도서명"] || ""}</td>
         <td>${book.current_class || "-"}</td>
@@ -977,6 +985,7 @@ async function loadReturnApproveList() {
 
   if (!sortedData || !sortedData.length) {
     list.innerHTML = `<tr><td colspan="6">선택한 연령/반의 반납요청이 없습니다.</td></tr>`;
+    resetCheckAll("check-all-return-approve");
     return;
   }
 
@@ -985,7 +994,7 @@ async function loadReturnApproveList() {
     const returnUserName = await getUserNameById(record?.returned_by || book.current_user_id);
     list.innerHTML += `
       <tr>
-        <td class="btn-cell"><input type="checkbox" class="manager-return-check" value="${book.id}"></td>
+        <td class="check-cell"><input type="checkbox" class="manager-return-check" value="${book.id}"></td>
         <td>${book["관리번호"] || ""}</td>
         <td>${book["도서명"] || ""}</td>
         <td>${book.current_class || "-"}</td>
@@ -1613,6 +1622,18 @@ async function batchApproveReturnBooks() {
 }
 
 
+function setCheckedByClass(className, checked) {
+  document.querySelectorAll(`.${className}`).forEach(box => {
+    box.checked = checked;
+  });
+}
+
+function resetCheckAll(id) {
+  const el = document.getElementById(id);
+  if (el) el.checked = false;
+}
+
+
 function switchManagerTab(tabId) {
   document.querySelectorAll('.manager-tab-content').forEach(tab => tab.classList.remove('active'));
   document.querySelectorAll('.manager-tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -1669,6 +1690,22 @@ function bindEvents() {
   document.querySelectorAll(".manager-tab-btn").forEach(btn => {
     btn.addEventListener("click", () => switchManagerTab(btn.dataset.tab));
   });
+
+
+  const checkAllMyReturn = document.getElementById("check-all-my-return");
+  if (checkAllMyReturn) {
+    checkAllMyReturn.addEventListener("change", (e) => setCheckedByClass("my-return-check", e.target.checked));
+  }
+
+  const checkAllRentalApprove = document.getElementById("check-all-rental-approve");
+  if (checkAllRentalApprove) {
+    checkAllRentalApprove.addEventListener("change", (e) => setCheckedByClass("manager-rental-check", e.target.checked));
+  }
+
+  const checkAllReturnApprove = document.getElementById("check-all-return-approve");
+  if (checkAllReturnApprove) {
+    checkAllReturnApprove.addEventListener("change", (e) => setCheckedByClass("manager-return-check", e.target.checked));
+  }
 
   document.getElementById("search").addEventListener("input", (e) => {
     currentKeyword = e.target.value.trim();
