@@ -22,6 +22,19 @@
     .status, .btn-cell { text-align:center; }
     .check-col { width:48px; min-width:48px; max-width:48px; text-align:center; }
     .check-cell { width:48px; min-width:48px; max-width:48px; text-align:center; }
+    .section-card {
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      padding:16px;
+      margin:16px 0 24px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.03);
+    }
+    .section-card h3 {
+      margin-top:0;
+      padding-bottom:8px;
+      border-bottom:1px solid #f1f5f9;
+    }
     .message { font-size:14px; margin-top:10px; color:#2563eb; white-space:pre-line; }
     .notice { font-size:13px; color:#666; line-height:1.5; }
     .danger-text { color:#b91c1c; }
@@ -90,7 +103,7 @@
   <div class="top">
     <div>
       <strong id="user-info"></strong>
-      <button id="my-books-btn" class="btn-basic">내 대여현황</button>
+      <button id="my-books-btn" class="btn-basic">도서 대여현황</button>
       <button id="manager-page-btn" class="hidden btn-approve">도서담당자 페이지</button>
       <button id="portal-btn" class="btn-basic">통합포털로 이동</button>
     </div>
@@ -136,7 +149,7 @@
 </div>
 
 <div id="my-books-screen" class="box hidden">
-  <h2>내 대여현황</h2>
+  <h2>도서 대여현황</h2>
 
   <p class="notice">※ 같은 반 선생님이 대여한 도서도 함께 표시되며, 같은 반 선생님이면 반납요청을 할 수 있습니다.</p>
 
@@ -145,7 +158,7 @@
   <table>
     <thead>
       <tr>
-        <th>선택</th>
+        <th class="check-col"><input type="checkbox" data-check-group="my-return-check" title="전체선택"></th>
         <th>관리번호</th>
         <th>도서명</th>
         <th>상태</th>
@@ -180,9 +193,11 @@
   <div class="manager-tabs">
     <button class="manager-tab-btn active" data-tab="rental-tab">대여관리</button>
     <button class="manager-tab-btn" data-tab="book-tab">도서관리</button>
+    <button class="manager-tab-btn" data-tab="record-tab">대여기록관리</button>
   </div>
 
   <div id="rental-tab" class="manager-tab-content active">
+    <div class="section-card">
     <h3>대여예약 승인</h3>
     <div class="panel">
       <div class="grid-row">
@@ -199,8 +214,11 @@
       </div>
     </div>
     <button id="batch-rental-approve-btn" class="btn-approve">선택 도서 일괄 대여승인</button>
-    <table><thead><tr><th class="check-col"><input type="checkbox" id="check-all-my-return" data-check-group="my-return-check" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
+    <table><thead><tr><th class="check-col"><input type="checkbox" data-check-group="manager-rental-check" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
 
+    </div>
+
+    <div class="section-card">
     <h3>반납요청 승인</h3>
     <div class="panel">
       <div class="grid-row">
@@ -217,7 +235,15 @@
       </div>
     </div>
     <button id="batch-return-approve-btn" class="btn-approve">선택 도서 일괄 반납승인</button>
-    <table><thead><tr><th class="check-col"><input type="checkbox" id="check-all-rental-approve" data-check-group="manager-rental-check" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
+    <table><thead><tr><th class="check-col"><input type="checkbox" data-check-group="manager-return-check" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
+    </div>
+
+  </div>
+
+
+  <div id="record-tab" class="manager-tab-content">
+    <div class="section-card">
+
 
     <h3>대여기록 출력</h3>
     <div class="panel">
@@ -236,15 +262,14 @@
     <h3>월별 대여기록 조회</h3>
     <button id="load-record-month-btn" class="btn-basic">선택 월 대여기록 불러오기</button>
     <table>
-      <thead><tr><th>대여일</th><th>반</th><th>관리번호</th><th>도서명</th><th>대여자</th><th>대여승인자</th><th>반납일</th><th>반납자</th><th>반납승인자</th><th>초기화</th></tr></thead>
+      <thead><tr><th>반</th><th>대여일</th><th>관리번호</th><th>도서명</th><th>대여자</th><th>대여승인자</th><th>반납일</th><th>반납자</th><th>반납승인자</th><th>초기화</th></tr></thead>
       <tbody id="monthly-record-list"></tbody>
     </table>
+    </div>
   </div>
 
   <div id="book-tab" class="manager-tab-content">
-
-
-  
+    <div class="section-card">
 
   <h3>엑셀로 도서 등록</h3>
   <div class="panel">
@@ -295,6 +320,7 @@
     </table>
   </div>
 
+    </div>
   </div>
 
   <button id="manager-back-btn" class="btn-basic">돌아가기</button>
@@ -752,7 +778,7 @@ async function loadMyBooks() {
 
       list.innerHTML += `
         <tr>
-          <td class="btn-cell">${checkBox}</td>
+          <td class="check-cell">${checkBox}</td>
           <td>${book["관리번호"] || ""}</td>
           <td>${book["도서명"] || ""}</td>
           <td>${statusText}</td>
@@ -764,7 +790,6 @@ async function loadMyBooks() {
     });
   }
 
-  resetCheckAll("check-all-my-return");
   await loadMyRejections();
 }
 
@@ -896,13 +921,8 @@ async function loadRentalApproveList() {
 
   if (!sortedData || !sortedData.length) {
     list.innerHTML = `<tr><td colspan="6">선택한 연령/반의 대여예약 요청이 없습니다.</td></tr>`;
-    resetCheckAll("check-all-rental-approve");
     return;
   }
-
-  resetCheckAll("check-all-rental-approve");
-
-  resetCheckAll("check-all-return-approve");
 
   for (const book of sortedData) {
     const record = await getActiveRentalRecord(book.id, ["reserved"]);
@@ -985,7 +1005,6 @@ async function loadReturnApproveList() {
 
   if (!sortedData || !sortedData.length) {
     list.innerHTML = `<tr><td colspan="6">선택한 연령/반의 반납요청이 없습니다.</td></tr>`;
-    resetCheckAll("check-all-return-approve");
     return;
   }
 
@@ -1119,8 +1138,8 @@ async function loadMonthlyRecordList() {
 
     list.innerHTML += `
       <tr>
-        <td>${formatDate(record.approved_at)}</td>
         <td>${record.class_name || ""}</td>
+        <td>${formatDate(record.approved_at)}</td>
         <td>${record.bookNumber}</td>
         <td>${record.bookTitle}</td>
         <td>${record.borrowerName}</td>
@@ -1622,18 +1641,6 @@ async function batchApproveReturnBooks() {
 }
 
 
-function setCheckedByClass(className, checked) {
-  document.querySelectorAll(`input[data-group="${className}"]`).forEach(box => {
-    box.checked = checked;
-  });
-}
-
-function resetCheckAll(id) {
-  const el = document.getElementById(id);
-  if (el) el.checked = false;
-}
-
-
 function switchManagerTab(tabId) {
   document.querySelectorAll('.manager-tab-content').forEach(tab => tab.classList.remove('active'));
   document.querySelectorAll('.manager-tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -1691,27 +1698,10 @@ function bindEvents() {
     btn.addEventListener("click", () => switchManagerTab(btn.dataset.tab));
   });
 
-
-  const checkAllMyReturn = document.getElementById("check-all-my-return");
-  if (checkAllMyReturn) {
-    checkAllMyReturn.addEventListener("change", (e) => setCheckedByClass("my-return-check", e.target.checked));
-  }
-
-  const checkAllRentalApprove = document.getElementById("check-all-rental-approve");
-  if (checkAllRentalApprove) {
-    checkAllRentalApprove.addEventListener("change", (e) => setCheckedByClass("manager-rental-check", e.target.checked));
-  }
-
-  const checkAllReturnApprove = document.getElementById("check-all-return-approve");
-  if (checkAllReturnApprove) {
-    checkAllReturnApprove.addEventListener("change", (e) => setCheckedByClass("manager-return-check", e.target.checked));
-  }
-
-
-  document.querySelectorAll("input[data-check-group]").forEach(master => {
-    master.addEventListener("change", (e) => {
+  document.addEventListener("change", (e) => {
+    if (e.target.matches("input[data-check-group]")) {
       setCheckedByClass(e.target.dataset.checkGroup, e.target.checked);
-    });
+    }
   });
 
   document.getElementById("search").addEventListener("input", (e) => {
