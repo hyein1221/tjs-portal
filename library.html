@@ -1518,11 +1518,11 @@ async function deleteBookSoft(bookId, status) {
 
   if (!confirm("이 도서를 삭제 처리하시겠습니까? 관리자 화면에서 복구할 수 있습니다.")) return;
 
-  const { error } = await supabaseClient.from("books").update({
-    is_deleted: true,
-    deleted_at: new Date().toISOString(),
-    deleted_by: currentUser.id
-  }).eq("id", bookId);
+const { error } = await supabaseClient.from("books").update({
+  is_deleted: true,
+  deleted_at: new Date().toISOString(),
+  deleted_by: currentUser.name
+}).eq("id", bookId);
 
   if (error) {
     alert("도서 삭제 처리 실패: " + error.message);
