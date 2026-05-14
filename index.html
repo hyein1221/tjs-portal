@@ -265,7 +265,7 @@
 
     .inline-select {
       width: auto;
-      min-width: 120px;
+      min-width: 118px;
       margin-bottom: 0;
       padding: 8px;
       font-size: 13px;
@@ -447,7 +447,7 @@
     <button id="request-material-manager-btn" class="btn-primary">교재교구담당자 권한 요청</button>
 
     <p id="profile-message" class="message"></p>
-    <button id="profile-back-btn">포털로 돌아가기</button>
+    <button id="profile-back-btn">통합포털로 돌아가기</button>
   </div>
 
   <div id="admin-screen" class="box hidden">
@@ -497,7 +497,7 @@
             <th>승인상태</th>
             <th>도서권한</th>
             <th>교재교구권한</th>
-            <th>권한변경</th>
+            <th>통합권한변경</th>
             <th>삭제</th>
           </tr>
         </thead>
@@ -526,7 +526,7 @@
             <th>이름</th>
             <th>아이디</th>
             <th>반</th>
-            <th>권한변경</th>
+            <th>통합권한변경</th>
           </tr>
         </thead>
         <tbody id="library-manager-list"></tbody>
@@ -566,7 +566,7 @@
             <th>이름</th>
             <th>아이디</th>
             <th>반</th>
-            <th>권한변경</th>
+            <th>통합권한변경</th>
           </tr>
         </thead>
         <tbody id="material-manager-list"></tbody>
@@ -615,11 +615,9 @@ function updateClassOptions(ageId, classId) {
   const age = document.getElementById(ageId).value;
   const classSelect = document.getElementById(classId);
   classSelect.innerHTML = '<option value="">변경 반 선택</option>';
-
   if (!classMap[age]) return;
-
-  classMap[age].forEach(className => {
-    classSelect.innerHTML += `<option value="${className}">${className}</option>`;
+  classMap[age].forEach(cls => {
+    classSelect.innerHTML += `<option value="${cls}">${cls}</option>`;
   });
 }
 
@@ -855,17 +853,11 @@ function openProfilePage() {
   const libraryBtn = document.getElementById("request-library-manager-btn");
   const materialBtn = document.getElementById("request-material-manager-btn");
 
-  if (currentUser.role === "admin" || currentUser.role === "manager") {
-    libraryBtn.classList.add("hidden");
-  } else {
-    libraryBtn.classList.remove("hidden");
-  }
+  if (currentUser.role === "admin" || currentUser.role === "manager") libraryBtn.classList.add("hidden");
+  else libraryBtn.classList.remove("hidden");
 
-  if (currentUser.role === "admin" || currentUser.material_role === "manager") {
-    materialBtn.classList.add("hidden");
-  } else {
-    materialBtn.classList.remove("hidden");
-  }
+  if (currentUser.role === "admin" || currentUser.material_role === "manager") materialBtn.classList.add("hidden");
+  else materialBtn.classList.remove("hidden");
 
   showOnly("profile-screen");
 }
@@ -1228,18 +1220,17 @@ async function loadCurrentUsers() {
   }
 
   data.forEach(user => {
-    const libraryRoleSelect = `
-      <select class="inline-select" id="library-role-${user.id}" ${user.id === currentUser.id ? "disabled" : ""}>
-        <option value="teacher" ${user.role === "teacher" ? "selected" : ""}>선생님</option>
-        <option value="manager" ${user.role === "manager" ? "selected" : ""}>도서담당자</option>
-        <option value="admin" ${user.role === "admin" ? "selected" : ""}>관리자</option>
-      </select>
-    `;
+    let integratedRole = "teacher";
+    if (user.role === "admin") integratedRole = "admin";
+    else if (user.role === "manager") integratedRole = "library_manager";
+    else if (user.material_role === "manager") integratedRole = "material_manager";
 
-    const materialRoleSelect = `
-      <select class="inline-select" id="material-role-${user.id}" ${user.role === "admin" || user.id === currentUser.id ? "disabled" : ""}>
-        <option value="teacher" ${user.material_role !== "manager" ? "selected" : ""}>선생님</option>
-        <option value="manager" ${user.material_role === "manager" ? "selected" : ""}>교재교구담당자</option>
+    const roleSelect = `
+      <select class="inline-select" id="integrated-role-${user.id}" ${user.id === currentUser.id ? "disabled" : ""}>
+        <option value="teacher" ${integratedRole === "teacher" ? "selected" : ""}>선생님</option>
+        <option value="library_manager" ${integratedRole === "library_manager" ? "selected" : ""}>도서담당자</option>
+        <option value="material_manager" ${integratedRole === "material_manager" ? "selected" : ""}>교재교구담당자</option>
+        <option value="admin" ${integratedRole === "admin" ? "selected" : ""}>관리자</option>
       </select>
     `;
 
@@ -1257,8 +1248,7 @@ async function loadCurrentUsers() {
         <td>${user.role === "admin" ? "관리자" : getMaterialRoleName(user.material_role)}</td>
         <td>
           <div class="compact-actions">
-            ${libraryRoleSelect}
-            ${materialRoleSelect}
+            ${roleSelect}
             <button class="btn-primary" onclick="updateUserRoles('${user.id}')">저장</button>
           </div>
         </td>
@@ -1274,16 +1264,33 @@ async function updateUserRoles(userId) {
     return;
   }
 
-  const libraryRole = document.getElementById(`library-role-${userId}`).value;
-  const materialSelect = document.getElementById(`material-role-${userId}`);
-  const materialRole = libraryRole === "admin" ? "teacher" : materialSelect.value;
+  const selectedRole = document.getElementById(`integrated-role-${userId}`).value;
+
+  let role = "teacher";
+  let material_role = "teacher";
+
+  switch(selectedRole) {
+    case "teacher":
+      role = "teacher";
+      material_role = "teacher";
+      break;
+    case "library_manager":
+      role = "manager";
+      material_role = "teacher";
+      break;
+    case "material_manager":
+      role = "teacher";
+      material_role = "manager";
+      break;
+    case "admin":
+      role = "admin";
+      material_role = "teacher";
+      break;
+  }
 
   const { error } = await supabaseClient
     .from("users")
-    .update({
-      role: libraryRole,
-      material_role: materialRole
-    })
+    .update({ role, material_role })
     .eq("id", userId);
 
   if (error) {
