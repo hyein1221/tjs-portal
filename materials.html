@@ -314,6 +314,7 @@
     <button class="manager-tab-btn active" data-tab="rental-tab">대여관리</button>
     <button class="manager-tab-btn" data-tab="material-tab">교재교구관리</button>
     <button class="manager-tab-btn" data-tab="record-tab">대여기록관리</button>
+    <button class="manager-tab-btn" data-tab="record-tab">대여기록관리</button>
   </div>
 
   <div id="rental-tab" class="manager-tab-content active">
@@ -354,42 +355,8 @@
       </thead>
       <tbody id="return-approve-list"></tbody>
     </table>
-
-    <h3>기간별 대여기록 조회 / 출력</h3>
-    <div class="panel">
-      <div class="grid-row">
-        <input id="record-start-date" type="date" />
-        <input id="record-end-date" type="date" />
-        <button id="load-record-month-btn" class="btn-basic">기간 기록 조회</button>
-      </div>
-      <button id="print-all-month-btn" class="btn-basic">기간 기록 출력</button>
-      <p class="notice">※ 두 달 단위 출력이 필요할 경우 시작일과 종료일을 해당 기간으로 선택하세요.</p>
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>반</th>
-          <th>대여일</th>
-          <th>관리번호</th>
-          <th>교재교구명</th>
-          <th>대여자</th>
-          <th>반납일</th>
-          <th>반납자</th>
-          <th>반납승인자</th>
-          <th>초기화</th>
-        </tr>
-      </thead>
-      <tbody id="monthly-record-list"></tbody>
-    </table>
   </div>
-
-
-  <div id="record-tab" class="manager-tab-content">
-
-  </div>
-
-  <div id="material-tab" class="manager-tab-content">
+<div id="material-tab" class="manager-tab-content">
 
 
   <h3>엑셀로 교재교구 등록</h3>
@@ -1332,42 +1299,52 @@ async function rejectReturn(materialId) {
   loadMaterials();
 }
 
-function getRecordRange() {
-  const startInput = document.getElementById("record-start-date")?.value;
-  const endInput = document.getElementById("record-end-date")?.value;
-  const now = new Date();
-  const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  const start = startInput ? new Date(startInput + "T00:00:00") : defaultStart;
-  const end = endInput ? new Date(endInput + "T23:59:59") : new Date(defaultEnd.getFullYear(), defaultEnd.getMonth(), defaultEnd.getDate(), 23, 59, 59);
+function getMonthRange() {
+  const year = Number(document.getElementById("print-year")?.value || new Date().getFullYear());
+  const month = Number(document.getElementById("print-month")?.value || (new Date().getMonth() + 1)) - 1;
 
   return {
-    startDate: start.toISOString(),
-    endDate: end.toISOString(),
-    title: `${start.toLocaleDateString("ko-KR")} ~ ${end.toLocaleDateString("ko-KR")}`
+    year,
+    month,
+    startDate: new Date(year, month, 1).toISOString(),
+    endDate: new Date(year, month + 1, 1).toISOString()
+  };
+}
+
+function getMonthRange() {
+  const year = Number(document.getElementById("print-year")?.value || new Date().getFullYear());
+  const month = Number(document.getElementById("print-month")?.value || (new Date().getMonth() + 1)) - 1;
+
+  return {
+    year,
+    month,
+    startDate: new Date(year, month, 1).toISOString(),
+    endDate: new Date(year, month + 1, 1).toISOString()
   };
 }
 
 function setDefaultPrintMonth() {
   const now = new Date();
-  const startEl = document.getElementById("record-start-date");
-  const endEl = document.getElementById("record-end-date");
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const yearEl = document.getElementById("print-year");
+  const monthEl = document.getElementById("print-month");
 
-  if (startEl) startEl.value = start.toISOString().slice(0, 10);
-  if (endEl) endEl.value = end.toISOString().slice(0, 10);
+  if (yearEl) yearEl.value = String(now.getFullYear());
+  if (monthEl) monthEl.value = String(now.getMonth() + 1);
 }
 
-async function getMonthlyRecords() {
-  const { startDate, endDate } = getRecordRange();
+async function getMonthlyRecords(className = null) {
+  const { startDate, endDate } = getMonthRange();
 
-  const { data: records, error } = await supabaseClient
+  let query = supabaseClient
     .from("material_records")
     .select("*")
     .gte("approved_at", startDate)
     .lt("approved_at", endDate)
     .in("status", ["borrowed", "return_requested", "returned", "return_rejected"]);
+
+  if (className) query = query.eq("class_name", className);
+
+  const { data: records, error } = await query;
 
   if (error) {
     alert("기록을 불러오지 못했습니다: " + error.message);
@@ -1402,7 +1379,7 @@ async function loadMonthlyRecordList() {
   list.innerHTML = "";
 
   if (!records.length) {
-    list.innerHTML = `<tr><td colspan="9">선택 기간 사용기록이 없습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="9">선택 월 대여기록이 없습니다.</td></tr>`;
     return;
   }
 
@@ -1465,14 +1442,19 @@ async function deleteRecord(recordId) {
   loadMaterials();
 }
 
-async function printMonthlyRecords() {
-  const { title } = getRecordRange();
-  const records = await getMonthlyRecords();
+async function printMonthlyRecords(className = null) {
+  const { year, month } = getMonthRange();
+  const records = await getMonthlyRecords(className);
   const printArea = document.getElementById("print-area");
+
+  const title = className
+    ? `${year}년 ${month + 1}월 ${className} 교재교구 대여기록`
+    : `${year}년 ${month + 1}월 전체 교재교구 대여기록`;
+
   let rows = "";
 
   if (!records.length) {
-    rows = `<tr><td colspan="8">사용기록이 없습니다.</td></tr>`;
+    rows = `<tr><td colspan="8">대여기록이 없습니다.</td></tr>`;
   } else {
     records.forEach(record => {
       rows += `
@@ -1491,8 +1473,8 @@ async function printMonthlyRecords() {
   }
 
   printArea.innerHTML = `
-    <h2>탕정삼성어린이집 교재교구 사용·반납 기록</h2>
-    <h3>${title} 전체 사용기록</h3>
+    <h2>탕정삼성어린이집 교재교구 대여·반납 기록</h2>
+    <h3>${title}</h3>
     <table>
       <thead>
         <tr>
@@ -1520,6 +1502,17 @@ async function printMonthlyRecords() {
       printArea.style.display = "none";
     }, 1000);
   }, 300);
+}
+
+function printClassMonthlyRecords() {
+  const className = document.getElementById("print-class").value;
+
+  if (!className) {
+    alert("출력할 반을 선택해주세요.");
+    return;
+  }
+
+  printMonthlyRecords(className);
 }
 
 async function openAdminPage() {
@@ -1966,8 +1959,10 @@ function bindEvents() {
   on("load-return-filter-btn", "click", loadReturnApproveList);
 
   on("return-filter-age", "change", () => updateClassOptions("return-filter-age", "return-filter-class"));
+  on("print-age", "change", () => updateClassOptions("print-age", "print-class"));
 
-  on("print-all-month-btn", "click", printMonthlyRecords);
+  on("print-all-month-btn", "click", () => printMonthlyRecords());
+  on("print-class-month-btn", "click", printClassMonthlyRecords);
   on("load-record-month-btn", "click", loadMonthlyRecordList);
 
   on("excel-upload-btn", "click", () => document.getElementById("excel-upload").click());
