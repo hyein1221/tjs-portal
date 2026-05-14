@@ -1,166 +1,1410 @@
-<!-- 탕정삼성어린이집 통합포털 관리자 탭 확장 버전 -->
-<!-- 기존 index.html 교체용 -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>탕정삼성어린이집 통합 관리 포털</title>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
-    body { margin:0; font-family: Pretendard, sans-serif; background:#f6f7fb; }
-    .hidden { display:none; }
-    .tabs { display:flex; gap:8px; margin:20px 0; flex-wrap:wrap; }
-    .tab-btn { padding:10px 16px; border:1px solid #ccc; background:white; cursor:pointer; border-radius:8px; }
-    .tab-btn.active { background:#dbeafe; font-weight:700; }
-    .tab-content { display:none; }
-    .tab-content.active { display:block; }
-    table { width:100%; border-collapse:collapse; margin-bottom:24px; background:white; }
-    th, td { border:1px solid #ddd; padding:8px; text-align:center; font-size:13px; }
-    th { background:#f3f4f6; }
-    button { padding:6px 10px; margin:2px; }
-    textarea { width:100%; min-height:60px; }
-    .admin-box { background:white; padding:24px; border-radius:16px; }
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+      background: #f6f7fb;
+      color: #111827;
+    }
+
+    .header {
+      background: white;
+      padding: 16px 20px;
+      border-bottom: 1px solid #e5e7eb;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .logo {
+      width: 48px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .wrapper {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 18px 36px;
+    }
+
+    .box {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.04);
+      margin-bottom: 20px;
+    }
+
+    .login-box {
+      max-width: 420px;
+      margin: 28px auto;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 1.35rem;
+    }
+
+    h3 {
+      margin-top: 22px;
+      margin-bottom: 10px;
+      font-size: 1.05rem;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 9px 13px;
+      margin: 3px;
+      cursor: pointer;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: white;
+      font-size: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      table-layout: fixed;
+      margin: 8px 0 18px;
+    }
+
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 8px;
+      font-size: 13px;
+      word-break: keep-all;
+      vertical-align: middle;
+      text-align: center;
+    }
+
+    th {
+      background: #f9fafb;
+      font-weight: 700;
+    }
+
+    .btn-primary {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #bbf7d0;
+      font-weight: 700;
+    }
+
+    .btn-danger {
+      background: #fef2f2;
+      color: #b91c1c;
+      border-color: #fecaca;
+    }
+
+    .btn-blue {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+      font-weight: 700;
+    }
+
+    .btn-gray {
+      background: #f9fafb;
+      color: #374151;
+      border-color: #d1d5db;
+    }
+
+    .message {
+      color: #2563eb;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-line;
+      margin-top: 10px;
+    }
+
+    .notice {
+      color: #6b7280;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .hidden { display: none !important; }
+
+    .user-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 14px 16px;
+    }
+
+    .subtext {
+      text-align: center;
+      color: #6b7280;
+      margin: 8px 0 24px;
+      font-size: 0.98rem;
+    }
+
+    .portal-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+    }
+
+    .portal-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-decoration: none;
+      color: #111827;
+      padding: 46px 24px;
+      border-radius: 24px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      text-align: center;
+      border: 1px solid #e5e7eb;
+      min-height: 260px;
+    }
+
+    .portal-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 30px rgba(0,0,0,0.08);
+    }
+
+    .library {
+      background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    }
+
+    .materials {
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    }
+
+    .icon {
+      font-size: 3.2rem;
+      margin-bottom: 16px;
+    }
+
+    .portal-card h2 {
+      font-size: 1.8rem;
+      margin: 0 0 12px;
+      font-weight: 800;
+    }
+
+    .portal-card p {
+      font-size: 0.98rem;
+      line-height: 1.65;
+      margin: 0;
+      max-width: 360px;
+      color: #4b5563;
+    }
+
+    .admin-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 18px 0 20px;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 10px;
+    }
+
+    .admin-tab-btn {
+      background: #f9fafb;
+      color: #374151;
+      border-color: #d1d5db;
+      font-weight: 700;
+    }
+
+    .admin-tab-btn.active {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+    }
+
+    .admin-tab-content {
+      display: none;
+    }
+
+    .admin-tab-content.active {
+      display: block;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 18px;
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+
+    @media (max-width: 760px) {
+      .header h1 { font-size: 1.3rem; }
+      .logo { width: 40px; }
+      .portal-container { grid-template-columns: 1fr; }
+      .portal-card { min-height: 210px; padding: 34px 18px; }
+      .portal-card h2 { font-size: 1.45rem; }
+      .wrapper { padding: 16px 12px 28px; }
+      .box { padding: 18px; }
+      table { table-layout: auto; }
+      th, td { font-size: 12px; padding: 6px; }
+    }
   </style>
 </head>
+
 <body>
 
-<div id="admin-screen" class="admin-box">
-  <h2>통합 관리자 페이지</h2>
+<header class="header">
+  <div class="header-inner">
+    <img src="logo.png" alt="탕정삼성어린이집 로고" class="logo">
+    <h1>탕정삼성어린이집 통합 관리 포털</h1>
+  </div>
+</header>
 
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchAdminTab('user-tab', this)">사용자 관리</button>
-    <button class="tab-btn" onclick="switchAdminTab('library-tab', this)">도서관리</button>
-    <button class="tab-btn" onclick="switchAdminTab('materials-tab', this)">교재교구관리</button>
+<div class="wrapper">
+
+  <div id="login-screen" class="box login-box">
+    <h2>로그인</h2>
+    <input id="login-username" placeholder="아이디" autocomplete="username" />
+    <input id="login-password" type="password" placeholder="비밀번호" autocomplete="current-password" />
+    <button id="login-btn" class="btn-primary">로그인</button>
+    <button id="show-signup-btn" class="btn-blue">회원가입</button>
+    <button id="show-find-id-btn">아이디 찾기</button>
+    <p id="login-message" class="message"></p>
+    <p class="notice">
+      로그인 후 도서관리와 교재교구관리를 한 번에 이용할 수 있습니다.<br>
+      비밀번호 찾기는 김혜인 교사에게 문의해주세요.
+    </p>
   </div>
 
-  <!-- 사용자 관리 -->
-  <div id="user-tab" class="tab-content active">
-    <h3>회원가입 승인 요청</h3>
-    <table>
-      <thead><tr><th>이름</th><th>아이디</th><th>반</th><th>처리</th></tr></thead>
-      <tbody id="pending-user-list"></tbody>
-    </table>
-
-    <h3>반 변경 요청</h3>
-    <table>
-      <thead><tr><th>이름</th><th>현재반</th><th>요청반</th><th>처리</th></tr></thead>
-      <tbody id="class-change-list"></tbody>
-    </table>
-
-    <h3>현재 사용자 목록</h3>
-    <table>
-      <thead><tr><th>이름</th><th>아이디</th><th>반</th><th>도서권한</th><th>교재교구권한</th></tr></thead>
-      <tbody id="all-user-list"></tbody>
-    </table>
+  <div id="signup-screen" class="box login-box hidden">
+    <h2>회원가입</h2>
+    <input id="signup-name" placeholder="이름" />
+    <input id="signup-username" placeholder="아이디" />
+    <input id="signup-password" type="password" placeholder="비밀번호" />
+    <select id="signup-class">
+      <option value="">반 선택</option>
+      <option value="햇빛반">햇빛반</option>
+      <option value="달빛반">달빛반</option>
+      <option value="별빛반">별빛반</option>
+      <option value="풀빛반">풀빛반</option>
+      <option value="온빛반">온빛반</option>
+      <option value="예빛반">예빛반</option>
+      <option value="봄빛반">봄빛반</option>
+      <option value="물빛반">물빛반</option>
+      <option value="꿈빛반">꿈빛반</option>
+      <option value="한빛반">한빛반</option>
+      <option value="은빛반">은빛반</option>
+      <option value="새빛반">새빛반</option>
+      <option value="윤빛반">윤빛반</option>
+      <option value="꽃빛반">꽃빛반</option>
+      <option value="들빛반">들빛반</option>
+      <option value="솔빛반">솔빛반</option>
+    </select>
+    <button id="signup-btn" class="btn-primary">가입 신청</button>
+    <button id="signup-back-btn">돌아가기</button>
+    <p id="signup-message" class="message"></p>
+    <p class="notice">가입 후 관리자의 승인이 있어야 로그인할 수 있습니다.</p>
   </div>
 
-  <!-- 도서관리 -->
-  <div id="library-tab" class="tab-content">
-    <h3>도서담당자 권한 요청</h3>
-    <table>
-      <thead><tr><th>이름</th><th>현재권한</th><th>요청</th><th>처리</th></tr></thead>
-      <tbody id="library-manager-request-list"></tbody>
-    </table>
-
-    <h3>현재 도서담당자 목록</h3>
-    <table>
-      <thead><tr><th>이름</th><th>반</th><th>권한변경</th></tr></thead>
-      <tbody id="library-manager-list"></tbody>
-    </table>
-
-    <h3>삭제 도서 복구</h3>
-    <table>
-      <thead><tr><th>도서명</th><th>관리번호</th><th>복구</th></tr></thead>
-      <tbody id="deleted-books-list"></tbody>
-    </table>
+  <div id="find-id-screen" class="box login-box hidden">
+    <h2>아이디 찾기</h2>
+    <input id="find-name" placeholder="이름" />
+    <select id="find-class">
+      <option value="">반 선택</option>
+      <option value="햇빛반">햇빛반</option>
+      <option value="달빛반">달빛반</option>
+      <option value="별빛반">별빛반</option>
+      <option value="풀빛반">풀빛반</option>
+      <option value="온빛반">온빛반</option>
+      <option value="예빛반">예빛반</option>
+      <option value="봄빛반">봄빛반</option>
+      <option value="물빛반">물빛반</option>
+      <option value="꿈빛반">꿈빛반</option>
+      <option value="한빛반">한빛반</option>
+      <option value="은빛반">은빛반</option>
+      <option value="새빛반">새빛반</option>
+      <option value="윤빛반">윤빛반</option>
+      <option value="꽃빛반">꽃빛반</option>
+      <option value="들빛반">들빛반</option>
+      <option value="솔빛반">솔빛반</option>
+    </select>
+    <button id="find-id-btn" class="btn-primary">아이디 찾기</button>
+    <button id="find-id-back-btn">돌아가기</button>
+    <p id="find-id-message" class="message"></p>
   </div>
 
-  <!-- 교재교구관리 -->
-  <div id="materials-tab" class="tab-content">
-    <h3>교재교구담당자 권한 요청</h3>
-    <table>
-      <thead><tr><th>이름</th><th>현재권한</th><th>요청</th><th>처리</th></tr></thead>
-      <tbody id="material-manager-request-list"></tbody>
-    </table>
+  <div id="portal-screen" class="hidden">
+    <div class="user-bar">
+      <strong id="user-info"></strong>
+      <div>
+        <button id="admin-page-btn" class="btn-blue hidden">관리자 페이지</button>
+        <button id="refresh-user-btn">정보 새로고침</button>
+        <button id="logout-btn" class="btn-danger">로그아웃</button>
+      </div>
+    </div>
 
-    <h3>현재 교재교구담당자 목록</h3>
-    <table>
-      <thead><tr><th>이름</th><th>반</th><th>권한변경</th></tr></thead>
-      <tbody id="material-manager-list"></tbody>
-    </table>
+    <p class="subtext">도서관리 및 교재교구관리를 하나의 포털에서 이용하세요.</p>
 
-    <h3>삭제 교재교구 복구</h3>
-    <table>
-      <thead><tr><th>물품명</th><th>관리번호</th><th>복구</th></tr></thead>
-      <tbody id="deleted-materials-list"></tbody>
-    </table>
+    <main class="portal-container">
+      <a href="library.html" class="portal-card library">
+        <div class="icon">📚</div>
+        <h2>도서관리 시스템</h2>
+        <p>
+          도서 대여, 반납, 승인, 월별 기록 관리까지<br>
+          어린이집 도서를 체계적으로 운영할 수 있습니다.
+        </p>
+      </a>
+
+      <a href="materials.html" class="portal-card materials">
+        <div class="icon">🧩</div>
+        <h2>교재교구관리 시스템</h2>
+        <p>
+          교재교구 등록, 수량, 위치, 사용반 관리 및<br>
+          대여·반납까지 통합 관리할 수 있습니다.
+        </p>
+      </a>
+    </main>
   </div>
+
+  <div id="admin-screen" class="box hidden">
+    <h2>통합 관리자 페이지</h2>
+    <p class="notice">아래 탭을 눌러 필요한 관리 항목만 확인할 수 있습니다.</p>
+
+    <div class="admin-tabs">
+      <button class="admin-tab-btn active" data-tab="admin-user-tab">사용자 관리</button>
+      <button class="admin-tab-btn" data-tab="admin-library-tab">도서관리</button>
+      <button class="admin-tab-btn" data-tab="admin-material-tab">교재교구관리</button>
+    </div>
+
+    <div id="admin-user-tab" class="admin-tab-content active">
+      <h3>회원가입 승인 요청</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>이름</th>
+            <th>아이디</th>
+            <th>반</th>
+            <th>처리</th>
+          </tr>
+        </thead>
+        <tbody id="pending-user-list"></tbody>
+      </table>
+
+      <h3>반 변경 요청</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>이름</th>
+            <th>현재반</th>
+            <th>요청반</th>
+            <th>처리</th>
+          </tr>
+        </thead>
+        <tbody id="class-change-request-list"></tbody>
+      </table>
+
+      <h3>현재 사용자 목록</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>이름</th>
+            <th>아이디</th>
+            <th>반</th>
+            <th>승인상태</th>
+            <th>도서권한</th>
+            <th>교재교구권한</th>
+          </tr>
+        </thead>
+        <tbody id="current-user-list"></tbody>
+      </table>
+    </div>
+
+    <div id="admin-library-tab" class="admin-tab-content">
+      <h3>도서담당자 권한 요청</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>이름</th>
+            <th>현재권한</th>
+            <th>요청권한</th>
+            <th>처리</th>
+          </tr>
+        </thead>
+        <tbody id="library-manager-request-list"></tbody>
+      </table>
+
+      <h3>현재 도서담당자 목록</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>이름</th>
+            <th>아이디</th>
+            <th>반</th>
+            <th>권한변경</th>
+          </tr>
+        </thead>
+        <tbody id="library-manager-list"></tbody>
+      </table>
+
+      <h3>삭제 도서 복구</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>관리번호</th>
+            <th>도서명</th>
+            <th>복구</th>
+          </tr>
+        </thead>
+        <tbody id="deleted-book-list"></tbody>
+      </table>
+    </div>
+
+    <div id="admin-material-tab" class="admin-tab-content">
+      <h3>교재교구담당자 권한 요청</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>이름</th>
+            <th>현재권한</th>
+            <th>요청권한</th>
+            <th>처리</th>
+          </tr>
+        </thead>
+        <tbody id="material-manager-request-list"></tbody>
+      </table>
+
+      <h3>현재 교재교구담당자 목록</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>이름</th>
+            <th>아이디</th>
+            <th>반</th>
+            <th>권한변경</th>
+          </tr>
+        </thead>
+        <tbody id="material-manager-list"></tbody>
+      </table>
+
+      <h3>삭제 교재교구 복구</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>관리번호</th>
+            <th>물품명</th>
+            <th>복구</th>
+          </tr>
+        </thead>
+        <tbody id="deleted-material-list"></tbody>
+      </table>
+    </div>
+
+    <button id="admin-refresh-btn" class="btn-blue">관리자 정보 새로고침</button>
+    <button id="admin-back-btn">포털로 돌아가기</button>
+    <p id="admin-message" class="message"></p>
+  </div>
+
 </div>
 
+<footer class="footer">
+  기타 문의사항: 김혜인 교사 | 탕정삼성어린이집
+</footer>
+
 <script>
-const supabaseUrl = "YOUR_SUPABASE_URL";
-const supabaseKey = "YOUR_SUPABASE_KEY";
+const supabaseUrl = "https://vohcugxfwxdvkbcpjcgl.supabase.co";
+const supabaseKey = "sb_publishable_Q0cXaglzBaz9Py2oct_NTQ_vMHsUeSQ";
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-function switchAdminTab(tabId, btn) {
-  document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(tab => tab.classList.remove('active'));
-  document.getElementById(tabId).classList.add('active');
-  btn.classList.add('active');
+let currentUser = null;
+
+function showOnly(screenId) {
+  ["login-screen", "signup-screen", "find-id-screen", "portal-screen", "admin-screen"].forEach(id => {
+    document.getElementById(id).classList.add("hidden");
+  });
+  document.getElementById(screenId).classList.remove("hidden");
+}
+
+function setMessage(id, text, color = "#2563eb") {
+  const el = document.getElementById(id);
+  el.innerText = text;
+  el.style.color = color;
+}
+
+function getRoleText(user) {
+  if (!user) return "";
+  if (user.role === "admin") return "관리자";
+  if (user.role === "manager" && user.material_role === "manager") return "도서담당자 / 교재교구담당자";
+  if (user.role === "manager") return "도서담당자";
+  if (user.material_role === "manager") return "교재교구담당자";
+  return "선생님";
+}
+
+function getLibraryRoleName(role) {
+  if (role === "admin") return "관리자";
+  if (role === "manager") return "도서담당자";
+  return "선생님";
+}
+
+function getMaterialRoleName(role) {
+  if (role === "manager") return "교재교구담당자";
+  return "선생님";
+}
+
+function saveIntegratedLogin(user) {
+  currentUser = user;
+  localStorage.setItem("libraryCurrentUser", JSON.stringify(user));
+  localStorage.setItem("materialsCurrentUser", JSON.stringify(user));
+}
+
+function clearIntegratedLogin() {
+  currentUser = null;
+  localStorage.removeItem("libraryCurrentUser");
+  localStorage.removeItem("materialsCurrentUser");
+}
+
+async function refreshCurrentUser() {
+  if (!currentUser?.id) return false;
+
+  const { data, error } = await supabaseClient
+    .from("users")
+    .select("*")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+
+  if (error || !data) return false;
+
+  if (data.approval_status !== "approved") {
+    clearIntegratedLogin();
+    showOnly("login-screen");
+    setMessage("login-message", "승인되지 않았거나 비활성화된 계정입니다.", "red");
+    return false;
+  }
+
+  saveIntegratedLogin(data);
+  renderPortal();
+  return true;
+}
+
+function renderPortal() {
+  if (!currentUser) {
+    showOnly("login-screen");
+    return;
+  }
+
+  document.getElementById("user-info").innerText =
+    `${currentUser.name} / ${currentUser.class_name} / ${getRoleText(currentUser)}`;
+
+  if (currentUser.role === "admin") {
+    document.getElementById("admin-page-btn").classList.remove("hidden");
+  } else {
+    document.getElementById("admin-page-btn").classList.add("hidden");
+  }
+
+  showOnly("portal-screen");
+}
+
+async function restoreLogin() {
+  const savedUser =
+    localStorage.getItem("libraryCurrentUser") ||
+    localStorage.getItem("materialsCurrentUser");
+
+  if (!savedUser) {
+    showOnly("login-screen");
+    return;
+  }
+
+  try {
+    currentUser = JSON.parse(savedUser);
+    const ok = await refreshCurrentUser();
+    if (!ok && currentUser) renderPortal();
+  } catch (error) {
+    clearIntegratedLogin();
+    showOnly("login-screen");
+  }
+}
+
+async function login() {
+  const username = document.getElementById("login-username").value.trim();
+  const password = document.getElementById("login-password").value.trim();
+
+  if (!username || !password) {
+    setMessage("login-message", "아이디와 비밀번호를 모두 입력해주세요.", "red");
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("users")
+    .select("*")
+    .eq("username", username)
+    .maybeSingle();
+
+  if (error || !data) {
+    setMessage("login-message", "등록되지 않은 아이디입니다.", "red");
+    return;
+  }
+
+  if (data.password !== password) {
+    setMessage("login-message", "비밀번호가 틀렸습니다.", "red");
+    return;
+  }
+
+  if (data.approval_status === "inactive") {
+    setMessage("login-message", "비활성화된 계정입니다. 관리자에게 문의해주세요.", "red");
+    return;
+  }
+
+  if (data.approval_status !== "approved") {
+    setMessage("login-message", "관리자 승인 대기중입니다.");
+    return;
+  }
+
+  saveIntegratedLogin(data);
+  setMessage("login-message", "");
+  renderPortal();
+}
+
+async function signup() {
+  const name = document.getElementById("signup-name").value.trim();
+  const username = document.getElementById("signup-username").value.trim();
+  const password = document.getElementById("signup-password").value.trim();
+  const className = document.getElementById("signup-class").value;
+
+  if (!name || !username || !password || !className) {
+    setMessage("signup-message", "이름, 아이디, 비밀번호, 반을 모두 입력해주세요.", "red");
+    return;
+  }
+
+  const { data: existing } = await supabaseClient
+    .from("users")
+    .select("id")
+    .eq("username", username)
+    .maybeSingle();
+
+  if (existing) {
+    setMessage("signup-message", "이미 사용 중인 아이디입니다.", "red");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("users")
+    .insert([{
+      name,
+      username,
+      password,
+      class_name: className,
+      role: "teacher",
+      material_role: "teacher",
+      approval_status: "pending"
+    }]);
+
+  if (error) {
+    setMessage("signup-message", "회원가입 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("signup-message", "가입 신청이 완료되었습니다. 관리자 승인 후 로그인할 수 있습니다.");
+}
+
+async function findId() {
+  const name = document.getElementById("find-name").value.trim();
+  const className = document.getElementById("find-class").value;
+
+  if (!name || !className) {
+    setMessage("find-id-message", "이름과 반을 모두 입력해주세요.", "red");
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("users")
+    .select("username")
+    .eq("name", name)
+    .eq("class_name", className);
+
+  if (error) {
+    setMessage("find-id-message", "아이디 찾기 실패: " + error.message, "red");
+    return;
+  }
+
+  if (!data || !data.length) {
+    setMessage("find-id-message", "일치하는 계정을 찾을 수 없습니다.", "red");
+    return;
+  }
+
+  const ids = data.map(user => user.username).join(", ");
+  setMessage("find-id-message", `아이디: ${ids}`);
+}
+
+function logout() {
+  clearIntegratedLogin();
+  document.getElementById("login-username").value = "";
+  document.getElementById("login-password").value = "";
+  setMessage("login-message", "");
+  showOnly("login-screen");
+}
+
+function switchAdminTab(tabId) {
+  document.querySelectorAll(".admin-tab-content").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".admin-tab-btn").forEach(el => el.classList.remove("active"));
+  document.getElementById(tabId).classList.add("active");
+  document.querySelector(`[data-tab="${tabId}"]`).classList.add("active");
+}
+
+async function openAdminPage() {
+  if (!currentUser || currentUser.role !== "admin") return;
+  showOnly("admin-screen");
+  switchAdminTab("admin-user-tab");
+  await loadAdminPage();
+}
+
+async function loadAdminPage() {
+  await Promise.all([
+    loadPendingUsers(),
+    loadClassChangeRequests(),
+    loadCurrentUsers(),
+    loadLibraryManagerRequests(),
+    loadLibraryManagers(),
+    loadDeletedBooks(),
+    loadMaterialManagerRequests(),
+    loadMaterialManagers(),
+    loadDeletedMaterials()
+  ]);
 }
 
 async function loadPendingUsers() {
-  const { data } = await supabaseClient.from('users').select('*').eq('approval_status','pending');
-  const tbody = document.getElementById('pending-user-list');
-  tbody.innerHTML = '';
-  data?.forEach(user => {
-    tbody.innerHTML += `
+  const { data, error } = await supabaseClient
+    .from("users")
+    .select("*")
+    .eq("approval_status", "pending")
+    .order("created_at", { ascending: true });
+
+  const list = document.getElementById("pending-user-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="4">회원가입 승인 요청을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="4">회원가입 승인 요청이 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(user => {
+    list.innerHTML += `
       <tr>
-        <td>${user.name}</td>
-        <td>${user.username}</td>
-        <td>${user.class_name}</td>
+        <td>${user.name || ""}</td>
+        <td>${user.username || ""}</td>
+        <td>${user.class_name || ""}</td>
         <td>
-          <button onclick="approveUser('${user.id}')">승인</button>
-          <button onclick="rejectUser('${user.id}')">거절</button>
+          <button class="btn-primary" onclick="approveUser('${user.id}')">승인</button>
+          <button class="btn-danger" onclick="rejectUser('${user.id}')">거절</button>
         </td>
-      </tr>`;
+      </tr>
+    `;
   });
 }
 
+async function approveUser(userId) {
+  const { error } = await supabaseClient
+    .from("users")
+    .update({ approval_status: "approved", rejected_reason: null, rejected_at: null })
+    .eq("id", userId);
+
+  if (error) {
+    setMessage("admin-message", "회원 승인 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "회원 승인이 완료되었습니다.");
+  loadPendingUsers();
+  loadCurrentUsers();
+}
+
 async function rejectUser(userId) {
-  const reason = prompt('거절 사유를 입력하세요');
-  if (!reason) return;
-  await supabaseClient.from('users').update({
-    approval_status:'rejected',
-    rejected_reason:reason,
-    rejected_at:new Date().toISOString()
-  }).eq('id', userId);
+  const reason = prompt("회원가입 거절 사유를 입력해주세요.");
+  if (!reason || !reason.trim()) return;
+
+  const { error } = await supabaseClient
+    .from("users")
+    .update({
+      approval_status: "rejected",
+      rejected_reason: reason.trim(),
+      rejected_at: new Date().toISOString()
+    })
+    .eq("id", userId);
+
+  if (error) {
+    setMessage("admin-message", "회원가입 거절 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "회원가입 요청이 거절되었습니다.");
   loadPendingUsers();
 }
 
-async function loadClassChangeRequests() {}
-async function loadAllUsers() {}
-async function loadLibraryRequests() {}
-async function loadLibraryManagers() {}
-async function loadDeletedBooks() {}
-async function loadMaterialRequests() {}
-async function loadMaterialManagers() {}
-async function loadDeletedMaterials() {}
+async function loadClassChangeRequests() {
+  const { data, error } = await supabaseClient
+    .from("class_change_requests")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
 
-async function initializeAdminPage() {
-  await loadPendingUsers();
-  await loadClassChangeRequests();
-  await loadAllUsers();
-  await loadLibraryRequests();
-  await loadLibraryManagers();
-  await loadDeletedBooks();
-  await loadMaterialRequests();
-  await loadMaterialManagers();
-  await loadDeletedMaterials();
+  const list = document.getElementById("class-change-request-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="4">반 변경 요청을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="4">반 변경 요청이 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(req => {
+    list.innerHTML += `
+      <tr>
+        <td>${req.name || ""}</td>
+        <td>${req.current_class || ""}</td>
+        <td>${req.requested_class || ""}</td>
+        <td>
+          <button class="btn-primary" onclick="approveClassChange('${req.id}', '${req.user_id}', '${req.requested_class}')">승인</button>
+          <button class="btn-danger" onclick="rejectClassChange('${req.id}')">반려</button>
+        </td>
+      </tr>
+    `;
+  });
 }
 
-initializeAdminPage();
+async function approveClassChange(requestId, userId, requestedClass) {
+  const userUpdate = await supabaseClient
+    .from("users")
+    .update({ class_name: requestedClass })
+    .eq("id", userId);
+
+  if (userUpdate.error) {
+    setMessage("admin-message", "반 변경 실패: " + userUpdate.error.message, "red");
+    return;
+  }
+
+  const requestUpdate = await supabaseClient
+    .from("class_change_requests")
+    .update({
+      status: "approved",
+      approved_by: currentUser.id,
+      processed_at: new Date().toISOString()
+    })
+    .eq("id", requestId);
+
+  if (requestUpdate.error) {
+    setMessage("admin-message", "반 변경 요청 처리 실패: " + requestUpdate.error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "반 변경이 승인되었습니다.");
+  loadClassChangeRequests();
+  loadCurrentUsers();
+}
+
+async function rejectClassChange(requestId) {
+  const reason = prompt("반 변경 반려 사유를 입력해주세요.");
+  if (!reason || !reason.trim()) return;
+
+  const { error } = await supabaseClient
+    .from("class_change_requests")
+    .update({
+      status: "rejected",
+      reject_reason: reason.trim(),
+      rejected_by: currentUser.id,
+      processed_at: new Date().toISOString()
+    })
+    .eq("id", requestId);
+
+  if (error) {
+    setMessage("admin-message", "반 변경 반려 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "반 변경 요청이 반려되었습니다.");
+  loadClassChangeRequests();
+}
+
+async function loadCurrentUsers() {
+  const { data, error } = await supabaseClient
+    .from("users")
+    .select("*")
+    .order("class_name", { ascending: true })
+    .order("name", { ascending: true });
+
+  const list = document.getElementById("current-user-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="6">사용자 목록을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="6">사용자가 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(user => {
+    list.innerHTML += `
+      <tr>
+        <td>${user.name || ""}</td>
+        <td>${user.username || ""}</td>
+        <td>${user.class_name || ""}</td>
+        <td>${user.approval_status || ""}</td>
+        <td>${getLibraryRoleName(user.role)}</td>
+        <td>${user.role === "admin" ? "관리자" : getMaterialRoleName(user.material_role)}</td>
+      </tr>
+    `;
+  });
+}
+
+async function loadLibraryManagerRequests() {
+  const { data, error } = await supabaseClient
+    .from("manager_role_requests")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  const list = document.getElementById("library-manager-request-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="4">도서담당자 권한 요청을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="4">도서담당자 권한 요청이 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(req => {
+    const role = req.current_role || req.user_role || "teacher";
+    list.innerHTML += `
+      <tr>
+        <td>${req.name || ""}</td>
+        <td>${getLibraryRoleName(role)}</td>
+        <td>도서담당자</td>
+        <td>
+          <button class="btn-primary" onclick="approveLibraryManagerRole('${req.id}', '${req.user_id}')">승인</button>
+          <button class="btn-danger" onclick="rejectLibraryManagerRole('${req.id}')">반려</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function approveLibraryManagerRole(requestId, userId) {
+  const userUpdate = await supabaseClient
+    .from("users")
+    .update({ role: "manager" })
+    .eq("id", userId);
+
+  if (userUpdate.error) {
+    setMessage("admin-message", "도서담당자 권한 승인 실패: " + userUpdate.error.message, "red");
+    return;
+  }
+
+  const requestUpdate = await supabaseClient
+    .from("manager_role_requests")
+    .update({ status: "approved" })
+    .eq("id", requestId);
+
+  if (requestUpdate.error) {
+    setMessage("admin-message", "도서담당자 요청 처리 실패: " + requestUpdate.error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "도서담당자 권한이 승인되었습니다.");
+  loadLibraryManagerRequests();
+  loadLibraryManagers();
+  loadCurrentUsers();
+}
+
+async function rejectLibraryManagerRole(requestId) {
+  const reason = prompt("도서담당자 권한 반려 사유를 입력해주세요.");
+  if (!reason || !reason.trim()) return;
+
+  const { error } = await supabaseClient
+    .from("manager_role_requests")
+    .update({
+      status: "rejected",
+      reject_reason: reason.trim(),
+      rejected_at: new Date().toISOString(),
+      rejected_by: currentUser.id
+    })
+    .eq("id", requestId);
+
+  if (error) {
+    setMessage("admin-message", "도서담당자 권한 반려 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "도서담당자 권한 요청이 반려되었습니다.");
+  loadLibraryManagerRequests();
+}
+
+async function loadLibraryManagers() {
+  const { data, error } = await supabaseClient
+    .from("users")
+    .select("*")
+    .eq("role", "manager")
+    .eq("approval_status", "approved")
+    .order("class_name", { ascending: true });
+
+  const list = document.getElementById("library-manager-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="4">도서담당자 목록을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="4">현재 도서담당자가 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(user => {
+    list.innerHTML += `
+      <tr>
+        <td>${user.name || ""}</td>
+        <td>${user.username || ""}</td>
+        <td>${user.class_name || ""}</td>
+        <td><button class="btn-danger" onclick="changeLibraryManagerToTeacher('${user.id}')">선생님 권한으로 변경</button></td>
+      </tr>
+    `;
+  });
+}
+
+async function changeLibraryManagerToTeacher(userId) {
+  if (!confirm("도서담당자를 선생님 권한으로 변경하시겠습니까?")) return;
+
+  const { error } = await supabaseClient
+    .from("users")
+    .update({ role: "teacher" })
+    .eq("id", userId);
+
+  if (error) {
+    setMessage("admin-message", "도서담당자 권한 변경 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "도서담당자 권한이 변경되었습니다.");
+  loadLibraryManagers();
+  loadCurrentUsers();
+}
+
+async function loadDeletedBooks() {
+  const { data, error } = await supabaseClient
+    .from("books")
+    .select("*")
+    .eq("is_deleted", true)
+    .order("deleted_at", { ascending: false });
+
+  const list = document.getElementById("deleted-book-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="3">삭제 도서 목록을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="3">삭제 도서가 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(book => {
+    const number = book["관리번호"] || book.book_number || book.code || "";
+    const title = book["도서명"] || book.title || book.book_name || "";
+    list.innerHTML += `
+      <tr>
+        <td>${number}</td>
+        <td>${title}</td>
+        <td><button class="btn-primary" onclick="restoreBook('${book.id}')">복구</button></td>
+      </tr>
+    `;
+  });
+}
+
+async function restoreBook(bookId) {
+  if (!confirm("삭제 도서를 복구하시겠습니까?")) return;
+
+  const { error } = await supabaseClient
+    .from("books")
+    .update({ is_deleted: false, deleted_at: null, deleted_by: null })
+    .eq("id", bookId);
+
+  if (error) {
+    setMessage("admin-message", "도서 복구 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "도서가 복구되었습니다.");
+  loadDeletedBooks();
+}
+
+async function loadMaterialManagerRequests() {
+  const { data, error } = await supabaseClient
+    .from("material_manager_role_requests")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  const list = document.getElementById("material-manager-request-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="4">교재교구담당자 권한 요청을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="4">교재교구담당자 권한 요청이 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(req => {
+    const role = req.user_role || req.current_role || "teacher";
+    list.innerHTML += `
+      <tr>
+        <td>${req.name || ""}</td>
+        <td>${getMaterialRoleName(role)}</td>
+        <td>교재교구담당자</td>
+        <td>
+          <button class="btn-primary" onclick="approveMaterialManagerRole('${req.id}', '${req.user_id}')">승인</button>
+          <button class="btn-danger" onclick="rejectMaterialManagerRole('${req.id}')">반려</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function approveMaterialManagerRole(requestId, userId) {
+  const userUpdate = await supabaseClient
+    .from("users")
+    .update({ material_role: "manager" })
+    .eq("id", userId);
+
+  if (userUpdate.error) {
+    setMessage("admin-message", "교재교구담당자 권한 승인 실패: " + userUpdate.error.message, "red");
+    return;
+  }
+
+  const requestUpdate = await supabaseClient
+    .from("material_manager_role_requests")
+    .update({
+      status: "approved",
+      approved_by: currentUser.id,
+      processed_at: new Date().toISOString()
+    })
+    .eq("id", requestId);
+
+  if (requestUpdate.error) {
+    setMessage("admin-message", "교재교구담당자 요청 처리 실패: " + requestUpdate.error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "교재교구담당자 권한이 승인되었습니다.");
+  loadMaterialManagerRequests();
+  loadMaterialManagers();
+  loadCurrentUsers();
+}
+
+async function rejectMaterialManagerRole(requestId) {
+  const reason = prompt("교재교구담당자 권한 반려 사유를 입력해주세요.");
+  if (!reason || !reason.trim()) return;
+
+  const { error } = await supabaseClient
+    .from("material_manager_role_requests")
+    .update({
+      status: "rejected",
+      reject_reason: reason.trim(),
+      rejected_at: new Date().toISOString(),
+      rejected_by: currentUser.id
+    })
+    .eq("id", requestId);
+
+  if (error) {
+    setMessage("admin-message", "교재교구담당자 권한 반려 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "교재교구담당자 권한 요청이 반려되었습니다.");
+  loadMaterialManagerRequests();
+}
+
+async function loadMaterialManagers() {
+  const { data, error } = await supabaseClient
+    .from("users")
+    .select("*")
+    .eq("material_role", "manager")
+    .eq("approval_status", "approved")
+    .order("class_name", { ascending: true });
+
+  const list = document.getElementById("material-manager-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="4">교재교구담당자 목록을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="4">현재 교재교구담당자가 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(user => {
+    list.innerHTML += `
+      <tr>
+        <td>${user.name || ""}</td>
+        <td>${user.username || ""}</td>
+        <td>${user.class_name || ""}</td>
+        <td><button class="btn-danger" onclick="changeMaterialManagerToTeacher('${user.id}')">선생님 권한으로 변경</button></td>
+      </tr>
+    `;
+  });
+}
+
+async function changeMaterialManagerToTeacher(userId) {
+  if (!confirm("교재교구담당자를 선생님 권한으로 변경하시겠습니까?")) return;
+
+  const { error } = await supabaseClient
+    .from("users")
+    .update({ material_role: "teacher" })
+    .eq("id", userId);
+
+  if (error) {
+    setMessage("admin-message", "교재교구담당자 권한 변경 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "교재교구담당자 권한이 변경되었습니다.");
+  loadMaterialManagers();
+  loadCurrentUsers();
+}
+
+async function loadDeletedMaterials() {
+  const { data, error } = await supabaseClient
+    .from("materials")
+    .select("*")
+    .eq("is_deleted", true)
+    .order("deleted_at", { ascending: false });
+
+  const list = document.getElementById("deleted-material-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="3">삭제 교재교구 목록을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="3">삭제 교재교구가 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(item => {
+    const number = item["관리번호"] || item.material_number || item.code || "";
+    const title = item["물품명"] || item.title || item.material_name || "";
+    list.innerHTML += `
+      <tr>
+        <td>${number}</td>
+        <td>${title}</td>
+        <td><button class="btn-primary" onclick="restoreMaterial('${item.id}')">복구</button></td>
+      </tr>
+    `;
+  });
+}
+
+async function restoreMaterial(materialId) {
+  if (!confirm("삭제 교재교구를 복구하시겠습니까?")) return;
+
+  const { error } = await supabaseClient
+    .from("materials")
+    .update({ is_deleted: false, deleted_at: null, deleted_by: null })
+    .eq("id", materialId);
+
+  if (error) {
+    setMessage("admin-message", "교재교구 복구 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "교재교구가 복구되었습니다.");
+  loadDeletedMaterials();
+}
+
+function bindEvents() {
+  document.getElementById("login-btn").onclick = login;
+  document.getElementById("show-signup-btn").onclick = () => showOnly("signup-screen");
+  document.getElementById("show-find-id-btn").onclick = () => showOnly("find-id-screen");
+  document.getElementById("signup-back-btn").onclick = () => showOnly("login-screen");
+  document.getElementById("find-id-back-btn").onclick = () => showOnly("login-screen");
+  document.getElementById("signup-btn").onclick = signup;
+  document.getElementById("find-id-btn").onclick = findId;
+  document.getElementById("logout-btn").onclick = logout;
+  document.getElementById("refresh-user-btn").onclick = refreshCurrentUser;
+  document.getElementById("admin-page-btn").onclick = openAdminPage;
+  document.getElementById("admin-back-btn").onclick = renderPortal;
+  document.getElementById("admin-refresh-btn").onclick = loadAdminPage;
+
+  document.querySelectorAll(".admin-tab-btn").forEach(btn => {
+    btn.onclick = () => switchAdminTab(btn.dataset.tab);
+  });
+
+  document.getElementById("login-username").addEventListener("keydown", e => {
+    if (e.key === "Enter") login();
+  });
+
+  document.getElementById("login-password").addEventListener("keydown", e => {
+    if (e.key === "Enter") login();
+  });
+}
+
+bindEvents();
+restoreLogin();
 </script>
 
 </body>
