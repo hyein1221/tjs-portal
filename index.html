@@ -538,6 +538,8 @@
           <tr>
             <th>관리번호</th>
             <th>도서명</th>
+            <th>삭제자</th>
+            <th>삭제일</th>
             <th>복구</th>
           </tr>
         </thead>
@@ -578,6 +580,8 @@
           <tr>
             <th>관리번호</th>
             <th>물품명</th>
+            <th>삭제자</th>
+            <th>삭제일</th>
             <th>복구</th>
           </tr>
         </thead>
@@ -1470,22 +1474,27 @@ async function loadDeletedBooks() {
   list.innerHTML = "";
 
   if (error) {
-    list.innerHTML = `<tr><td colspan="3">삭제 도서 목록을 불러오지 못했습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="5">삭제 도서 목록을 불러오지 못했습니다.</td></tr>`;
     return;
   }
 
   if (!data || !data.length) {
-    list.innerHTML = `<tr><td colspan="3">삭제 도서가 없습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="5">삭제 도서가 없습니다.</td></tr>`;
     return;
   }
 
   data.forEach(book => {
     const number = book["관리번호"] || book.book_number || book.code || "";
     const title = book["도서명"] || book.title || book.book_name || "";
+    const deletedBy = book.deleted_by || "-";
+    const deletedAt = book.deleted_at ? new Date(book.deleted_at).toLocaleString("ko-KR") : "-";
+
     list.innerHTML += `
       <tr>
         <td>${number}</td>
         <td>${title}</td>
+        <td>${deletedBy}</td>
+        <td>${deletedAt}</td>
         <td><button class="btn-primary" onclick="restoreBook('${book.id}')">복구</button></td>
       </tr>
     `;
@@ -1661,22 +1670,27 @@ async function loadDeletedMaterials() {
   list.innerHTML = "";
 
   if (error) {
-    list.innerHTML = `<tr><td colspan="3">삭제 교재교구 목록을 불러오지 못했습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="5">삭제 교재교구 목록을 불러오지 못했습니다.</td></tr>`;
     return;
   }
 
   if (!data || !data.length) {
-    list.innerHTML = `<tr><td colspan="3">삭제 교재교구가 없습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="5">삭제 교재교구가 없습니다.</td></tr>`;
     return;
   }
 
   data.forEach(item => {
     const number = item["관리번호"] || item.material_number || item.code || "";
     const title = item["물품명"] || item.title || item.material_name || "";
+    const deletedBy = item.deleted_by || "-";
+    const deletedAt = item.deleted_at ? new Date(item.deleted_at).toLocaleString("ko-KR") : "-";
+
     list.innerHTML += `
       <tr>
         <td>${number}</td>
         <td>${title}</td>
+        <td>${deletedBy}</td>
+        <td>${deletedAt}</td>
         <td><button class="btn-primary" onclick="restoreMaterial('${item.id}')">복구</button></td>
       </tr>
     `;
