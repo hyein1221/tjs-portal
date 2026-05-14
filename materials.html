@@ -4,10 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>탕정삼성어린이집 교재교구관리 시스템</title>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-
   <style>
     body { font-family:sans-serif; padding:20px; background:#fafafa; }
     h1 { margin:0; }
@@ -22,7 +20,6 @@
     .status, .btn-cell { text-align:center; }
     .message { font-size:14px; margin-top:10px; color:#2563eb; white-space:pre-line; }
     .notice { font-size:13px; color:#666; line-height:1.5; }
-    .danger-text { color:#b91c1c; }
     .title-row { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
     .logo { width:52px; height:auto; object-fit:contain; }
     .login-contact { text-align:center; font-size:14px; color:#555; max-width:1100px; margin-top:-10px; }
@@ -37,7 +34,6 @@
     .grid-row select, .grid-row input { margin-bottom:0; }
     .material-search-row { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; margin-bottom:8px; }
     .material-search-row input { margin-bottom:0; }
-
     .btn-basic { background:white; color:#111; }
     .btn-reserve { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
     .btn-cancel { background:#f3f4f6; color:#4b5563; border-color:#d1d5db; }
@@ -45,7 +41,6 @@
     .btn-approve { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
     .btn-danger { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
     .btn-wait { background:#f3f4f6; color:#6b7280; border-color:#d1d5db; cursor:default; }
-
     @media (max-width:700px) {
       .grid-row, .material-search-row { grid-template-columns:1fr; }
       .top { align-items:flex-start; }
@@ -53,7 +48,6 @@
       table { table-layout:auto; }
       th, td { font-size:12px; padding:6px; }
     }
-
     @media print {
       body * { visibility:hidden; }
       #print-area, #print-area * { visibility:visible; }
@@ -62,7 +56,6 @@
     }
   </style>
 </head>
-
 <body>
 
 <div class="title-row">
@@ -76,23 +69,35 @@
   <input id="login-password" type="password" placeholder="비밀번호" />
   <button id="login-btn" class="btn-reserve">로그인</button>
   <button id="go-portal-btn" class="btn-basic">통합포털로 이동</button>
-  <p class="notice">회원가입 및 계정 관리는 도서관리 시스템과 동일한 계정을 사용합니다.</p>
+  <p class="notice">통합포털 또는 도서관리 시스템에서 로그인한 경우 자동 로그인됩니다.</p>
   <p id="login-message" class="message"></p>
 </div>
-
 <p id="login-contact" class="login-contact">기타 문의사항: 김혜인 교사</p>
+
+<div id="profile-screen" class="box hidden">
+  <h2>내 정보 변경</h2>
+  <p><strong>이름:</strong> <span id="profile-name"></span></p>
+  <p><strong>현재 반:</strong> <span id="profile-current-class"></span></p>
+  <p><strong>교재교구 권한:</strong> <span id="profile-material-role"></span></p>
+  <input id="new-password" type="password" placeholder="새 비밀번호" />
+  <button id="change-password-btn" class="btn-reserve">비밀번호 변경</button>
+  <button id="request-material-manager-btn" class="btn-approve">교재교구담당자 권한 요청</button>
+  <button id="profile-back-btn" class="btn-basic">돌아가기</button>
+  <p id="profile-message" class="message"></p>
+</div>
 
 <div id="app-screen" class="hidden">
   <div class="top">
     <div>
       <strong id="user-info"></strong>
       <button id="portal-btn" class="btn-basic">통합포털</button>
+      <button id="profile-btn" class="btn-basic">내 정보 변경</button>
       <button id="my-materials-btn" class="btn-basic">내 사용현황</button>
       <button id="manager-page-btn" class="hidden btn-approve">교재교구담당자 페이지</button>
       <button id="material-manage-page-btn" class="hidden btn-reserve">교재교구관리</button>
+      <button id="admin-page-btn" class="hidden btn-approve">관리자 페이지</button>
       <button id="deleted-page-btn" class="hidden btn-basic">삭제 교구 복구</button>
     </div>
-
     <div class="session-box">
       <span id="auto-logout-countdown" class="session-timer">자동 로그아웃 30:00</span>
       <button id="extend-session-btn" class="btn-basic">시간연장</button>
@@ -101,7 +106,6 @@
   </div>
 
   <input id="search" placeholder="관리번호 / 분류명 / 물품명 검색" />
-
   <div class="page-size-box">
     <select id="page-size">
       <option value="20">20개씩 보기</option>
@@ -113,20 +117,11 @@
   <table>
     <thead>
       <tr>
-        <th style="width:12%">구입일자</th>
-        <th style="width:14%">관리번호</th>
-        <th style="width:16%">분류명</th>
-        <th style="width:24%">물품명</th>
-        <th style="width:6%">수량</th>
-        <th style="width:9%">상태</th>
-        <th style="width:8%">사용반</th>
-        <th style="width:6%">예약</th>
-        <th style="width:6%">반납</th>
+        <th style="width:12%">구입일자</th><th style="width:14%">관리번호</th><th style="width:16%">분류명</th><th style="width:24%">물품명</th><th style="width:6%">수량</th><th style="width:9%">상태</th><th style="width:8%">사용반</th><th style="width:6%">예약</th><th style="width:6%">반납</th>
       </tr>
     </thead>
     <tbody id="material-list"></tbody>
   </table>
-
   <div class="pagination">
     <span id="pagination-info"></span>
     <button id="prev-page-btn" class="btn-basic">이전</button>
@@ -138,1340 +133,490 @@
 <div id="my-materials-screen" class="box hidden">
   <h2>내 사용현황</h2>
   <p class="notice">※ 같은 반 선생님이 사용예약 또는 사용중인 교재교구도 함께 표시됩니다.</p>
-
   <table>
-    <thead>
-      <tr>
-        <th>관리번호</th>
-        <th>분류명</th>
-        <th>물품명</th>
-        <th>수량</th>
-        <th>상태</th>
-        <th>사용반</th>
-        <th>예약</th>
-        <th>반납</th>
-      </tr>
-    </thead>
+    <thead><tr><th>관리번호</th><th>분류명</th><th>물품명</th><th>수량</th><th>상태</th><th>사용반</th><th>예약</th><th>반납</th></tr></thead>
     <tbody id="my-materials-list"></tbody>
   </table>
-
   <h3>반려 사유 확인</h3>
   <table>
-    <thead>
-      <tr>
-        <th>구분</th>
-        <th>관리번호</th>
-        <th>물품명</th>
-        <th>반려일</th>
-        <th>반려 사유</th>
-      </tr>
-    </thead>
+    <thead><tr><th>구분</th><th>관리번호</th><th>물품명</th><th>반려일</th><th>반려 사유</th></tr></thead>
     <tbody id="my-rejection-list"></tbody>
   </table>
-
   <button id="my-materials-back-btn" class="btn-basic">돌아가기</button>
 </div>
 
 <div id="manager-screen" class="box hidden">
   <h2>교재교구담당자 페이지</h2>
-
   <h3>사용예약 승인</h3>
+  <div class="panel"><div class="grid-row">
+    <select id="rental-filter-age"><option value="">연령 선택</option><option value="만1세">만1세</option><option value="만2세">만2세</option><option value="만3세">만3세</option><option value="만4세">만4세</option><option value="만5세">만5세</option></select>
+    <select id="rental-filter-class"><option value="">반 전체</option></select>
+    <button id="load-rental-filter-btn" class="btn-basic">조회</button>
+  </div></div>
   <table>
-    <thead>
-      <tr>
-        <th>관리번호</th>
-        <th>분류명</th>
-        <th>물품명</th>
-        <th>요청반</th>
-        <th>요청자</th>
-        <th>처리</th>
-      </tr>
-    </thead>
+    <thead><tr><th>관리번호</th><th>분류명</th><th>물품명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead>
     <tbody id="rental-approve-list"></tbody>
   </table>
 
   <h3>반납요청 승인</h3>
+  <div class="panel"><div class="grid-row">
+    <select id="return-filter-age"><option value="">연령 선택</option><option value="만1세">만1세</option><option value="만2세">만2세</option><option value="만3세">만3세</option><option value="만4세">만4세</option><option value="만5세">만5세</option></select>
+    <select id="return-filter-class"><option value="">반 전체</option></select>
+    <button id="load-return-filter-btn" class="btn-basic">조회</button>
+  </div></div>
   <table>
-    <thead>
-      <tr>
-        <th>관리번호</th>
-        <th>분류명</th>
-        <th>물품명</th>
-        <th>사용반</th>
-        <th>반납신청자</th>
-        <th>처리</th>
-      </tr>
-    </thead>
+    <thead><tr><th>관리번호</th><th>분류명</th><th>물품명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead>
     <tbody id="return-approve-list"></tbody>
   </table>
 
   <h3>월별 사용기록 출력</h3>
-  <div class="panel">
-    <div class="grid-row">
-      <select id="print-year">
-        <option value="2026">2026년</option>
-        <option value="2027">2027년</option>
-        <option value="2028">2028년</option>
-      </select>
-      <select id="print-month">
-        <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
-        <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
-        <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
-        <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
-      </select>
-      <button id="print-all-month-btn" class="btn-basic">전체 기록 출력</button>
-    </div>
-  </div>
-
+  <div class="panel"><div class="grid-row">
+    <select id="print-year"><option value="2026">2026년</option><option value="2027">2027년</option><option value="2028">2028년</option></select>
+    <select id="print-month"><option value="1">1월</option><option value="2">2월</option><option value="3">3월</option><option value="4">4월</option><option value="5">5월</option><option value="6">6월</option><option value="7">7월</option><option value="8">8월</option><option value="9">9월</option><option value="10">10월</option><option value="11">11월</option><option value="12">12월</option></select>
+    <button id="print-all-month-btn" class="btn-basic">전체 기록 출력</button>
+  </div></div>
   <h3>월별 사용기록 조회</h3>
   <button id="load-record-month-btn" class="btn-basic">선택 월 사용기록 불러오기</button>
-
   <table>
-    <thead>
-      <tr>
-        <th>사용승인일</th>
-        <th>반</th>
-        <th>관리번호</th>
-        <th>물품명</th>
-        <th>요청자</th>
-        <th>승인자</th>
-        <th>반납일</th>
-        <th>반납자</th>
-        <th>반납승인자</th>
-        <th>초기화</th>
-      </tr>
-    </thead>
+    <thead><tr><th>사용승인일</th><th>반</th><th>관리번호</th><th>물품명</th><th>요청자</th><th>승인자</th><th>반납일</th><th>반납자</th><th>반납승인자</th><th>초기화</th></tr></thead>
     <tbody id="monthly-record-list"></tbody>
   </table>
-
   <button id="manager-back-btn" class="btn-basic">돌아가기</button>
+</div>
+
+<div id="admin-screen" class="box hidden">
+  <h2>관리자 페이지</h2>
+  <h3>교재교구담당자 권한 요청</h3>
+  <table>
+    <thead><tr><th>이름</th><th>현재권한</th><th>요청권한</th><th>승인</th></tr></thead>
+    <tbody id="material-manager-request-list"></tbody>
+  </table>
+  <h3>현재 교재교구담당자 목록</h3>
+  <table>
+    <thead><tr><th>이름</th><th>아이디</th><th>반</th><th>현재권한</th><th>권한변경</th></tr></thead>
+    <tbody id="current-material-manager-list"></tbody>
+  </table>
+  <button id="admin-back-btn" class="btn-basic">돌아가기</button>
 </div>
 
 <div id="material-manage-screen" class="box hidden">
   <h2>교재교구관리</h2>
-
   <h3>엑셀로 교재교구 등록</h3>
   <div class="panel">
     <button id="excel-upload-btn" class="btn-approve">엑셀 파일 선택 및 교재교구 등록</button>
-    <input
-      id="excel-upload"
-      type="file"
-      accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-      hidden
-      onclick="this.value=null;"
-      capture="none"
-    />
-    <p class="notice">
-      엑셀 파일에 <strong>구입일자, 관리번호, 구분, 분류명, 물품명, 규격, 구입처, 수량, 금, 사용처, 전표(증빙번호), 사진, 비고</strong> 열이 포함될 수 있습니다.<br>
-      화면에는 주로 <strong>구입일자, 관리번호, 분류명, 물품명, 수량</strong>이 표시됩니다.
-    </p>
+    <input id="excel-upload" type="file" accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden onclick="this.value=null;" capture="none" />
+    <p class="notice">엑셀 파일에 <strong>구입일자, 관리번호, 구분, 분류명, 물품명, 규격, 구입처, 수량, 금, 사용처, 전표(증빙번호), 사진, 비고</strong> 열이 포함될 수 있습니다.</p>
     <div id="excel-upload-result" class="message"></div>
   </div>
-
   <h3>등록일 기준 교재교구 조회</h3>
-  <div class="panel">
-    <div class="grid-row">
-      <input id="material-start-date" type="date" />
-      <input id="material-end-date" type="date" />
-      <button id="search-material-date-btn" class="btn-basic">기간 조회</button>
-    </div>
-  </div>
-
+  <div class="panel"><div class="grid-row"><input id="material-start-date" type="date" /><input id="material-end-date" type="date" /><button id="search-material-date-btn" class="btn-basic">기간 조회</button></div></div>
   <h3>교재교구 검색 / 수정 / 삭제</h3>
   <div class="panel">
-    <div class="material-search-row">
-      <input id="manage-material-search" placeholder="관리번호 / 분류명 / 물품명 검색" />
-      <button id="manage-material-search-btn" class="btn-basic">교재교구 검색</button>
-    </div>
-
+    <div class="material-search-row"><input id="manage-material-search" placeholder="관리번호 / 분류명 / 물품명 검색" /><button id="manage-material-search-btn" class="btn-basic">교재교구 검색</button></div>
     <table>
-      <thead>
-        <tr>
-          <th>구입일자</th>
-          <th>관리번호</th>
-          <th>분류명</th>
-          <th>물품명</th>
-          <th>수량</th>
-          <th>상태</th>
-          <th>수정</th>
-          <th>삭제</th>
-        </tr>
-      </thead>
+      <thead><tr><th>구입일자</th><th>관리번호</th><th>분류명</th><th>물품명</th><th>수량</th><th>상태</th><th>수정</th><th>삭제</th></tr></thead>
       <tbody id="manage-material-list"></tbody>
     </table>
   </div>
-
   <button id="material-manage-back-btn" class="btn-basic">돌아가기</button>
 </div>
 
 <div id="deleted-screen" class="box hidden">
   <h2>삭제 교재교구 복구</h2>
   <button id="load-deleted-materials-btn" class="btn-basic">삭제 교재교구 목록 불러오기</button>
-
   <table>
-    <thead>
-      <tr>
-        <th>관리번호</th>
-        <th>분류명</th>
-        <th>물품명</th>
-        <th>삭제일시</th>
-        <th>삭제자</th>
-        <th>복구</th>
-      </tr>
-    </thead>
+    <thead><tr><th>관리번호</th><th>분류명</th><th>물품명</th><th>삭제일시</th><th>삭제자</th><th>복구</th></tr></thead>
     <tbody id="deleted-material-list"></tbody>
   </table>
-
   <button id="deleted-back-btn" class="btn-basic">돌아가기</button>
 </div>
-
 <div id="print-area" class="hidden"></div>
 
 <script>
 const supabaseUrl = "https://vohcugxfwxdvkbcpjcgl.supabase.co";
 const supabaseKey = "sb_publishable_Q0cXaglzBaz9Py2oct_NTQ_vMHsUeSQ";
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-
-let currentUser = null;
-let currentPage = 1;
-let pageSize = 20;
-let totalMaterials = 0;
-let currentKeyword = "";
-let logoutTimer = null;
-let countdownTimer = null;
-let remainingSeconds = 30 * 60;
+let currentUser = null, currentPage = 1, pageSize = 20, totalMaterials = 0, currentKeyword = "";
+let logoutTimer = null, countdownTimer = null, remainingSeconds = 30 * 60;
 const AUTO_LOGOUT_TIME = 30 * 60 * 1000;
-
-function getRoleName(role) {
-  if (role === "admin") return "관리자";
-  if (role === "manager") return "교재교구담당자";
-  return "선생님";
-}
-
-function getStatusName(status) {
-  if (status === "available") return "사용가능";
-  if (status === "reserved") return "사용예약";
-  if (status === "borrowed") return "사용중";
-  if (status === "return_requested") return "반납요청";
-  if (status === "returned") return "반납완료";
-  if (status === "rental_rejected") return "예약반려";
-  if (status === "return_rejected") return "반납반려";
-  if (status === "repair") return "수리중";
-  if (status === "discarded") return "폐기";
-  return status || "-";
-}
-
-function formatDate(value) {
-  if (!value) return "-";
-  return new Date(value).toLocaleDateString("ko-KR");
-}
-
-function formatDateTime(value) {
-  if (!value) return "-";
-  return new Date(value).toLocaleString("ko-KR");
-}
-
-function setMessage(id, text, color = "#2563eb") {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.innerText = text;
-  el.style.color = color;
-}
-
-function showScreen(screenId) {
-  ["login-screen", "app-screen", "my-materials-screen", "manager-screen", "material-manage-screen", "deleted-screen"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.add("hidden");
-  });
-
-  document.getElementById(screenId).classList.remove("hidden");
-
-  const contact = document.getElementById("login-contact");
-  if (contact) contact.style.display = screenId === "login-screen" ? "block" : "none";
-}
-
-function updateCountdownDisplay() {
-  const countdownEl = document.getElementById("auto-logout-countdown");
-  if (!countdownEl || !currentUser) return;
-  const minutes = Math.floor(remainingSeconds / 60);
-  const seconds = remainingSeconds % 60;
-  countdownEl.innerText = `자동 로그아웃 ${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
-function resetAutoLogoutTimer() {
-  if (!currentUser) return;
-  clearTimeout(logoutTimer);
-  clearInterval(countdownTimer);
-  remainingSeconds = 30 * 60;
-  updateCountdownDisplay();
-
-  countdownTimer = setInterval(() => {
-    remainingSeconds--;
-    updateCountdownDisplay();
-    if (remainingSeconds <= 0) clearInterval(countdownTimer);
-  }, 1000);
-
-  logoutTimer = setTimeout(() => {
-    alert("30분 동안 활동이 없어 자동 로그아웃되었습니다.");
-    logout();
-  }, AUTO_LOGOUT_TIME);
-}
-
-function extendSession() {
-  resetAutoLogoutTimer();
-  alert("로그인 시간이 30분 연장되었습니다.");
-}
-
-async function login() {
-  const username = document.getElementById("login-username").value.trim();
-  const password = document.getElementById("login-password").value.trim();
-
-  if (!username || !password) {
-    setMessage("login-message", "아이디와 비밀번호를 모두 입력해주세요.", "red");
-    return;
-  }
-
-  const { data, error } = await supabaseClient
-    .from("users")
-    .select("*")
-    .eq("username", username)
-    .maybeSingle();
-
-  if (error || !data) {
-    setMessage("login-message", "등록되지 않은 아이디입니다.", "red");
-    return;
-  }
-
-  if (data.password !== password) {
-    setMessage("login-message", "비밀번호가 틀렸습니다.", "red");
-    return;
-  }
-
-  if (data.approval_status === "inactive") {
-    setMessage("login-message", "비활성화된 계정입니다. 관리자에게 문의해주세요.", "red");
-    return;
-  }
-
-  if (data.approval_status !== "approved") {
-    setMessage("login-message", "관리자 승인 대기중입니다.");
-    return;
-  }
-
-  currentUser = data;
-  localStorage.setItem("materialsCurrentUser", JSON.stringify(currentUser));
-  afterLoginSuccess();
-}
-
-function afterLoginSuccess() {
-  document.getElementById("user-info").innerText = `${currentUser.name} / ${currentUser.class_name} / ${getRoleName(currentUser.role)}`;
-
-  document.getElementById("manager-page-btn").classList.add("hidden");
-  document.getElementById("material-manage-page-btn").classList.add("hidden");
-  document.getElementById("deleted-page-btn").classList.add("hidden");
-
-  if (currentUser.role === "manager" || currentUser.role === "admin") {
-    document.getElementById("manager-page-btn").classList.remove("hidden");
-    document.getElementById("material-manage-page-btn").classList.remove("hidden");
-  }
-
-  if (currentUser.role === "admin") {
-    document.getElementById("deleted-page-btn").classList.remove("hidden");
-  }
-
-  resetAutoLogoutTimer();
-  showScreen("app-screen");
-  currentPage = 1;
-  loadMaterials();
-}
-
-function restoreLogin() {
-  const savedUser = localStorage.getItem("materialsCurrentUser");
-  if (!savedUser) return;
-
-  try {
-    currentUser = JSON.parse(savedUser);
-    afterLoginSuccess();
-  } catch {
-    localStorage.removeItem("materialsCurrentUser");
-    showScreen("login-screen");
-  }
-}
-
-function logout() {
-  currentUser = null;
-  localStorage.removeItem("materialsCurrentUser");
-  clearTimeout(logoutTimer);
-  clearInterval(countdownTimer);
-  document.getElementById("login-username").value = "";
-  document.getElementById("login-password").value = "";
-  document.getElementById("login-message").innerText = "";
-  showScreen("login-screen");
-}
-
-async function loadMaterials() {
-  const list = document.getElementById("material-list");
-  list.innerHTML = `<tr><td colspan="9">교재교구 목록을 불러오는 중입니다...</td></tr>`;
-
-  const start = (currentPage - 1) * pageSize;
-  const end = start + pageSize - 1;
-
-  let query = supabaseClient
-    .from("materials")
-    .select('id,"구입일자","관리번호","분류명","물품명","수량",status,current_class,current_user_id,is_deleted', { count: "exact" })
-    .or("is_deleted.is.false,is_deleted.is.null")
-    .order("관리번호", { ascending: true })
-    .range(start, end);
-
-  if (currentKeyword) {
-    query = query.or(`물품명.ilike.%${currentKeyword}%,관리번호.ilike.%${currentKeyword}%,분류명.ilike.%${currentKeyword}%`);
-  }
-
-  const { data, error, count } = await query;
-
-  if (error) {
-    list.innerHTML = `<tr><td colspan="9">교재교구 목록을 불러오지 못했습니다: ${error.message}</td></tr>`;
-    return;
-  }
-
-  totalMaterials = count || 0;
-  renderMaterials(data || []);
-  renderPagination();
-}
-
-function renderMaterials(materials) {
-  const list = document.getElementById("material-list");
-  list.innerHTML = "";
-
-  if (!materials.length) {
-    list.innerHTML = `<tr><td colspan="9">검색 결과가 없습니다.</td></tr>`;
-    return;
-  }
-
-  materials.forEach(item => {
-    const statusText = getStatusName(item.status || "available");
-    const isSameClass = item.current_class === currentUser.class_name;
-
-    let reserveBtn = "-";
-    let returnBtn = "-";
-
-    if (!item.status || item.status === "available") {
-      reserveBtn = `<button class="btn-reserve" onclick="reserveMaterial('${item.id}')">예약</button>`;
-    }
-
-    if (item.status === "reserved" && isSameClass) {
-      reserveBtn = `<button class="btn-cancel" onclick="cancelReservation('${item.id}')">취소</button>`;
-    }
-
-    if (item.status === "borrowed" && isSameClass) {
-      returnBtn = `<button class="btn-return" onclick="requestReturn('${item.id}')">반납</button>`;
-    }
-
-    if (item.status === "return_requested" && isSameClass) {
-      returnBtn = `<button class="btn-wait" disabled>대기</button>`;
-    }
-
-    list.innerHTML += `
-      <tr>
-        <td>${item["구입일자"] || ""}</td>
-        <td>${item["관리번호"] || ""}</td>
-        <td>${item["분류명"] || ""}</td>
-        <td>${item["물품명"] || ""}</td>
-        <td class="status">${item["수량"] ?? ""}</td>
-        <td class="status">${statusText}</td>
-        <td class="status">${item.current_class || "-"}</td>
-        <td class="btn-cell">${reserveBtn}</td>
-        <td class="btn-cell">${returnBtn}</td>
-      </tr>
-    `;
-  });
-}
-
-function renderPagination() {
-  const totalPages = Math.ceil(totalMaterials / pageSize);
-  const pageButtons = document.getElementById("page-buttons");
-  const paginationInfo = document.getElementById("pagination-info");
-
-  paginationInfo.innerText = `총 ${totalMaterials}개 / ${currentPage}쪽`;
-  pageButtons.innerHTML = "";
-
-  if (totalPages <= 1) return;
-
-  const startPage = Math.max(1, currentPage - 3);
-  const endPage = Math.min(totalPages, currentPage + 3);
-
-  for (let i = startPage; i <= endPage; i++) {
-    pageButtons.innerHTML += `<button class="${i === currentPage ? "active" : ""}" onclick="goToPage(${i})">${i}</button>`;
-  }
-}
-
-function goToPage(page) {
-  currentPage = page;
-  loadMaterials();
-}
-
-function prevPage() {
-  if (currentPage > 1) {
-    currentPage--;
-    loadMaterials();
-  }
-}
-
-function nextPage() {
-  const totalPages = Math.ceil(totalMaterials / pageSize);
-  if (currentPage < totalPages) {
-    currentPage++;
-    loadMaterials();
-  }
-}
-
-async function reserveMaterial(materialId) {
-  const { error } = await supabaseClient
-    .from("materials")
-    .update({ status: "reserved", current_class: currentUser.class_name, current_user_id: currentUser.id })
-    .eq("id", materialId);
-
-  if (error) {
-    alert("사용예약 실패: " + error.message);
-    return;
-  }
-
-  await supabaseClient.from("material_records").insert([{
-    material_id: materialId,
-    user_id: currentUser.id,
-    class_name: currentUser.class_name,
-    borrower_name: currentUser.name,
-    reserved_at: new Date().toISOString(),
-    status: "reserved"
-  }]);
-
-  alert("사용예약이 완료되었습니다.");
-  loadMaterials();
-}
-
-async function cancelReservation(materialId) {
-  if (!confirm("예약을 취소하시겠습니까?")) return;
-
-  const { error } = await supabaseClient
-    .from("materials")
-    .update({ status: "available", current_class: null, current_user_id: null })
-    .eq("id", materialId)
-    .eq("current_class", currentUser.class_name);
-
-  if (error) {
-    alert("예약취소 실패: " + error.message);
-    return;
-  }
-
-  await supabaseClient
-    .from("material_records")
-    .delete()
-    .eq("material_id", materialId)
-    .eq("class_name", currentUser.class_name)
-    .eq("status", "reserved");
-
-  alert("예약이 취소되었습니다.");
-  loadMaterials();
-}
-
-async function requestReturn(materialId) {
-  if (!confirm("반납요청을 하시겠습니까?")) return;
-
-  const { error } = await supabaseClient
-    .from("materials")
-    .update({ status: "return_requested" })
-    .eq("id", materialId)
-    .eq("current_class", currentUser.class_name);
-
-  if (error) {
-    alert("반납요청 실패: " + error.message);
-    return;
-  }
-
-  await supabaseClient
-    .from("material_records")
-    .update({ status: "return_requested", returned_by: currentUser.id, return_requested_at: new Date().toISOString() })
-    .eq("material_id", materialId)
-    .eq("class_name", currentUser.class_name)
-    .eq("status", "borrowed");
-
-  alert("반납요청이 완료되었습니다.");
-  loadMaterials();
-}
-
-async function loadMyMaterials() {
-  showScreen("my-materials-screen");
-
-  const { data, error } = await supabaseClient
-    .from("materials")
-    .select('id,"관리번호","분류명","물품명","수량",status,current_class,current_user_id')
-    .eq("current_class", currentUser.class_name)
-    .or("is_deleted.is.false,is_deleted.is.null");
-
-  const list = document.getElementById("my-materials-list");
-  list.innerHTML = "";
-
-  if (error || !data || !data.length) {
-    list.innerHTML = `<tr><td colspan="8">현재 ${currentUser.class_name}에서 예약 또는 사용중인 교재교구가 없습니다.</td></tr>`;
-  } else {
-    data.forEach(item => {
-      let reserveBtn = "-";
-      let returnBtn = "-";
-
-      if (item.status === "reserved") reserveBtn = `<button class="btn-cancel" onclick="cancelReservationAndReloadMyMaterials('${item.id}')">예약취소</button>`;
-      if (item.status === "borrowed") returnBtn = `<button class="btn-return" onclick="requestReturnAndReloadMyMaterials('${item.id}')">반납요청</button>`;
-      if (item.status === "return_requested") returnBtn = `<button class="btn-wait" disabled>반납대기</button>`;
-
-      list.innerHTML += `
-        <tr>
-          <td>${item["관리번호"] || ""}</td>
-          <td>${item["분류명"] || ""}</td>
-          <td>${item["물품명"] || ""}</td>
-          <td>${item["수량"] ?? ""}</td>
-          <td>${getStatusName(item.status)}</td>
-          <td>${item.current_class || "-"}</td>
-          <td>${reserveBtn}</td>
-          <td>${returnBtn}</td>
-        </tr>
-      `;
-    });
-  }
-
-  await loadMyRejections();
-}
-
-async function cancelReservationAndReloadMyMaterials(materialId) {
-  await cancelReservation(materialId);
-  await loadMyMaterials();
-}
-
-async function requestReturnAndReloadMyMaterials(materialId) {
-  await requestReturn(materialId);
-  await loadMyMaterials();
-}
-
-async function loadMyRejections() {
-  const list = document.getElementById("my-rejection-list");
-  list.innerHTML = "";
-
-  const { data: records, error } = await supabaseClient
-    .from("material_records")
-    .select("*")
-    .eq("class_name", currentUser.class_name)
-    .in("status", ["rental_rejected", "return_rejected"])
-    .order("created_at", { ascending: false });
-
-  if (error || !records || !records.length) {
-    list.innerHTML = `<tr><td colspan="5">확인할 반려 내역이 없습니다.</td></tr>`;
-    return;
-  }
-
-  for (const record of records) {
-    const { data: item } = await supabaseClient
-      .from("materials")
-      .select('"관리번호","물품명"')
-      .eq("id", record.material_id)
-      .maybeSingle();
-
-    const type = record.status === "rental_rejected" ? "예약반려" : "반납반려";
-    const reason = record.status === "rental_rejected" ? record.reject_reason : record.return_reject_reason;
-    const rejectedAt = record.status === "rental_rejected" ? record.rejected_at : record.return_rejected_at;
-
-    list.innerHTML += `
-      <tr>
-        <td>${type}</td>
-        <td>${item?.["관리번호"] || ""}</td>
-        <td>${item?.["물품명"] || ""}</td>
-        <td>${formatDateTime(rejectedAt)}</td>
-        <td>${reason || "-"}</td>
-      </tr>
-    `;
-  }
-}
-
-async function openManagerPage() {
-  if (!currentUser || (currentUser.role !== "manager" && currentUser.role !== "admin")) return;
-  showScreen("manager-screen");
-  loadRentalApproveList();
-  loadReturnApproveList();
-  loadMonthlyRecordList();
-}
-
-async function getActiveRecord(materialId, statuses) {
-  const { data } = await supabaseClient
-    .from("material_records")
-    .select("*")
-    .eq("material_id", materialId)
-    .in("status", statuses)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data;
-}
-
-async function getUserNameById(userId) {
-  if (!userId) return "-";
-  const { data } = await supabaseClient.from("users").select("name").eq("id", userId).maybeSingle();
-  return data?.name || "-";
-}
-
-async function loadRentalApproveList() {
-  const { data } = await supabaseClient
-    .from("materials")
-    .select('id,"관리번호","분류명","물품명",current_class,status,current_user_id')
-    .eq("status", "reserved")
-    .or("is_deleted.is.false,is_deleted.is.null")
-    .order("관리번호", { ascending: true });
-
-  const list = document.getElementById("rental-approve-list");
-  list.innerHTML = "";
-
-  if (!data || !data.length) {
-    list.innerHTML = `<tr><td colspan="6">사용예약 요청이 없습니다.</td></tr>`;
-    return;
-  }
-
-  for (const item of data) {
-    const record = await getActiveRecord(item.id, ["reserved"]);
-    const borrowerName = record?.borrower_name || await getUserNameById(item.current_user_id);
-
-    list.innerHTML += `
-      <tr>
-        <td>${item["관리번호"] || ""}</td>
-        <td>${item["분류명"] || ""}</td>
-        <td>${item["물품명"] || ""}</td>
-        <td>${item.current_class || "-"}</td>
-        <td>${borrowerName}</td>
-        <td>
-          <button class="btn-approve" onclick="approveRental('${item.id}')">승인</button>
-          <button class="btn-danger" onclick="rejectRental('${item.id}')">반려</button>
-        </td>
-      </tr>
-    `;
-  }
-}
-
-async function approveRental(materialId) {
-  await supabaseClient.from("materials").update({ status: "borrowed" }).eq("id", materialId);
-
-  await supabaseClient
-    .from("material_records")
-    .update({ status: "borrowed", approved_at: new Date().toISOString(), approved_by: currentUser.id })
-    .eq("material_id", materialId)
-    .eq("status", "reserved");
-
-  loadRentalApproveList();
-  loadMaterials();
-}
-
-async function rejectRental(materialId) {
-  const reason = prompt("사용예약 반려 사유를 입력해주세요.");
-  if (!reason || !reason.trim()) {
-    alert("반려 사유를 입력해야 합니다.");
-    return;
-  }
-
-  await supabaseClient.from("materials").update({ status: "available", current_class: null, current_user_id: null }).eq("id", materialId);
-
-  const { error } = await supabaseClient
-    .from("material_records")
-    .update({ status: "rental_rejected", reject_reason: reason.trim(), rejected_at: new Date().toISOString(), rejected_by: currentUser.id })
-    .eq("material_id", materialId)
-    .eq("status", "reserved");
-
-  if (error) {
-    alert("반려 처리 실패: " + error.message);
-    return;
-  }
-
-  alert("사용예약이 반려되었습니다.");
-  loadRentalApproveList();
-  loadMaterials();
-}
-
-async function loadReturnApproveList() {
-  const { data } = await supabaseClient
-    .from("materials")
-    .select('id,"관리번호","분류명","물품명",current_class,status,current_user_id')
-    .eq("status", "return_requested")
-    .or("is_deleted.is.false,is_deleted.is.null")
-    .order("관리번호", { ascending: true });
-
-  const list = document.getElementById("return-approve-list");
-  list.innerHTML = "";
-
-  if (!data || !data.length) {
-    list.innerHTML = `<tr><td colspan="6">반납요청이 없습니다.</td></tr>`;
-    return;
-  }
-
-  for (const item of data) {
-    const record = await getActiveRecord(item.id, ["return_requested"]);
-    const returnUserName = await getUserNameById(record?.returned_by || item.current_user_id);
-
-    list.innerHTML += `
-      <tr>
-        <td>${item["관리번호"] || ""}</td>
-        <td>${item["분류명"] || ""}</td>
-        <td>${item["물품명"] || ""}</td>
-        <td>${item.current_class || "-"}</td>
-        <td>${returnUserName}</td>
-        <td>
-          <button class="btn-approve" onclick="approveReturn('${item.id}')">반납승인</button>
-          <button class="btn-danger" onclick="rejectReturn('${item.id}')">반납반려</button>
-        </td>
-      </tr>
-    `;
-  }
-}
-
-async function approveReturn(materialId) {
-  await supabaseClient.from("materials").update({ status: "available", current_class: null, current_user_id: null }).eq("id", materialId);
-
-  await supabaseClient
-    .from("material_records")
-    .update({ status: "returned", returned_at: new Date().toISOString(), return_approved_by: currentUser.id })
-    .eq("material_id", materialId)
-    .eq("status", "return_requested");
-
-  loadReturnApproveList();
-  loadMaterials();
-}
-
-async function rejectReturn(materialId) {
-  const reason = prompt("반납 반려 사유를 입력해주세요.");
-  if (!reason || !reason.trim()) {
-    alert("반려 사유를 입력해야 합니다.");
-    return;
-  }
-
-  await supabaseClient.from("materials").update({ status: "borrowed" }).eq("id", materialId);
-
-  const { error } = await supabaseClient
-    .from("material_records")
-    .update({ status: "return_rejected", return_reject_reason: reason.trim(), return_rejected_at: new Date().toISOString(), return_rejected_by: currentUser.id })
-    .eq("material_id", materialId)
-    .eq("status", "return_requested");
-
-  if (error) {
-    alert("반납 반려 실패: " + error.message);
-    return;
-  }
-
-  alert("반납요청이 반려되었습니다.");
-  loadReturnApproveList();
-  loadMaterials();
-}
-
-function getMonthRange() {
-  const year = Number(document.getElementById("print-year").value);
-  const month = Number(document.getElementById("print-month").value) - 1;
-  return {
-    year,
-    month,
-    startDate: new Date(year, month, 1).toISOString(),
-    endDate: new Date(year, month + 1, 1).toISOString()
-  };
-}
-
-function setDefaultPrintMonth() {
-  const now = new Date();
-  const yearEl = document.getElementById("print-year");
-  const monthEl = document.getElementById("print-month");
-  if (yearEl) yearEl.value = String(now.getFullYear());
-  if (monthEl) monthEl.value = String(now.getMonth() + 1);
-}
-
-async function getMonthlyRecords() {
-  const { startDate, endDate } = getMonthRange();
-
-  const { data: records, error } = await supabaseClient
-    .from("material_records")
-    .select("*")
-    .gte("approved_at", startDate)
-    .lt("approved_at", endDate)
-    .in("status", ["borrowed", "return_requested", "returned", "return_rejected"]);
-
-  if (error) {
-    alert("기록을 불러오지 못했습니다: " + error.message);
-    return [];
-  }
-
-  const result = [];
-
-  for (const record of records || []) {
-    const { data: item } = await supabaseClient
-      .from("materials")
-      .select('"관리번호","물품명"')
-      .eq("id", record.material_id)
-      .maybeSingle();
-
-    result.push({
-      ...record,
-      materialNumber: item?.["관리번호"] || "",
-      materialName: item?.["물품명"] || "",
-      borrowerName: record.borrower_name || await getUserNameById(record.user_id),
-      approvedByName: await getUserNameById(record.approved_by),
-      returnedByName: await getUserNameById(record.returned_by),
-      returnApprovedByName: await getUserNameById(record.return_approved_by)
-    });
-  }
-
-  return result;
-}
-
-async function loadMonthlyRecordList() {
-  const records = await getMonthlyRecords();
-  const list = document.getElementById("monthly-record-list");
-  list.innerHTML = "";
-
-  if (!records.length) {
-    list.innerHTML = `<tr><td colspan="10">선택 월 사용기록이 없습니다.</td></tr>`;
-    return;
-  }
-
-  records.forEach(record => {
-    const resetCell = currentUser.role === "admin"
-      ? `<button class="btn-danger" onclick="deleteRecord('${record.id}')">초기화</button>`
-      : `관리자 문의`;
-
-    list.innerHTML += `
-      <tr>
-        <td>${formatDate(record.approved_at)}</td>
-        <td>${record.class_name || ""}</td>
-        <td>${record.materialNumber}</td>
-        <td>${record.materialName}</td>
-        <td>${record.borrowerName}</td>
-        <td>${record.approvedByName}</td>
-        <td>${formatDate(record.returned_at)}</td>
-        <td>${record.returnedByName}</td>
-        <td>${record.returnApprovedByName}</td>
-        <td>${resetCell}</td>
-      </tr>
-    `;
-  });
-}
-
-async function deleteRecord(recordId) {
-  if (currentUser.role !== "admin") {
-    alert("사용기록 초기화는 관리자만 가능합니다.");
-    return;
-  }
-
-  if (!confirm("이 사용기록을 삭제하고 교재교구를 사용가능 상태로 초기화하시겠습니까?")) return;
-
-  const { data: record } = await supabaseClient
-    .from("material_records")
-    .select("*")
-    .eq("id", recordId)
-    .maybeSingle();
-
-  if (!record) {
-    alert("기록 정보를 찾을 수 없습니다.");
-    return;
-  }
-
-  await supabaseClient.from("materials").update({ status: "available", current_class: null, current_user_id: null }).eq("id", record.material_id);
-  await supabaseClient.from("material_records").delete().eq("id", recordId);
-
-  alert("사용기록이 삭제되고 교재교구가 사용가능 상태로 초기화되었습니다.");
-  loadMonthlyRecordList();
-  loadMaterials();
-}
-
-async function printMonthlyRecords() {
-  const { year, month } = getMonthRange();
-  const records = await getMonthlyRecords();
-  const printArea = document.getElementById("print-area");
-
-  let rows = "";
-  if (!records.length) {
-    rows = `<tr><td colspan="9">사용기록이 없습니다.</td></tr>`;
-  } else {
-    records.forEach(record => {
-      rows += `
-        <tr>
-          <td>${formatDate(record.approved_at)}</td>
-          <td>${record.class_name || ""}</td>
-          <td>${record.materialNumber}</td>
-          <td>${record.materialName}</td>
-          <td>${record.borrowerName}</td>
-          <td>${record.approvedByName}</td>
-          <td>${formatDate(record.returned_at)}</td>
-          <td>${record.returnedByName}</td>
-          <td>${record.returnApprovedByName}</td>
-        </tr>
-      `;
-    });
-  }
-
-  printArea.innerHTML = `
-    <h2>탕정삼성어린이집 교재교구 사용·반납 기록</h2>
-    <h3>${year}년 ${month + 1}월 전체 사용기록</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>사용승인일</th><th>반</th><th>관리번호</th><th>물품명</th><th>요청자</th><th>승인자</th><th>반납일</th><th>반납자</th><th>반납승인자</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  `;
-
-  printArea.classList.remove("hidden");
-  printArea.style.display = "block";
-
-  setTimeout(() => {
-    window.print();
-    setTimeout(() => {
-      printArea.classList.add("hidden");
-      printArea.style.display = "none";
-    }, 1000);
-  }, 300);
-}
-
-async function handleExcelUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-
-  reader.onload = async function(e) {
-    const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data, { type: "array" });
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-    if (!jsonData.length) {
-      alert("엑셀 데이터가 없습니다.");
-      return;
-    }
-
-    let successCount = 0;
-    let duplicateCount = 0;
-    let missingCount = 0;
-    let errorCount = 0;
-
-    for (const row of jsonData) {
-      const purchaseDate = row["구입일자"]?.toString().trim();
-      const itemNumber = row["관리번호"]?.toString().trim();
-      const type = row["구분"]?.toString().trim();
-      const category = row["분류명"]?.toString().trim();
-      const itemName = row["물품명"]?.toString().trim();
-      const size = row["규격"]?.toString().trim();
-      const vendor = row["구입처"]?.toString().trim();
-      const quantity = Number(row["수량"] || 1);
-      const price = row["금"]?.toString().trim();
-      const usePlace = row["사용처"]?.toString().trim();
-      const voucherNumber = row["전표(증빙번호)"]?.toString().trim() || row["전표증빙번호"]?.toString().trim();
-      const photo = row["사진"]?.toString().trim();
-      const note = row["비고"]?.toString().trim();
-
-      if (!itemNumber || !itemName) {
-        missingCount++;
-        continue;
-      }
-
-      const { data: existing } = await supabaseClient.from("materials").select("id").eq("관리번호", itemNumber).maybeSingle();
-      if (existing) {
-        duplicateCount++;
-        continue;
-      }
-
-      const { error } = await supabaseClient.from("materials").insert([{
-        "구입일자": purchaseDate || null,
-        "관리번호": itemNumber,
-        "구분": type || null,
-        "분류명": category || null,
-        "물품명": itemName,
-        "규격": size || null,
-        "구입처": vendor || null,
-        "수량": Number.isFinite(quantity) ? quantity : 1,
-        "금": price || null,
-        "사용처": usePlace || null,
-        "전표증빙번호": voucherNumber || null,
-        "사진": photo || null,
-        "비고": note || null,
-        status: "available",
-        current_class: null,
-        current_user_id: null,
-        is_deleted: false
-      }]);
-
-      if (error) errorCount++;
-      else successCount++;
-    }
-
-    const resultText = `엑셀 등록 완료\n성공: ${successCount}개\n중복: ${duplicateCount}개\n필수값 누락: ${missingCount}개\n기타 오류: ${errorCount}개`;
-    setMessage("excel-upload-result", resultText);
-    alert(resultText);
-    loadMaterials();
-  };
-
-  reader.readAsArrayBuffer(file);
-}
-
-async function searchManageMaterials() {
-  const keyword = document.getElementById("manage-material-search").value.trim();
-  if (!keyword) {
-    alert("검색어를 입력해주세요.");
-    return;
-  }
-
-  const { data, error } = await supabaseClient
-    .from("materials")
-    .select('id,"구입일자","관리번호","분류명","물품명","수량",status,created_at,is_deleted')
-    .or("is_deleted.is.false,is_deleted.is.null")
-    .or(`물품명.ilike.%${keyword}%,관리번호.ilike.%${keyword}%,분류명.ilike.%${keyword}%`)
-    .limit(50);
-
-  renderManageMaterials(data, error);
-}
-
-async function searchMaterialsByDate() {
-  const start = document.getElementById("material-start-date").value;
-  const end = document.getElementById("material-end-date").value;
-
-  if (!start || !end) {
-    alert("시작일과 종료일을 모두 선택해주세요.");
-    return;
-  }
-
-  const startDate = new Date(start + "T00:00:00").toISOString();
-  const endDate = new Date(end + "T23:59:59").toISOString();
-
-  const { data, error } = await supabaseClient
-    .from("materials")
-    .select('id,"구입일자","관리번호","분류명","물품명","수량",status,created_at,is_deleted')
-    .or("is_deleted.is.false,is_deleted.is.null")
-    .gte("created_at", startDate)
-    .lte("created_at", endDate)
-    .order("created_at", { ascending: false })
-    .limit(100);
-
-  renderManageMaterials(data, error);
-}
-
-function safePromptText(value) {
-  return (value || "").replaceAll("'", "\\'");
-}
-
-function renderManageMaterials(data, error) {
-  const list = document.getElementById("manage-material-list");
-  list.innerHTML = "";
-
-  if (error) {
-    list.innerHTML = `<tr><td colspan="8">교재교구 조회 실패: ${error.message}</td></tr>`;
-    return;
-  }
-
-  if (!data || !data.length) {
-    list.innerHTML = `<tr><td colspan="8">조회 결과가 없습니다.</td></tr>`;
-    return;
-  }
-
-  data.forEach(item => {
-    const purchaseDate = safePromptText(item["구입일자"]);
-    const number = safePromptText(item["관리번호"]);
-    const category = safePromptText(item["분류명"]);
-    const name = safePromptText(item["물품명"]);
-    const quantity = item["수량"] ?? 1;
-
-    list.innerHTML += `
-      <tr>
-        <td>${item["구입일자"] || ""}</td>
-        <td>${item["관리번호"] || ""}</td>
-        <td>${item["분류명"] || ""}</td>
-        <td>${item["물품명"] || ""}</td>
-        <td>${quantity}</td>
-        <td>${getStatusName(item.status)}</td>
-        <td><button class="btn-basic" onclick="editMaterial('${item.id}', '${purchaseDate}', '${number}', '${category}', '${name}', '${quantity}')">수정</button></td>
-        <td><button class="btn-danger" onclick="deleteMaterialSoft('${item.id}', '${item.status || ""}')">삭제</button></td>
-      </tr>
-    `;
-  });
-}
-
-async function editMaterial(materialId, oldPurchaseDate, oldNumber, oldCategory, oldName, oldQuantity) {
-  const newPurchaseDate = prompt("구입일자를 수정하세요.", oldPurchaseDate);
-  if (newPurchaseDate === null) return;
-
-  const newNumber = prompt("관리번호를 수정하세요.", oldNumber);
-  if (newNumber === null) return;
-
-  const newCategory = prompt("분류명을 수정하세요.", oldCategory);
-  if (newCategory === null) return;
-
-  const newName = prompt("물품명을 수정하세요.", oldName);
-  if (newName === null) return;
-
-  const newQuantity = prompt("수량을 수정하세요.", oldQuantity);
-  if (newQuantity === null) return;
-
-  if (!newNumber.trim() || !newName.trim()) {
-    alert("관리번호와 물품명은 비워둘 수 없습니다.");
-    return;
-  }
-
-  const quantityNumber = Number(newQuantity || 1);
-  if (!Number.isFinite(quantityNumber)) {
-    alert("수량은 숫자로 입력해주세요.");
-    return;
-  }
-
-  const { error } = await supabaseClient.from("materials").update({
-    "구입일자": newPurchaseDate.trim() || null,
-    "관리번호": newNumber.trim(),
-    "분류명": newCategory.trim() || null,
-    "물품명": newName.trim(),
-    "수량": quantityNumber
-  }).eq("id", materialId);
-
-  if (error) {
-    alert("교재교구 수정 실패: " + error.message);
-    return;
-  }
-
-  alert("교재교구 정보가 수정되었습니다.");
-  loadMaterials();
-  searchManageMaterials();
-}
-
-async function deleteMaterialSoft(materialId, status) {
-  if (status === "reserved" || status === "borrowed" || status === "return_requested") {
-    alert("예약/사용/반납요청 중인 교재교구는 삭제할 수 없습니다. 먼저 사용기록을 초기화해주세요.");
-    return;
-  }
-
-  if (!confirm("이 교재교구를 삭제 처리하시겠습니까? 관리자 화면에서 복구할 수 있습니다.")) return;
-
-  const { error } = await supabaseClient.from("materials").update({
-    is_deleted: true,
-    deleted_at: new Date().toISOString(),
-    deleted_by: currentUser.id
-  }).eq("id", materialId);
-
-  if (error) {
-    alert("교재교구 삭제 처리 실패: " + error.message);
-    return;
-  }
-
-  alert("교재교구가 삭제 처리되었습니다.");
-  loadMaterials();
-  searchManageMaterials();
-}
-
-async function loadDeletedMaterials() {
-  if (currentUser.role !== "admin") return;
-
-  const { data, error } = await supabaseClient
-    .from("materials")
-    .select('id,"관리번호","분류명","물품명",deleted_at,deleted_by')
-    .eq("is_deleted", true)
-    .order("deleted_at", { ascending: false });
-
-  const list = document.getElementById("deleted-material-list");
-  list.innerHTML = "";
-
-  if (error) {
-    list.innerHTML = `<tr><td colspan="6">삭제 교재교구 목록을 불러오지 못했습니다.</td></tr>`;
-    return;
-  }
-
-  if (!data || !data.length) {
-    list.innerHTML = `<tr><td colspan="6">삭제 처리된 교재교구가 없습니다.</td></tr>`;
-    return;
-  }
-
-  for (const item of data) {
-    const deletedByName = await getUserNameById(item.deleted_by);
-    list.innerHTML += `
-      <tr>
-        <td>${item["관리번호"] || ""}</td>
-        <td>${item["분류명"] || ""}</td>
-        <td>${item["물품명"] || ""}</td>
-        <td>${formatDateTime(item.deleted_at)}</td>
-        <td>${deletedByName}</td>
-        <td><button class="btn-approve" onclick="restoreDeletedMaterial('${item.id}')">복구</button></td>
-      </tr>
-    `;
-  }
-}
-
-async function restoreDeletedMaterial(materialId) {
-  if (!confirm("이 교재교구를 복구하시겠습니까?")) return;
-
-  const { error } = await supabaseClient.from("materials").update({
-    is_deleted: false,
-    deleted_at: null,
-    deleted_by: null
-  }).eq("id", materialId);
-
-  if (error) {
-    alert("복구 실패: " + error.message);
-    return;
-  }
-
-  alert("교재교구가 복구되었습니다.");
-  loadDeletedMaterials();
-  loadMaterials();
-}
-
-function bindEvents() {
-  document.getElementById("login-btn").addEventListener("click", login);
-  document.getElementById("logout-btn").addEventListener("click", logout);
-  document.getElementById("extend-session-btn").addEventListener("click", extendSession);
-  document.getElementById("go-portal-btn").addEventListener("click", () => location.href = "index.html");
-  document.getElementById("portal-btn").addEventListener("click", () => location.href = "index.html");
-
-  document.getElementById("my-materials-btn").addEventListener("click", loadMyMaterials);
-  document.getElementById("my-materials-back-btn").addEventListener("click", () => showScreen("app-screen"));
-
-  document.getElementById("manager-page-btn").addEventListener("click", openManagerPage);
-  document.getElementById("manager-back-btn").addEventListener("click", () => showScreen("app-screen"));
-
-  document.getElementById("material-manage-page-btn").addEventListener("click", () => showScreen("material-manage-screen"));
-  document.getElementById("material-manage-back-btn").addEventListener("click", () => showScreen("app-screen"));
-
-  document.getElementById("deleted-page-btn").addEventListener("click", () => showScreen("deleted-screen"));
-  document.getElementById("deleted-back-btn").addEventListener("click", () => showScreen("app-screen"));
-
-  document.getElementById("prev-page-btn").addEventListener("click", prevPage);
-  document.getElementById("next-page-btn").addEventListener("click", nextPage);
-
-  document.getElementById("print-all-month-btn").addEventListener("click", printMonthlyRecords);
-  document.getElementById("load-record-month-btn").addEventListener("click", loadMonthlyRecordList);
-
-  document.getElementById("excel-upload-btn").addEventListener("click", () => document.getElementById("excel-upload").click());
-  document.getElementById("excel-upload").addEventListener("change", handleExcelUpload);
-  document.getElementById("manage-material-search-btn").addEventListener("click", searchManageMaterials);
-  document.getElementById("search-material-date-btn").addEventListener("click", searchMaterialsByDate);
-  document.getElementById("load-deleted-materials-btn").addEventListener("click", loadDeletedMaterials);
-
-  document.getElementById("page-size").addEventListener("change", (e) => {
-    pageSize = Number(e.target.value);
-    currentPage = 1;
-    loadMaterials();
-  });
-
-  document.getElementById("login-username").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") login();
-  });
-
-  document.getElementById("login-password").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") login();
-  });
-
-  document.getElementById("search").addEventListener("input", (e) => {
-    currentKeyword = e.target.value.trim();
-    currentPage = 1;
-    loadMaterials();
-  });
-}
-
-bindEvents();
-setDefaultPrintMonth();
-restoreLogin();
+const classMap = { "만1세":["햇빛반","달빛반","별빛반","풀빛반","온빛반"], "만2세":["예빛반","봄빛반","물빛반","꿈빛반"], "만3세":["한빛반","은빛반","새빛반"], "만4세":["윤빛반","꽃빛반"], "만5세":["들빛반","솔빛반"] };
+function getRoleName(role){ if(role==="admin") return "관리자"; if(role==="manager") return "도서담당자"; return "선생님"; }
+function getMaterialRoleName(role){ if(currentUser?.role==="admin") return "관리자"; if(role==="manager") return "교재교구담당자"; return "선생님"; }
+function getStatusName(status){ const map={available:"사용가능",reserved:"사용예약",borrowed:"사용중",return_requested:"반납요청",returned:"반납완료",rental_rejected:"예약반려",return_rejected:"반납반려",repair:"수리중",discarded:"폐기"}; return map[status] || status || "-"; }
+function formatDate(v){ if(!v) return "-"; return new Date(v).toLocaleDateString("ko-KR"); }
+function formatDateTime(v){ if(!v) return "-"; return new Date(v).toLocaleString("ko-KR"); }
+function setMessage(id,text,color="#2563eb"){ const el=document.getElementById(id); if(!el) return; el.innerText=text; el.style.color=color; }
+function showScreen(screenId){ ["login-screen","profile-screen","app-screen","my-materials-screen","manager-screen","admin-screen","material-manage-screen","deleted-screen"].forEach(id=>document.getElementById(id)?.classList.add("hidden")); document.getElementById(screenId).classList.remove("hidden"); const contact=document.getElementById("login-contact"); if(contact) contact.style.display=screenId==="login-screen"?"block":"none"; }
+function updateClassOptions(ageId,classId){ const age=document.getElementById(ageId).value; const classSelect=document.getElementById(classId); classSelect.innerHTML=`<option value="">반 전체</option>`; if(!classMap[age]) return; classMap[age].forEach(cls=>classSelect.innerHTML+=`<option value="${cls}">${cls}</option>`); }
+function applyManagerClassFilter(query,type="rental"){ const ageId=type==="rental"?"rental-filter-age":"return-filter-age"; const classId=type==="rental"?"rental-filter-class":"return-filter-class"; const selectedAge=document.getElementById(ageId)?.value; const selectedClass=document.getElementById(classId)?.value; if(selectedClass) return query.eq("current_class",selectedClass); if(selectedAge&&classMap[selectedAge]) return query.in("current_class",classMap[selectedAge]); return query; }
+function updateCountdownDisplay(){ const el=document.getElementById("auto-logout-countdown"); if(!el||!currentUser) return; const m=Math.floor(remainingSeconds/60), s=remainingSeconds%60; el.innerText=`자동 로그아웃 ${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`; }
+function resetAutoLogoutTimer(){ if(!currentUser) return; clearTimeout(logoutTimer); clearInterval(countdownTimer); remainingSeconds=30*60; updateCountdownDisplay(); countdownTimer=setInterval(()=>{remainingSeconds--; updateCountdownDisplay(); if(remainingSeconds<=0) clearInterval(countdownTimer);},1000); logoutTimer=setTimeout(()=>{alert("30분 동안 활동이 없어 자동 로그아웃되었습니다."); logout();},AUTO_LOGOUT_TIME); }
+function extendSession(){ resetAutoLogoutTimer(); alert("로그인 시간이 30분 연장되었습니다."); }
+async function refreshCurrentUser(){ if(!currentUser?.id) return; const {data}=await supabaseClient.from("users").select("*").eq("id",currentUser.id).maybeSingle(); if(data){ currentUser=data; saveSession(); } }
+function saveSession(){ localStorage.setItem("materialsCurrentUser",JSON.stringify(currentUser)); localStorage.setItem("libraryCurrentUser",JSON.stringify(currentUser)); }
+async function login(){ const username=document.getElementById("login-username").value.trim(); const password=document.getElementById("login-password").value.trim(); if(!username||!password){setMessage("login-message","아이디와 비밀번호를 모두 입력해주세요.","red"); return;} const {data,error}=await supabaseClient.from("users").select("*").eq("username",username).maybeSingle(); if(error||!data){setMessage("login-message","등록되지 않은 아이디입니다.","red"); return;} if(data.password!==password){setMessage("login-message","비밀번호가 틀렸습니다.","red"); return;} if(data.approval_status==="inactive"){setMessage("login-message","비활성화된 계정입니다. 관리자에게 문의해주세요.","red"); return;} if(data.approval_status!=="approved"){setMessage("login-message","관리자 승인 대기중입니다."); return;} currentUser=data; saveSession(); afterLoginSuccess(); }
+async function afterLoginSuccess(){ await refreshCurrentUser(); document.getElementById("user-info").innerText=`${currentUser.name} / ${currentUser.class_name} / ${getMaterialRoleName(currentUser.material_role)}`; ["manager-page-btn","material-manage-page-btn","admin-page-btn","deleted-page-btn"].forEach(id=>document.getElementById(id).classList.add("hidden")); if(currentUser.material_role==="manager"||currentUser.role==="admin"){ document.getElementById("manager-page-btn").classList.remove("hidden"); document.getElementById("material-manage-page-btn").classList.remove("hidden"); } if(currentUser.role==="admin"){ document.getElementById("admin-page-btn").classList.remove("hidden"); document.getElementById("deleted-page-btn").classList.remove("hidden"); } resetAutoLogoutTimer(); showScreen("app-screen"); currentPage=1; loadMaterials(); }
+function restoreLogin(){ const savedUser=localStorage.getItem("materialsCurrentUser")||localStorage.getItem("libraryCurrentUser"); if(!savedUser) return; try{ currentUser=JSON.parse(savedUser); afterLoginSuccess(); }catch{ localStorage.removeItem("materialsCurrentUser"); showScreen("login-screen"); } }
+function logout(){ currentUser=null; localStorage.removeItem("materialsCurrentUser"); localStorage.removeItem("libraryCurrentUser"); clearTimeout(logoutTimer); clearInterval(countdownTimer); document.getElementById("login-username").value=""; document.getElementById("login-password").value=""; document.getElementById("login-message").innerText=""; showScreen("login-screen"); }
+function openProfile(){ document.getElementById("profile-name").innerText=currentUser.name; document.getElementById("profile-current-class").innerText=currentUser.class_name; document.getElementById("profile-material-role").innerText=getMaterialRoleName(currentUser.material_role); document.getElementById("profile-message").innerText=""; document.getElementById("new-password").value=""; if(currentUser.role==="admin"||currentUser.material_role==="manager") document.getElementById("request-material-manager-btn").classList.add("hidden"); else document.getElementById("request-material-manager-btn").classList.remove("hidden"); showScreen("profile-screen"); }
+async function changePassword(){ const newPassword=document.getElementById("new-password").value.trim(); if(!newPassword){setMessage("profile-message","새 비밀번호를 입력해주세요.","red"); return;} const {error}=await supabaseClient.from("users").update({password:newPassword}).eq("id",currentUser.id); if(error){setMessage("profile-message","비밀번호 변경 실패: "+error.message,"red"); return;} currentUser.password=newPassword; saveSession(); setMessage("profile-message","비밀번호가 변경되었습니다."); }
+async function requestMaterialManagerRole(){ if(currentUser.role==="admin"||currentUser.material_role==="manager"){setMessage("profile-message","이미 교재교구담당자 권한이 있습니다.","red"); return;} const {data:existing}=await supabaseClient.from("material_manager_role_requests").select("id").eq("user_id",currentUser.id).eq("status","pending").maybeSingle(); if(existing){setMessage("profile-message","이미 교재교구담당자 권한 요청이 대기중입니다.","red"); return;} const {error}=await supabaseClient.from("material_manager_role_requests").insert([{user_id:currentUser.id,name:currentUser.name,user_role:currentUser.material_role||"teacher",requested_role:"manager",status:"pending"}]); if(error){setMessage("profile-message","교재교구담당자 권한 요청 실패: "+error.message,"red"); return;} setMessage("profile-message","교재교구담당자 권한 요청이 완료되었습니다. 관리자 승인 후 반영됩니다."); }
+async function loadMaterials(){ const list=document.getElementById("material-list"); list.innerHTML=`<tr><td colspan="9">교재교구 목록을 불러오는 중입니다...</td></tr>`; const start=(currentPage-1)*pageSize, end=start+pageSize-1; let query=supabaseClient.from("materials").select('id,"구입일자","관리번호","분류명","물품명","수량",status,current_class,current_user_id,is_deleted',{count:"exact"}).or("is_deleted.is.false,is_deleted.is.null").order("관리번호",{ascending:true}).range(start,end); if(currentKeyword) query=query.or(`물품명.ilike.%${currentKeyword}%,관리번호.ilike.%${currentKeyword}%,분류명.ilike.%${currentKeyword}%`); const {data,error,count}=await query; if(error){list.innerHTML=`<tr><td colspan="9">교재교구 목록을 불러오지 못했습니다: ${error.message}</td></tr>`; return;} totalMaterials=count||0; renderMaterials(data||[]); renderPagination(); }
+function renderMaterials(materials){ const list=document.getElementById("material-list"); list.innerHTML=""; if(!materials.length){list.innerHTML=`<tr><td colspan="9">검색 결과가 없습니다.</td></tr>`; return;} materials.forEach(item=>{ const isSameClass=item.current_class===currentUser.class_name; let reserveBtn="-", returnBtn="-"; if(!item.status||item.status==="available") reserveBtn=`<button class="btn-reserve" onclick="reserveMaterial('${item.id}')">예약</button>`; if(item.status==="reserved"&&isSameClass) reserveBtn=`<button class="btn-cancel" onclick="cancelReservation('${item.id}')">취소</button>`; if(item.status==="borrowed"&&isSameClass) returnBtn=`<button class="btn-return" onclick="requestReturn('${item.id}')">반납</button>`; if(item.status==="return_requested"&&isSameClass) returnBtn=`<button class="btn-wait" disabled>대기</button>`; list.innerHTML+=`<tr><td>${item["구입일자"]||""}</td><td>${item["관리번호"]||""}</td><td>${item["분류명"]||""}</td><td>${item["물품명"]||""}</td><td class="status">${item["수량"]??""}</td><td class="status">${getStatusName(item.status||"available")}</td><td class="status">${item.current_class||"-"}</td><td class="btn-cell">${reserveBtn}</td><td class="btn-cell">${returnBtn}</td></tr>`; }); }
+function renderPagination(){ const totalPages=Math.ceil(totalMaterials/pageSize), pageButtons=document.getElementById("page-buttons"), info=document.getElementById("pagination-info"); info.innerText=`총 ${totalMaterials}개 / ${currentPage}쪽`; pageButtons.innerHTML=""; if(totalPages<=1) return; for(let i=Math.max(1,currentPage-3); i<=Math.min(totalPages,currentPage+3); i++) pageButtons.innerHTML+=`<button class="${i===currentPage?"active":""}" onclick="goToPage(${i})">${i}</button>`; }
+function goToPage(page){currentPage=page; loadMaterials();} function prevPage(){if(currentPage>1){currentPage--; loadMaterials();}} function nextPage(){const totalPages=Math.ceil(totalMaterials/pageSize); if(currentPage<totalPages){currentPage++; loadMaterials();}}
+async function reserveMaterial(id){ const {error}=await supabaseClient.from("materials").update({status:"reserved",current_class:currentUser.class_name,current_user_id:currentUser.id}).eq("id",id); if(error){alert("사용예약 실패: "+error.message); return;} await supabaseClient.from("material_records").insert([{material_id:id,user_id:currentUser.id,class_name:currentUser.class_name,borrower_name:currentUser.name,reserved_at:new Date().toISOString(),status:"reserved"}]); alert("사용예약이 완료되었습니다."); loadMaterials(); }
+async function cancelReservation(id){ if(!confirm("예약을 취소하시겠습니까?")) return; const {error}=await supabaseClient.from("materials").update({status:"available",current_class:null,current_user_id:null}).eq("id",id).eq("current_class",currentUser.class_name); if(error){alert("예약취소 실패: "+error.message); return;} await supabaseClient.from("material_records").delete().eq("material_id",id).eq("class_name",currentUser.class_name).eq("status","reserved"); alert("예약이 취소되었습니다."); loadMaterials(); }
+async function requestReturn(id){ if(!confirm("반납요청을 하시겠습니까?")) return; const {error}=await supabaseClient.from("materials").update({status:"return_requested"}).eq("id",id).eq("current_class",currentUser.class_name); if(error){alert("반납요청 실패: "+error.message); return;} await supabaseClient.from("material_records").update({status:"return_requested",returned_by:currentUser.id,return_requested_at:new Date().toISOString()}).eq("material_id",id).eq("class_name",currentUser.class_name).eq("status","borrowed"); alert("반납요청이 완료되었습니다."); loadMaterials(); }
+async function loadMyMaterials(){ showScreen("my-materials-screen"); const {data,error}=await supabaseClient.from("materials").select('id,"관리번호","분류명","물품명","수량",status,current_class,current_user_id').eq("current_class",currentUser.class_name).or("is_deleted.is.false,is_deleted.is.null"); const list=document.getElementById("my-materials-list"); list.innerHTML=""; if(error||!data?.length){list.innerHTML=`<tr><td colspan="8">현재 ${currentUser.class_name}에서 예약 또는 사용중인 교재교구가 없습니다.</td></tr>`;} else data.forEach(item=>{ let reserveBtn="-",returnBtn="-"; if(item.status==="reserved") reserveBtn=`<button class="btn-cancel" onclick="cancelReservationAndReloadMyMaterials('${item.id}')">예약취소</button>`; if(item.status==="borrowed") returnBtn=`<button class="btn-return" onclick="requestReturnAndReloadMyMaterials('${item.id}')">반납요청</button>`; if(item.status==="return_requested") returnBtn=`<button class="btn-wait" disabled>반납대기</button>`; list.innerHTML+=`<tr><td>${item["관리번호"]||""}</td><td>${item["분류명"]||""}</td><td>${item["물품명"]||""}</td><td>${item["수량"]??""}</td><td>${getStatusName(item.status)}</td><td>${item.current_class||"-"}</td><td>${reserveBtn}</td><td>${returnBtn}</td></tr>`; }); await loadMyRejections(); }
+async function cancelReservationAndReloadMyMaterials(id){await cancelReservation(id); await loadMyMaterials();} async function requestReturnAndReloadMyMaterials(id){await requestReturn(id); await loadMyMaterials();}
+async function loadMyRejections(){ const list=document.getElementById("my-rejection-list"); list.innerHTML=""; const {data:records,error}=await supabaseClient.from("material_records").select("*").eq("class_name",currentUser.class_name).in("status",["rental_rejected","return_rejected"]).order("created_at",{ascending:false}); if(error||!records?.length){list.innerHTML=`<tr><td colspan="5">확인할 반려 내역이 없습니다.</td></tr>`; return;} for(const record of records){ const {data:item}=await supabaseClient.from("materials").select('"관리번호","물품명"').eq("id",record.material_id).maybeSingle(); const type=record.status==="rental_rejected"?"예약반려":"반납반려"; const reason=record.status==="rental_rejected"?record.reject_reason:record.return_reject_reason; const rejectedAt=record.status==="rental_rejected"?record.rejected_at:record.return_rejected_at; list.innerHTML+=`<tr><td>${type}</td><td>${item?.["관리번호"]||""}</td><td>${item?.["물품명"]||""}</td><td>${formatDateTime(rejectedAt)}</td><td>${reason||"-"}</td></tr>`; } }
+async function openManagerPage(){ if(!currentUser||(currentUser.material_role!=="manager"&&currentUser.role!=="admin")) return; showScreen("manager-screen"); loadRentalApproveList(); loadReturnApproveList(); loadMonthlyRecordList(); }
+async function getActiveRecord(id,statuses){ const {data}=await supabaseClient.from("material_records").select("*").eq("material_id",id).in("status",statuses).order("created_at",{ascending:false}).limit(1).maybeSingle(); return data; }
+async function getUserNameById(userId){ if(!userId) return "-"; const {data}=await supabaseClient.from("users").select("name").eq("id",userId).maybeSingle(); return data?.name||"-"; }
+async function loadRentalApproveList(){ let query=supabaseClient.from("materials").select('id,"관리번호","분류명","물품명",current_class,status,current_user_id').eq("status","reserved").or("is_deleted.is.false,is_deleted.is.null").order("관리번호",{ascending:true}); query=applyManagerClassFilter(query,"rental"); const {data}=await query; const list=document.getElementById("rental-approve-list"); list.innerHTML=""; if(!data?.length){list.innerHTML=`<tr><td colspan="6">선택한 연령/반의 사용예약 요청이 없습니다.</td></tr>`; return;} for(const item of data){ const record=await getActiveRecord(item.id,["reserved"]); const borrowerName=record?.borrower_name||await getUserNameById(item.current_user_id); list.innerHTML+=`<tr><td>${item["관리번호"]||""}</td><td>${item["분류명"]||""}</td><td>${item["물품명"]||""}</td><td>${item.current_class||"-"}</td><td>${borrowerName}</td><td><button class="btn-approve" onclick="approveRental('${item.id}')">승인</button><button class="btn-danger" onclick="rejectRental('${item.id}')">반려</button></td></tr>`; } }
+async function approveRental(id){ await supabaseClient.from("materials").update({status:"borrowed"}).eq("id",id); await supabaseClient.from("material_records").update({status:"borrowed",approved_at:new Date().toISOString(),approved_by:currentUser.id}).eq("material_id",id).eq("status","reserved"); loadRentalApproveList(); loadMaterials(); }
+async function rejectRental(id){ const reason=prompt("사용예약 반려 사유를 입력해주세요."); if(!reason?.trim()){alert("반려 사유를 입력해야 합니다."); return;} await supabaseClient.from("materials").update({status:"available",current_class:null,current_user_id:null}).eq("id",id); const {error}=await supabaseClient.from("material_records").update({status:"rental_rejected",reject_reason:reason.trim(),rejected_at:new Date().toISOString(),rejected_by:currentUser.id}).eq("material_id",id).eq("status","reserved"); if(error){alert("반려 처리 실패: "+error.message); return;} alert("사용예약이 반려되었습니다."); loadRentalApproveList(); loadMaterials(); }
+async function loadReturnApproveList(){ let query=supabaseClient.from("materials").select('id,"관리번호","분류명","물품명",current_class,status,current_user_id').eq("status","return_requested").or("is_deleted.is.false,is_deleted.is.null").order("관리번호",{ascending:true}); query=applyManagerClassFilter(query,"return"); const {data}=await query; const list=document.getElementById("return-approve-list"); list.innerHTML=""; if(!data?.length){list.innerHTML=`<tr><td colspan="6">선택한 연령/반의 반납요청이 없습니다.</td></tr>`; return;} for(const item of data){ const record=await getActiveRecord(item.id,["return_requested"]); const returnUserName=await getUserNameById(record?.returned_by||item.current_user_id); list.innerHTML+=`<tr><td>${item["관리번호"]||""}</td><td>${item["분류명"]||""}</td><td>${item["물품명"]||""}</td><td>${item.current_class||"-"}</td><td>${returnUserName}</td><td><button class="btn-approve" onclick="approveReturn('${item.id}')">반납승인</button><button class="btn-danger" onclick="rejectReturn('${item.id}')">반납반려</button></td></tr>`; } }
+async function approveReturn(id){ await supabaseClient.from("materials").update({status:"available",current_class:null,current_user_id:null}).eq("id",id); await supabaseClient.from("material_records").update({status:"returned",returned_at:new Date().toISOString(),return_approved_by:currentUser.id}).eq("material_id",id).eq("status","return_requested"); loadReturnApproveList(); loadMaterials(); }
+async function rejectReturn(id){ const reason=prompt("반납 반려 사유를 입력해주세요."); if(!reason?.trim()){alert("반려 사유를 입력해야 합니다."); return;} await supabaseClient.from("materials").update({status:"borrowed"}).eq("id",id); const {error}=await supabaseClient.from("material_records").update({status:"return_rejected",return_reject_reason:reason.trim(),return_rejected_at:new Date().toISOString(),return_rejected_by:currentUser.id}).eq("material_id",id).eq("status","return_requested"); if(error){alert("반납 반려 실패: "+error.message); return;} alert("반납요청이 반려되었습니다."); loadReturnApproveList(); loadMaterials(); }
+function getMonthRange(){ const year=Number(document.getElementById("print-year").value), month=Number(document.getElementById("print-month").value)-1; return {year,month,startDate:new Date(year,month,1).toISOString(),endDate:new Date(year,month+1,1).toISOString()}; }
+function setDefaultPrintMonth(){ const now=new Date(); const yearEl=document.getElementById("print-year"), monthEl=document.getElementById("print-month"); if(yearEl) yearEl.value=String(now.getFullYear()); if(monthEl) monthEl.value=String(now.getMonth()+1); }
+async function getMonthlyRecords(){ const {startDate,endDate}=getMonthRange(); const {data:records,error}=await supabaseClient.from("material_records").select("*").gte("approved_at",startDate).lt("approved_at",endDate).in("status",["borrowed","return_requested","returned","return_rejected"]); if(error){alert("기록을 불러오지 못했습니다: "+error.message); return [];} const result=[]; for(const record of records||[]){ const {data:item}=await supabaseClient.from("materials").select('"관리번호","물품명"').eq("id",record.material_id).maybeSingle(); result.push({...record,materialNumber:item?.["관리번호"]||"",materialName:item?.["물품명"]||"",borrowerName:record.borrower_name||await getUserNameById(record.user_id),approvedByName:await getUserNameById(record.approved_by),returnedByName:await getUserNameById(record.returned_by),returnApprovedByName:await getUserNameById(record.return_approved_by)}); } return result; }
+async function loadMonthlyRecordList(){ const records=await getMonthlyRecords(); const list=document.getElementById("monthly-record-list"); list.innerHTML=""; if(!records.length){list.innerHTML=`<tr><td colspan="10">선택 월 사용기록이 없습니다.</td></tr>`; return;} records.forEach(r=>{ const resetCell=currentUser.role==="admin"?`<button class="btn-danger" onclick="deleteRecord('${r.id}')">초기화</button>`:`관리자 문의`; list.innerHTML+=`<tr><td>${formatDate(r.approved_at)}</td><td>${r.class_name||""}</td><td>${r.materialNumber}</td><td>${r.materialName}</td><td>${r.borrowerName}</td><td>${r.approvedByName}</td><td>${formatDate(r.returned_at)}</td><td>${r.returnedByName}</td><td>${r.returnApprovedByName}</td><td>${resetCell}</td></tr>`; }); }
+async function deleteRecord(id){ if(currentUser.role!=="admin"){alert("사용기록 초기화는 관리자만 가능합니다."); return;} if(!confirm("이 사용기록을 삭제하고 교재교구를 사용가능 상태로 초기화하시겠습니까?")) return; const {data:record}=await supabaseClient.from("material_records").select("*").eq("id",id).maybeSingle(); if(!record){alert("기록 정보를 찾을 수 없습니다."); return;} await supabaseClient.from("materials").update({status:"available",current_class:null,current_user_id:null}).eq("id",record.material_id); await supabaseClient.from("material_records").delete().eq("id",id); alert("사용기록이 삭제되고 교재교구가 사용가능 상태로 초기화되었습니다."); loadMonthlyRecordList(); loadMaterials(); }
+async function printMonthlyRecords(){ const {year,month}=getMonthRange(); const records=await getMonthlyRecords(); const printArea=document.getElementById("print-area"); let rows=""; if(!records.length) rows=`<tr><td colspan="9">사용기록이 없습니다.</td></tr>`; else records.forEach(r=>rows+=`<tr><td>${formatDate(r.approved_at)}</td><td>${r.class_name||""}</td><td>${r.materialNumber}</td><td>${r.materialName}</td><td>${r.borrowerName}</td><td>${r.approvedByName}</td><td>${formatDate(r.returned_at)}</td><td>${r.returnedByName}</td><td>${r.returnApprovedByName}</td></tr>`); printArea.innerHTML=`<h2>탕정삼성어린이집 교재교구 사용·반납 기록</h2><h3>${year}년 ${month+1}월 전체 사용기록</h3><table><thead><tr><th>사용승인일</th><th>반</th><th>관리번호</th><th>물품명</th><th>요청자</th><th>승인자</th><th>반납일</th><th>반납자</th><th>반납승인자</th></tr></thead><tbody>${rows}</tbody></table>`; printArea.classList.remove("hidden"); printArea.style.display="block"; setTimeout(()=>{window.print(); setTimeout(()=>{printArea.classList.add("hidden"); printArea.style.display="none";},1000);},300); }
+async function openAdminPage(){ if(currentUser.role!=="admin") return; showScreen("admin-screen"); loadMaterialManagerRequests(); loadCurrentMaterialManagers(); }
+async function loadMaterialManagerRequests(){ const {data}=await supabaseClient.from("material_manager_role_requests").select("*").eq("status","pending").order("created_at",{ascending:false}); const list=document.getElementById("material-manager-request-list"); list.innerHTML=""; if(!data?.length){list.innerHTML=`<tr><td colspan="4">대기중인 요청이 없습니다.</td></tr>`; return;} data.forEach(req=>list.innerHTML+=`<tr><td>${req.name}</td><td>${req.user_role==="manager"?"교재교구담당자":"선생님"}</td><td>교재교구담당자</td><td><button class="btn-approve" onclick="approveMaterialManagerRole('${req.id}','${req.user_id}')">승인</button></td></tr>`); }
+async function approveMaterialManagerRole(requestId,userId){ await supabaseClient.from("users").update({material_role:"manager"}).eq("id",userId); await supabaseClient.from("material_manager_role_requests").update({status:"approved",approved_by:currentUser.id,processed_at:new Date().toISOString()}).eq("id",requestId); await refreshCurrentUser(); loadMaterialManagerRequests(); loadCurrentMaterialManagers(); }
+async function loadCurrentMaterialManagers(){ const {data,error}=await supabaseClient.from("users").select("*").eq("material_role","manager").eq("approval_status","approved").order("class_name",{ascending:true}); const list=document.getElementById("current-material-manager-list"); list.innerHTML=""; if(error){list.innerHTML=`<tr><td colspan="5">교재교구담당자 목록을 불러오지 못했습니다.</td></tr>`; return;} if(!data?.length){list.innerHTML=`<tr><td colspan="5">현재 교재교구담당자가 없습니다.</td></tr>`; return;} data.forEach(u=>list.innerHTML+=`<tr><td>${u.name}</td><td>${u.username}</td><td>${u.class_name}</td><td>교재교구담당자</td><td><button class="btn-danger" onclick="changeMaterialManagerToTeacher('${u.id}')">선생님 권한으로 변경</button></td></tr>`); }
+async function changeMaterialManagerToTeacher(userId){ if(!confirm("이 교재교구담당자를 선생님 권한으로 변경하시겠습니까?")) return; const {error}=await supabaseClient.from("users").update({material_role:"teacher"}).eq("id",userId); if(error){alert("권한 변경 실패: "+error.message); return;} alert("선생님 권한으로 변경되었습니다."); loadCurrentMaterialManagers(); }
+async function handleExcelUpload(e){ const file=e.target.files[0]; if(!file) return; const reader=new FileReader(); reader.onload=async function(ev){ const data=new Uint8Array(ev.target.result); const workbook=XLSX.read(data,{type:"array"}); const worksheet=workbook.Sheets[workbook.SheetNames[0]]; const jsonData=XLSX.utils.sheet_to_json(worksheet); if(!jsonData.length){alert("엑셀 데이터가 없습니다."); return;} let successCount=0,duplicateCount=0,missingCount=0,errorCount=0; for(const row of jsonData){ const purchaseDate=row["구입일자"]?.toString().trim(); const itemNumber=row["관리번호"]?.toString().trim(); const type=row["구분"]?.toString().trim(); const category=row["분류명"]?.toString().trim(); const itemName=row["물품명"]?.toString().trim(); const size=row["규격"]?.toString().trim(); const vendor=row["구입처"]?.toString().trim(); const quantity=Number(row["수량"]||1); const price=row["금"]?.toString().trim(); const usePlace=row["사용처"]?.toString().trim(); const voucherNumber=row["전표(증빙번호)"]?.toString().trim()||row["전표증빙번호"]?.toString().trim(); const photo=row["사진"]?.toString().trim(); const note=row["비고"]?.toString().trim(); if(!itemNumber||!itemName){missingCount++; continue;} const {data:existing}=await supabaseClient.from("materials").select("id").eq("관리번호",itemNumber).maybeSingle(); if(existing){duplicateCount++; continue;} const {error}=await supabaseClient.from("materials").insert([{"구입일자":purchaseDate||null,"관리번호":itemNumber,"구분":type||null,"분류명":category||null,"물품명":itemName,"규격":size||null,"구입처":vendor||null,"수량":Number.isFinite(quantity)?quantity:1,"금":price||null,"사용처":usePlace||null,"전표증빙번호":voucherNumber||null,"사진":photo||null,"비고":note||null,status:"available",current_class:null,current_user_id:null,is_deleted:false}]); if(error) errorCount++; else successCount++; } const result=`엑셀 등록 완료
+성공: ${successCount}개
+중복: ${duplicateCount}개
+필수값 누락: ${missingCount}개
+기타 오류: ${errorCount}개`; setMessage("excel-upload-result",result); alert(result); loadMaterials(); }; reader.readAsArrayBuffer(file); }
+async function searchManageMaterials(){ const kw=document.getElementById("manage-material-search").value.trim(); if(!kw){alert("검색어를 입력해주세요."); return;} const {data,error}=await supabaseClient.from("materials").select('id,"구입일자","관리번호","분류명","물품명","수량",status,created_at,is_deleted').or("is_deleted.is.false,is_deleted.is.null").or(`물품명.ilike.%${kw}%,관리번호.ilike.%${kw}%,분류명.ilike.%${kw}%`).limit(50); renderManageMaterials(data,error); }
+async function searchMaterialsByDate(){ const start=document.getElementById("material-start-date").value, end=document.getElementById("material-end-date").value; if(!start||!end){alert("시작일과 종료일을 모두 선택해주세요."); return;} const {data,error}=await supabaseClient.from("materials").select('id,"구입일자","관리번호","분류명","물품명","수량",status,created_at,is_deleted').or("is_deleted.is.false,is_deleted.is.null").gte("created_at",new Date(start+"T00:00:00").toISOString()).lte("created_at",new Date(end+"T23:59:59").toISOString()).order("created_at",{ascending:false}).limit(100); renderManageMaterials(data,error); }
+function safePromptText(v){return (v||"").replaceAll("'","\'");}
+function renderManageMaterials(data,error){ const list=document.getElementById("manage-material-list"); list.innerHTML=""; if(error){list.innerHTML=`<tr><td colspan="8">교재교구 조회 실패: ${error.message}</td></tr>`; return;} if(!data?.length){list.innerHTML=`<tr><td colspan="8">조회 결과가 없습니다.</td></tr>`; return;} data.forEach(item=>{ const pd=safePromptText(item["구입일자"]), num=safePromptText(item["관리번호"]), cat=safePromptText(item["분류명"]), name=safePromptText(item["물품명"]), qty=item["수량"]??1; list.innerHTML+=`<tr><td>${item["구입일자"]||""}</td><td>${item["관리번호"]||""}</td><td>${item["분류명"]||""}</td><td>${item["물품명"]||""}</td><td>${qty}</td><td>${getStatusName(item.status)}</td><td><button class="btn-basic" onclick="editMaterial('${item.id}','${pd}','${num}','${cat}','${name}','${qty}')">수정</button></td><td><button class="btn-danger" onclick="deleteMaterialSoft('${item.id}','${item.status||""}')">삭제</button></td></tr>`; }); }
+async function editMaterial(id,oldPurchaseDate,oldNumber,oldCategory,oldName,oldQuantity){ const newPurchaseDate=prompt("구입일자를 수정하세요.",oldPurchaseDate); if(newPurchaseDate===null) return; const newNumber=prompt("관리번호를 수정하세요.",oldNumber); if(newNumber===null) return; const newCategory=prompt("분류명을 수정하세요.",oldCategory); if(newCategory===null) return; const newName=prompt("물품명을 수정하세요.",oldName); if(newName===null) return; const newQuantity=prompt("수량을 수정하세요.",oldQuantity); if(newQuantity===null) return; if(!newNumber.trim()||!newName.trim()){alert("관리번호와 물품명은 비워둘 수 없습니다."); return;} const q=Number(newQuantity||1); if(!Number.isFinite(q)){alert("수량은 숫자로 입력해주세요."); return;} const {error}=await supabaseClient.from("materials").update({"구입일자":newPurchaseDate.trim()||null,"관리번호":newNumber.trim(),"분류명":newCategory.trim()||null,"물품명":newName.trim(),"수량":q}).eq("id",id); if(error){alert("교재교구 수정 실패: "+error.message); return;} alert("교재교구 정보가 수정되었습니다."); loadMaterials(); searchManageMaterials(); }
+async function deleteMaterialSoft(id,status){ if(["reserved","borrowed","return_requested"].includes(status)){alert("예약/사용/반납요청 중인 교재교구는 삭제할 수 없습니다. 먼저 사용기록을 초기화해주세요."); return;} if(!confirm("이 교재교구를 삭제 처리하시겠습니까? 관리자 화면에서 복구할 수 있습니다.")) return; const {error}=await supabaseClient.from("materials").update({is_deleted:true,deleted_at:new Date().toISOString(),deleted_by:currentUser.id}).eq("id",id); if(error){alert("교재교구 삭제 처리 실패: "+error.message); return;} alert("교재교구가 삭제 처리되었습니다."); loadMaterials(); searchManageMaterials(); }
+async function loadDeletedMaterials(){ if(currentUser.role!=="admin") return; const {data,error}=await supabaseClient.from("materials").select('id,"관리번호","분류명","물품명",deleted_at,deleted_by').eq("is_deleted",true).order("deleted_at",{ascending:false}); const list=document.getElementById("deleted-material-list"); list.innerHTML=""; if(error){list.innerHTML=`<tr><td colspan="6">삭제 교재교구 목록을 불러오지 못했습니다.</td></tr>`; return;} if(!data?.length){list.innerHTML=`<tr><td colspan="6">삭제 처리된 교재교구가 없습니다.</td></tr>`; return;} for(const item of data){ const deletedByName=await getUserNameById(item.deleted_by); list.innerHTML+=`<tr><td>${item["관리번호"]||""}</td><td>${item["분류명"]||""}</td><td>${item["물품명"]||""}</td><td>${formatDateTime(item.deleted_at)}</td><td>${deletedByName}</td><td><button class="btn-approve" onclick="restoreDeletedMaterial('${item.id}')">복구</button></td></tr>`; } }
+async function restoreDeletedMaterial(id){ if(!confirm("이 교재교구를 복구하시겠습니까?")) return; const {error}=await supabaseClient.from("materials").update({is_deleted:false,deleted_at:null,deleted_by:null}).eq("id",id); if(error){alert("복구 실패: "+error.message); return;} alert("교재교구가 복구되었습니다."); loadDeletedMaterials(); loadMaterials(); }
+function bindEvents(){ document.getElementById("login-btn").addEventListener("click",login); document.getElementById("logout-btn").addEventListener("click",logout); document.getElementById("extend-session-btn").addEventListener("click",extendSession); document.getElementById("go-portal-btn").addEventListener("click",()=>location.href="index.html"); document.getElementById("portal-btn").addEventListener("click",()=>location.href="index.html"); document.getElementById("profile-btn").addEventListener("click",openProfile); document.getElementById("profile-back-btn").addEventListener("click",()=>showScreen("app-screen")); document.getElementById("change-password-btn").addEventListener("click",changePassword); document.getElementById("request-material-manager-btn").addEventListener("click",requestMaterialManagerRole); document.getElementById("my-materials-btn").addEventListener("click",loadMyMaterials); document.getElementById("my-materials-back-btn").addEventListener("click",()=>showScreen("app-screen")); document.getElementById("manager-page-btn").addEventListener("click",openManagerPage); document.getElementById("manager-back-btn").addEventListener("click",()=>showScreen("app-screen")); document.getElementById("rental-filter-age").addEventListener("change",()=>updateClassOptions("rental-filter-age","rental-filter-class")); document.getElementById("return-filter-age").addEventListener("change",()=>updateClassOptions("return-filter-age","return-filter-class")); document.getElementById("load-rental-filter-btn").addEventListener("click",loadRentalApproveList); document.getElementById("load-return-filter-btn").addEventListener("click",loadReturnApproveList); document.getElementById("admin-page-btn").addEventListener("click",openAdminPage); document.getElementById("admin-back-btn").addEventListener("click",()=>showScreen("app-screen")); document.getElementById("material-manage-page-btn").addEventListener("click",()=>showScreen("material-manage-screen")); document.getElementById("material-manage-back-btn").addEventListener("click",()=>showScreen("app-screen")); document.getElementById("deleted-page-btn").addEventListener("click",()=>showScreen("deleted-screen")); document.getElementById("deleted-back-btn").addEventListener("click",()=>showScreen("app-screen")); document.getElementById("prev-page-btn").addEventListener("click",prevPage); document.getElementById("next-page-btn").addEventListener("click",nextPage); document.getElementById("print-all-month-btn").addEventListener("click",printMonthlyRecords); document.getElementById("load-record-month-btn").addEventListener("click",loadMonthlyRecordList); document.getElementById("excel-upload-btn").addEventListener("click",()=>document.getElementById("excel-upload").click()); document.getElementById("excel-upload").addEventListener("change",handleExcelUpload); document.getElementById("manage-material-search-btn").addEventListener("click",searchManageMaterials); document.getElementById("search-material-date-btn").addEventListener("click",searchMaterialsByDate); document.getElementById("load-deleted-materials-btn").addEventListener("click",loadDeletedMaterials); document.getElementById("page-size").addEventListener("change",e=>{pageSize=Number(e.target.value); currentPage=1; loadMaterials();}); document.getElementById("login-username").addEventListener("keydown",e=>{if(e.key==="Enter") login();}); document.getElementById("login-password").addEventListener("keydown",e=>{if(e.key==="Enter") login();}); document.getElementById("search").addEventListener("input",e=>{currentKeyword=e.target.value.trim(); currentPage=1; loadMaterials();}); }
+bindEvents(); setDefaultPrintMonth(); restoreLogin();
 </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>탕정삼성어린이집 교재교구관리 시스템</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <style>
+    body { font-family:sans-serif; padding:20px; background:#fafafa; }
+    h1 { margin:0; }
+    h2, h3 { margin-top:20px; }
+    .box { background:white; padding:20px; border:1px solid #ddd; max-width:1100px; margin-bottom:20px; }
+    input, select { width:100%; padding:12px; margin-bottom:10px; box-sizing:border-box; font-size:14px; }
+    button { padding:9px 12px; margin:2px; cursor:pointer; border:1px solid #ccc; border-radius:4px; }
+    table { width:100%; border-collapse:collapse; background:white; table-layout:fixed; margin-bottom:16px; }
+    th, td { border:1px solid #ddd; padding:8px; font-size:14px; word-break:keep-all; vertical-align:middle; }
+    th { background:#f1f1f1; text-align:center; }
+    .hidden { display:none; }
+    .status, .btn-cell { text-align:center; }
+    .message { font-size:14px; margin-top:10px; color:#2563eb; white-space:pre-line; }
+    .notice { font-size:13px; color:#666; line-height:1.5; }
+    .title-row { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+    .logo { width:52px; height:auto; object-fit:contain; }
+    .login-contact { text-align:center; font-size:14px; color:#555; max-width:1100px; margin-top:-10px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:15px; flex-wrap:wrap; }
+    .session-box { display:flex; align-items:center; gap:6px; white-space:nowrap; }
+    .session-timer { font-size:13px; color:#6b7280; margin-right:4px; white-space:nowrap; }
+    .pagination { margin-top:15px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+    .pagination button.active { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
+    .page-size-box { max-width:160px; margin-top:10px; }
+    .panel { background:#f9fafb; border:1px solid #e5e7eb; padding:14px; margin:10px 0 20px; }
+    .grid-row { display:grid; grid-template-columns:1fr 1fr auto; gap:8px; align-items:center; margin-bottom:8px; }
+    .grid-row select, .grid-row input { margin-bottom:0; }
+    .material-search-row { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; margin-bottom:8px; }
+    .material-search-row input { margin-bottom:0; }
+    .btn-basic { background:white; color:#111; }
+    .btn-reserve { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
+    .btn-cancel { background:#f3f4f6; color:#4b5563; border-color:#d1d5db; }
+    .btn-return { background:#fff7ed; color:#c2410c; border-color:#fed7aa; }
+    .btn-approve { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
+    .btn-danger { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+    .btn-wait { background:#f3f4f6; color:#6b7280; border-color:#d1d5db; cursor:default; }
+    @media (max-width:700px) {
+      .grid-row, .material-search-row { grid-template-columns:1fr; }
+      .top { align-items:flex-start; }
+      .session-box { flex-wrap:wrap; }
+      table { table-layout:auto; }
+      th, td { font-size:12px; padding:6px; }
+    }
+    @media print {
+      body * { visibility:hidden; }
+      #print-area, #print-area * { visibility:visible; }
+      #print-area { position:absolute; left:0; top:0; width:100%; display:block !important; }
+      button, input, select { display:none !important; }
+    }
+  </style>
+</head>
+<body>
 
+<div class="title-row">
+  <img src="logo.png" class="logo" alt="탕정삼성어린이집 로고">
+  <h1>탕정삼성어린이집 교재교구관리 시스템</h1>
+</div>
+
+<div id="login-screen" class="box">
+  <h2>로그인</h2>
+  <input id="login-username" placeholder="아이디" />
+  <input id="login-password" type="password" placeholder="비밀번호" />
+  <button id="login-btn" class="btn-reserve">로그인</button>
+  <button id="go-portal-btn" class="btn-basic">통합포털로 이동</button>
+  <p class="notice">통합포털 또는 도서관리 시스템에서 로그인한 경우 자동 로그인됩니다.</p>
+  <p id="login-message" class="message"></p>
+</div>
+<p id="login-contact" class="login-contact">기타 문의사항: 김혜인 교사</p>
+
+<div id="profile-screen" class="box hidden">
+  <h2>내 정보 변경</h2>
+  <p><strong>이름:</strong> <span id="profile-name"></span></p>
+  <p><strong>현재 반:</strong> <span id="profile-current-class"></span></p>
+  <p><strong>교재교구 권한:</strong> <span id="profile-material-role"></span></p>
+  <input id="new-password" type="password" placeholder="새 비밀번호" />
+  <button id="change-password-btn" class="btn-reserve">비밀번호 변경</button>
+  <button id="request-material-manager-btn" class="btn-approve">교재교구담당자 권한 요청</button>
+  <button id="profile-back-btn" class="btn-basic">돌아가기</button>
+  <p id="profile-message" class="message"></p>
+</div>
+
+<div id="app-screen" class="hidden">
+  <div class="top">
+    <div>
+      <strong id="user-info"></strong>
+      <button id="portal-btn" class="btn-basic">통합포털</button>
+      <button id="profile-btn" class="btn-basic">내 정보 변경</button>
+      <button id="my-materials-btn" class="btn-basic">내 사용현황</button>
+      <button id="manager-page-btn" class="hidden btn-approve">교재교구담당자 페이지</button>
+      <button id="material-manage-page-btn" class="hidden btn-reserve">교재교구관리</button>
+      <button id="admin-page-btn" class="hidden btn-approve">관리자 페이지</button>
+      <button id="deleted-page-btn" class="hidden btn-basic">삭제 교구 복구</button>
+    </div>
+    <div class="session-box">
+      <span id="auto-logout-countdown" class="session-timer">자동 로그아웃 30:00</span>
+      <button id="extend-session-btn" class="btn-basic">시간연장</button>
+      <button id="logout-btn" class="btn-danger">로그아웃</button>
+    </div>
+  </div>
+
+  <input id="search" placeholder="관리번호 / 분류명 / 물품명 검색" />
+  <div class="page-size-box">
+    <select id="page-size">
+      <option value="20">20개씩 보기</option>
+      <option value="50">50개씩 보기</option>
+      <option value="100">100개씩 보기</option>
+    </select>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:12%">구입일자</th><th style="width:14%">관리번호</th><th style="width:16%">분류명</th><th style="width:24%">물품명</th><th style="width:6%">수량</th><th style="width:9%">상태</th><th style="width:8%">사용반</th><th style="width:6%">예약</th><th style="width:6%">반납</th>
+      </tr>
+    </thead>
+    <tbody id="material-list"></tbody>
+  </table>
+  <div class="pagination">
+    <span id="pagination-info"></span>
+    <button id="prev-page-btn" class="btn-basic">이전</button>
+    <span id="page-buttons"></span>
+    <button id="next-page-btn" class="btn-basic">다음</button>
+  </div>
+</div>
+
+<div id="my-materials-screen" class="box hidden">
+  <h2>내 사용현황</h2>
+  <p class="notice">※ 같은 반 선생님이 사용예약 또는 사용중인 교재교구도 함께 표시됩니다.</p>
+  <table>
+    <thead><tr><th>관리번호</th><th>분류명</th><th>물품명</th><th>수량</th><th>상태</th><th>사용반</th><th>예약</th><th>반납</th></tr></thead>
+    <tbody id="my-materials-list"></tbody>
+  </table>
+  <h3>반려 사유 확인</h3>
+  <table>
+    <thead><tr><th>구분</th><th>관리번호</th><th>물품명</th><th>반려일</th><th>반려 사유</th></tr></thead>
+    <tbody id="my-rejection-list"></tbody>
+  </table>
+  <button id="my-materials-back-btn" class="btn-basic">돌아가기</button>
+</div>
+
+<div id="manager-screen" class="box hidden">
+  <h2>교재교구담당자 페이지</h2>
+  <h3>사용예약 승인</h3>
+  <div class="panel"><div class="grid-row">
+    <select id="rental-filter-age"><option value="">연령 선택</option><option value="만1세">만1세</option><option value="만2세">만2세</option><option value="만3세">만3세</option><option value="만4세">만4세</option><option value="만5세">만5세</option></select>
+    <select id="rental-filter-class"><option value="">반 전체</option></select>
+    <button id="load-rental-filter-btn" class="btn-basic">조회</button>
+  </div></div>
+  <table>
+    <thead><tr><th>관리번호</th><th>분류명</th><th>물품명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead>
+    <tbody id="rental-approve-list"></tbody>
+  </table>
+
+  <h3>반납요청 승인</h3>
+  <div class="panel"><div class="grid-row">
+    <select id="return-filter-age"><option value="">연령 선택</option><option value="만1세">만1세</option><option value="만2세">만2세</option><option value="만3세">만3세</option><option value="만4세">만4세</option><option value="만5세">만5세</option></select>
+    <select id="return-filter-class"><option value="">반 전체</option></select>
+    <button id="load-return-filter-btn" class="btn-basic">조회</button>
+  </div></div>
+  <table>
+    <thead><tr><th>관리번호</th><th>분류명</th><th>물품명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead>
+    <tbody id="return-approve-list"></tbody>
+  </table>
+
+  <h3>월별 사용기록 출력</h3>
+  <div class="panel"><div class="grid-row">
+    <select id="print-year"><option value="2026">2026년</option><option value="2027">2027년</option><option value="2028">2028년</option></select>
+    <select id="print-month"><option value="1">1월</option><option value="2">2월</option><option value="3">3월</option><option value="4">4월</option><option value="5">5월</option><option value="6">6월</option><option value="7">7월</option><option value="8">8월</option><option value="9">9월</option><option value="10">10월</option><option value="11">11월</option><option value="12">12월</option></select>
+    <button id="print-all-month-btn" class="btn-basic">전체 기록 출력</button>
+  </div></div>
+  <h3>월별 사용기록 조회</h3>
+  <button id="load-record-month-btn" class="btn-basic">선택 월 사용기록 불러오기</button>
+  <table>
+    <thead><tr><th>사용승인일</th><th>반</th><th>관리번호</th><th>물품명</th><th>요청자</th><th>승인자</th><th>반납일</th><th>반납자</th><th>반납승인자</th><th>초기화</th></tr></thead>
+    <tbody id="monthly-record-list"></tbody>
+  </table>
+  <button id="manager-back-btn" class="btn-basic">돌아가기</button>
+</div>
+
+<div id="admin-screen" class="box hidden">
+  <h2>관리자 페이지</h2>
+  <h3>교재교구담당자 권한 요청</h3>
+  <table>
+    <thead><tr><th>이름</th><th>현재권한</th><th>요청권한</th><th>승인</th></tr></thead>
+    <tbody id="material-manager-request-list"></tbody>
+  </table>
+  <h3>현재 교재교구담당자 목록</h3>
+  <table>
+    <thead><tr><th>이름</th><th>아이디</th><th>반</th><th>현재권한</th><th>권한변경</th></tr></thead>
+    <tbody id="current-material-manager-list"></tbody>
+  </table>
+  <button id="admin-back-btn" class="btn-basic">돌아가기</button>
+</div>
+
+<div id="material-manage-screen" class="box hidden">
+  <h2>교재교구관리</h2>
+  <h3>엑셀로 교재교구 등록</h3>
+  <div class="panel">
+    <button id="excel-upload-btn" class="btn-approve">엑셀 파일 선택 및 교재교구 등록</button>
+    <input id="excel-upload" type="file" accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden onclick="this.value=null;" capture="none" />
+    <p class="notice">엑셀 파일에 <strong>구입일자, 관리번호, 구분, 분류명, 물품명, 규격, 구입처, 수량, 금, 사용처, 전표(증빙번호), 사진, 비고</strong> 열이 포함될 수 있습니다.</p>
+    <div id="excel-upload-result" class="message"></div>
+  </div>
+  <h3>등록일 기준 교재교구 조회</h3>
+  <div class="panel"><div class="grid-row"><input id="material-start-date" type="date" /><input id="material-end-date" type="date" /><button id="search-material-date-btn" class="btn-basic">기간 조회</button></div></div>
+  <h3>교재교구 검색 / 수정 / 삭제</h3>
+  <div class="panel">
+    <div class="material-search-row"><input id="manage-material-search" placeholder="관리번호 / 분류명 / 물품명 검색" /><button id="manage-material-search-btn" class="btn-basic">교재교구 검색</button></div>
+    <table>
+      <thead><tr><th>구입일자</th><th>관리번호</th><th>분류명</th><th>물품명</th><th>수량</th><th>상태</th><th>수정</th><th>삭제</th></tr></thead>
+      <tbody id="manage-material-list"></tbody>
+    </table>
+  </div>
+  <button id="material-manage-back-btn" class="btn-basic">돌아가기</button>
+</div>
+
+<div id="deleted-screen" class="box hidden">
+  <h2>삭제 교재교구 복구</h2>
+  <button id="load-deleted-materials-btn" class="btn-basic">삭제 교재교구 목록 불러오기</button>
+  <table>
+    <thead><tr><th>관리번호</th><th>분류명</th><th>물품명</th><th>삭제일시</th><th>삭제자</th><th>복구</th></tr></thead>
+    <tbody id="deleted-material-list"></tbody>
+  </table>
+  <button id="deleted-back-btn" class="btn-basic">돌아가기</button>
+</div>
+<div id="print-area" class="hidden"></div>
+
+<script>
+const supabaseUrl = "https://vohcugxfwxdvkbcpjcgl.supabase.co";
+const supabaseKey = "sb_publishable_Q0cXaglzBaz9Py2oct_NTQ_vMHsUeSQ";
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+let currentUser = null, currentPage = 1, pageSize = 20, totalMaterials = 0, currentKeyword = "";
+let logoutTimer = null, countdownTimer = null, remainingSeconds = 30 * 60;
+const AUTO_LOGOUT_TIME = 30 * 60 * 1000;
+const classMap = { "만1세":["햇빛반","달빛반","별빛반","풀빛반","온빛반"], "만2세":["예빛반","봄빛반","물빛반","꿈빛반"], "만3세":["한빛반","은빛반","새빛반"], "만4세":["윤빛반","꽃빛반"], "만5세":["들빛반","솔빛반"] };
+function getRoleName(role){ if(role==="admin") return "관리자"; if(role==="manager") return "도서담당자"; return "선생님"; }
+function getMaterialRoleName(role){ if(currentUser?.role==="admin") return "관리자"; if(role==="manager") return "교재교구담당자"; return "선생님"; }
+function getStatusName(status){ const map={available:"사용가능",reserved:"사용예약",borrowed:"사용중",return_requested:"반납요청",returned:"반납완료",rental_rejected:"예약반려",return_rejected:"반납반려",repair:"수리중",discarded:"폐기"}; return map[status] || status || "-"; }
+function formatDate(v){ if(!v) return "-"; return new Date(v).toLocaleDateString("ko-KR"); }
+function formatDateTime(v){ if(!v) return "-"; return new Date(v).toLocaleString("ko-KR"); }
+function setMessage(id,text,color="#2563eb"){ const el=document.getElementById(id); if(!el) return; el.innerText=text; el.style.color=color; }
+function showScreen(screenId){ ["login-screen","profile-screen","app-screen","my-materials-screen","manager-screen","admin-screen","material-manage-screen","deleted-screen"].forEach(id=>document.getElementById(id)?.classList.add("hidden")); document.getElementById(screenId).classList.remove("hidden"); const contact=document.getElementById("login-contact"); if(contact) contact.style.display=screenId==="login-screen"?"block":"none"; }
+function updateClassOptions(ageId,classId){ const age=document.getElementById(ageId).value; const classSelect=document.getElementById(classId); classSelect.innerHTML=`<option value="">반 전체</option>`; if(!classMap[age]) return; classMap[age].forEach(cls=>classSelect.innerHTML+=`<option value="${cls}">${cls}</option>`); }
+function applyManagerClassFilter(query,type="rental"){ const ageId=type==="rental"?"rental-filter-age":"return-filter-age"; const classId=type==="rental"?"rental-filter-class":"return-filter-class"; const selectedAge=document.getElementById(ageId)?.value; const selectedClass=document.getElementById(classId)?.value; if(selectedClass) return query.eq("current_class",selectedClass); if(selectedAge&&classMap[selectedAge]) return query.in("current_class",classMap[selectedAge]); return query; }
+function updateCountdownDisplay(){ const el=document.getElementById("auto-logout-countdown"); if(!el||!currentUser) return; const m=Math.floor(remainingSeconds/60), s=remainingSeconds%60; el.innerText=`자동 로그아웃 ${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`; }
+function resetAutoLogoutTimer(){ if(!currentUser) return; clearTimeout(logoutTimer); clearInterval(countdownTimer); remainingSeconds=30*60; updateCountdownDisplay(); countdownTimer=setInterval(()=>{remainingSeconds--; updateCountdownDisplay(); if(remainingSeconds<=0) clearInterval(countdownTimer);},1000); logoutTimer=setTimeout(()=>{alert("30분 동안 활동이 없어 자동 로그아웃되었습니다."); logout();},AUTO_LOGOUT_TIME); }
+function extendSession(){ resetAutoLogoutTimer(); alert("로그인 시간이 30분 연장되었습니다."); }
+async function refreshCurrentUser(){ if(!currentUser?.id) return; const {data}=await supabaseClient.from("users").select("*").eq("id",currentUser.id).maybeSingle(); if(data){ currentUser=data; saveSession(); } }
+function saveSession(){ localStorage.setItem("materialsCurrentUser",JSON.stringify(currentUser)); localStorage.setItem("libraryCurrentUser",JSON.stringify(currentUser)); }
+async function login(){ const username=document.getElementById("login-username").value.trim(); const password=document.getElementById("login-password").value.trim(); if(!username||!password){setMessage("login-message","아이디와 비밀번호를 모두 입력해주세요.","red"); return;} const {data,error}=await supabaseClient.from("users").select("*").eq("username",username).maybeSingle(); if(error||!data){setMessage("login-message","등록되지 않은 아이디입니다.","red"); return;} if(data.password!==password){setMessage("login-message","비밀번호가 틀렸습니다.","red"); return;} if(data.approval_status==="inactive"){setMessage("login-message","비활성화된 계정입니다. 관리자에게 문의해주세요.","red"); return;} if(data.approval_status!=="approved"){setMessage("login-message","관리자 승인 대기중입니다."); return;} currentUser=data; saveSession(); afterLoginSuccess(); }
+async function afterLoginSuccess(){ await refreshCurrentUser(); document.getElementById("user-info").innerText=`${currentUser.name} / ${currentUser.class_name} / ${getMaterialRoleName(currentUser.material_role)}`; ["manager-page-btn","material-manage-page-btn","admin-page-btn","deleted-page-btn"].forEach(id=>document.getElementById(id).classList.add("hidden")); if(currentUser.material_role==="manager"||currentUser.role==="admin"){ document.getElementById("manager-page-btn").classList.remove("hidden"); document.getElementById("material-manage-page-btn").classList.remove("hidden"); } if(currentUser.role==="admin"){ document.getElementById("admin-page-btn").classList.remove("hidden"); document.getElementById("deleted-page-btn").classList.remove("hidden"); } resetAutoLogoutTimer(); showScreen("app-screen"); currentPage=1; loadMaterials(); }
+function restoreLogin(){ const savedUser=localStorage.getItem("materialsCurrentUser")||localStorage.getItem("libraryCurrentUser"); if(!savedUser) return; try{ currentUser=JSON.parse(savedUser); afterLoginSuccess(); }catch{ localStorage.removeItem("materialsCurrentUser"); showScreen("login-screen"); } }
+function logout(){ currentUser=null; localStorage.removeItem("materialsCurrentUser"); localStorage.removeItem("libraryCurrentUser"); clearTimeout(logoutTimer); clearInterval(countdownTimer); document.getElementById("login-username").value=""; document.getElementById("login-password").value=""; document.getElementById("login-message").innerText=""; showScreen("login-screen"); }
+function openProfile(){ document.getElementById("profile-name").innerText=currentUser.name; document.getElementById("profile-current-class").innerText=currentUser.class_name; document.getElementById("profile-material-role").innerText=getMaterialRoleName(currentUser.material_role); document.getElementById("profile-message").innerText=""; document.getElementById("new-password").value=""; if(currentUser.role==="admin"||currentUser.material_role==="manager") document.getElementById("request-material-manager-btn").classList.add("hidden"); else document.getElementById("request-material-manager-btn").classList.remove("hidden"); showScreen("profile-screen"); }
+async function changePassword(){ const newPassword=document.getElementById("new-password").value.trim(); if(!newPassword){setMessage("profile-message","새 비밀번호를 입력해주세요.","red"); return;} const {error}=await supabaseClient.from("users").update({password:newPassword}).eq("id",currentUser.id); if(error){setMessage("profile-message","비밀번호 변경 실패: "+error.message,"red"); return;} currentUser.password=newPassword; saveSession(); setMessage("profile-message","비밀번호가 변경되었습니다."); }
+async function requestMaterialManagerRole(){ if(currentUser.role==="admin"||currentUser.material_role==="manager"){setMessage("profile-message","이미 교재교구담당자 권한이 있습니다.","red"); return;} const {data:existing}=await supabaseClient.from("material_manager_role_requests").select("id").eq("user_id",currentUser.id).eq("status","pending").maybeSingle(); if(existing){setMessage("profile-message","이미 교재교구담당자 권한 요청이 대기중입니다.","red"); return;} const {error}=await supabaseClient.from("material_manager_role_requests").insert([{user_id:currentUser.id,name:currentUser.name,user_role:currentUser.material_role||"teacher",requested_role:"manager",status:"pending"}]); if(error){setMessage("profile-message","교재교구담당자 권한 요청 실패: "+error.message,"red"); return;} setMessage("profile-message","교재교구담당자 권한 요청이 완료되었습니다. 관리자 승인 후 반영됩니다."); }
+async function loadMaterials(){ const list=document.getElementById("material-list"); list.innerHTML=`<tr><td colspan="9">교재교구 목록을 불러오는 중입니다...</td></tr>`; const start=(currentPage-1)*pageSize, end=start+pageSize-1; let query=supabaseClient.from("materials").select('id,"구입일자","관리번호","분류명","물품명","수량",status,current_class,current_user_id,is_deleted',{count:"exact"}).or("is_deleted.is.false,is_deleted.is.null").order("관리번호",{ascending:true}).range(start,end); if(currentKeyword) query=query.or(`물품명.ilike.%${currentKeyword}%,관리번호.ilike.%${currentKeyword}%,분류명.ilike.%${currentKeyword}%`); const {data,error,count}=await query; if(error){list.innerHTML=`<tr><td colspan="9">교재교구 목록을 불러오지 못했습니다: ${error.message}</td></tr>`; return;} totalMaterials=count||0; renderMaterials(data||[]); renderPagination(); }
+function renderMaterials(materials){ const list=document.getElementById("material-list"); list.innerHTML=""; if(!materials.length){list.innerHTML=`<tr><td colspan="9">검색 결과가 없습니다.</td></tr>`; return;} materials.forEach(item=>{ const isSameClass=item.current_class===currentUser.class_name; let reserveBtn="-", returnBtn="-"; if(!item.status||item.status==="available") reserveBtn=`<button class="btn-reserve" onclick="reserveMaterial('${item.id}')">예약</button>`; if(item.status==="reserved"&&isSameClass) reserveBtn=`<button class="btn-cancel" onclick="cancelReservation('${item.id}')">취소</button>`; if(item.status==="borrowed"&&isSameClass) returnBtn=`<button class="btn-return" onclick="requestReturn('${item.id}')">반납</button>`; if(item.status==="return_requested"&&isSameClass) returnBtn=`<button class="btn-wait" disabled>대기</button>`; list.innerHTML+=`<tr><td>${item["구입일자"]||""}</td><td>${item["관리번호"]||""}</td><td>${item["분류명"]||""}</td><td>${item["물품명"]||""}</td><td class="status">${item["수량"]??""}</td><td class="status">${getStatusName(item.status||"available")}</td><td class="status">${item.current_class||"-"}</td><td class="btn-cell">${reserveBtn}</td><td class="btn-cell">${returnBtn}</td></tr>`; }); }
+function renderPagination(){ const totalPages=Math.ceil(totalMaterials/pageSize), pageButtons=document.getElementById("page-buttons"), info=document.getElementById("pagination-info"); info.innerText=`총 ${totalMaterials}개 / ${currentPage}쪽`; pageButtons.innerHTML=""; if(totalPages<=1) return; for(let i=Math.max(1,currentPage-3); i<=Math.min(totalPages,currentPage+3); i++) pageButtons.innerHTML+=`<button class="${i===currentPage?"active":""}" onclick="goToPage(${i})">${i}</button>`; }
+function goToPage(page){currentPage=page; loadMaterials();} function prevPage(){if(currentPage>1){currentPage--; loadMaterials();}} function nextPage(){const totalPages=Math.ceil(totalMaterials/pageSize); if(currentPage<totalPages){currentPage++; loadMaterials();}}
+async function reserveMaterial(id){ const {error}=await supabaseClient.from("materials").update({status:"reserved",current_class:currentUser.class_name,current_user_id:currentUser.id}).eq("id",id); if(error){alert("사용예약 실패: "+error.message); return;} await supabaseClient.from("material_records").insert([{material_id:id,user_id:currentUser.id,class_name:currentUser.class_name,borrower_name:currentUser.name,reserved_at:new Date().toISOString(),status:"reserved"}]); alert("사용예약이 완료되었습니다."); loadMaterials(); }
+async function cancelReservation(id){ if(!confirm("예약을 취소하시겠습니까?")) return; const {error}=await supabaseClient.from("materials").update({status:"available",current_class:null,current_user_id:null}).eq("id",id).eq("current_class",currentUser.class_name); if(error){alert("예약취소 실패: "+error.message); return;} await supabaseClient.from("material_records").delete().eq("material_id",id).eq("class_name",currentUser.class_name).eq("status","reserved"); alert("예약이 취소되었습니다."); loadMaterials(); }
+async function requestReturn(id){ if(!confirm("반납요청을 하시겠습니까?")) return; const {error}=await supabaseClient.from("materials").update({status:"return_requested"}).eq("id",id).eq("current_class",currentUser.class_name); if(error){alert("반납요청 실패: "+error.message); return;} await supabaseClient.from("material_records").update({status:"return_requested",returned_by:currentUser.id,return_requested_at:new Date().toISOString()}).eq("material_id",id).eq("class_name",currentUser.class_name).eq("status","borrowed"); alert("반납요청이 완료되었습니다."); loadMaterials(); }
+async function loadMyMaterials(){ showScreen("my-materials-screen"); const {data,error}=await supabaseClient.from("materials").select('id,"관리번호","분류명","물품명","수량",status,current_class,current_user_id').eq("current_class",currentUser.class_name).or("is_deleted.is.false,is_deleted.is.null"); const list=document.getElementById("my-materials-list"); list.innerHTML=""; if(error||!data?.length){list.innerHTML=`<tr><td colspan="8">현재 ${currentUser.class_name}에서 예약 또는 사용중인 교재교구가 없습니다.</td></tr>`;} else data.forEach(item=>{ let reserveBtn="-",returnBtn="-"; if(item.status==="reserved") reserveBtn=`<button class="btn-cancel" onclick="cancelReservationAndReloadMyMaterials('${item.id}')">예약취소</button>`; if(item.status==="borrowed") returnBtn=`<button class="btn-return" onclick="requestReturnAndReloadMyMaterials('${item.id}')">반납요청</button>`; if(item.status==="return_requested") returnBtn=`<button class="btn-wait" disabled>반납대기</button>`; list.innerHTML+=`<tr><td>${item["관리번호"]||""}</td><td>${item["분류명"]||""}</td><td>${item["물품명"]||""}</td><td>${item["수량"]??""}</td><td>${getStatusName(item.status)}</td><td>${item.current_class||"-"}</td><td>${reserveBtn}</td><td>${returnBtn}</td></tr>`; }); await loadMyRejections(); }
+async function cancelReservationAndReloadMyMaterials(id){await cancelReservation(id); await loadMyMaterials();} async function requestReturnAndReloadMyMaterials(id){await requestReturn(id); await loadMyMaterials();}
+async function loadMyRejections(){ const list=document.getElementById("my-rejection-list"); list.innerHTML=""; const {data:records,error}=await supabaseClient.from("material_records").select("*").eq("class_name",currentUser.class_name).in("status",["rental_rejected","return_rejected"]).order("created_at",{ascending:false}); if(error||!records?.length){list.innerHTML=`<tr><td colspan="5">확인할 반려 내역이 없습니다.</td></tr>`; return;} for(const record of records){ const {data:item}=await supabaseClient.from("materials").select('"관리번호","물품명"').eq("id",record.material_id).maybeSingle(); const type=record.status==="rental_rejected"?"예약반려":"반납반려"; const reason=record.status==="rental_rejected"?record.reject_reason:record.return_reject_reason; const rejectedAt=record.status==="rental_rejected"?record.rejected_at:record.return_rejected_at; list.innerHTML+=`<tr><td>${type}</td><td>${item?.["관리번호"]||""}</td><td>${item?.["물품명"]||""}</td><td>${formatDateTime(rejectedAt)}</td><td>${reason||"-"}</td></tr>`; } }
+async function openManagerPage(){ if(!currentUser||(currentUser.material_role!=="manager"&&currentUser.role!=="admin")) return; showScreen("manager-screen"); loadRentalApproveList(); loadReturnApproveList(); loadMonthlyRecordList(); }
+async function getActiveRecord(id,statuses){ const {data}=await supabaseClient.from("material_records").select("*").eq("material_id",id).in("status",statuses).order("created_at",{ascending:false}).limit(1).maybeSingle(); return data; }
+async function getUserNameById(userId){ if(!userId) return "-"; const {data}=await supabaseClient.from("users").select("name").eq("id",userId).maybeSingle(); return data?.name||"-"; }
+async function loadRentalApproveList(){ let query=supabaseClient.from("materials").select('id,"관리번호","분류명","물품명",current_class,status,current_user_id').eq("status","reserved").or("is_deleted.is.false,is_deleted.is.null").order("관리번호",{ascending:true}); query=applyManagerClassFilter(query,"rental"); const {data}=await query; const list=document.getElementById("rental-approve-list"); list.innerHTML=""; if(!data?.length){list.innerHTML=`<tr><td colspan="6">선택한 연령/반의 사용예약 요청이 없습니다.</td></tr>`; return;} for(const item of data){ const record=await getActiveRecord(item.id,["reserved"]); const borrowerName=record?.borrower_name||await getUserNameById(item.current_user_id); list.innerHTML+=`<tr><td>${item["관리번호"]||""}</td><td>${item["분류명"]||""}</td><td>${item["물품명"]||""}</td><td>${item.current_class||"-"}</td><td>${borrowerName}</td><td><button class="btn-approve" onclick="approveRental('${item.id}')">승인</button><button class="btn-danger" onclick="rejectRental('${item.id}')">반려</button></td></tr>`; } }
+async function approveRental(id){ await supabaseClient.from("materials").update({status:"borrowed"}).eq("id",id); await supabaseClient.from("material_records").update({status:"borrowed",approved_at:new Date().toISOString(),approved_by:currentUser.id}).eq("material_id",id).eq("status","reserved"); loadRentalApproveList(); loadMaterials(); }
+async function rejectRental(id){ const reason=prompt("사용예약 반려 사유를 입력해주세요."); if(!reason?.trim()){alert("반려 사유를 입력해야 합니다."); return;} await supabaseClient.from("materials").update({status:"available",current_class:null,current_user_id:null}).eq("id",id); const {error}=await supabaseClient.from("material_records").update({status:"rental_rejected",reject_reason:reason.trim(),rejected_at:new Date().toISOString(),rejected_by:currentUser.id}).eq("material_id",id).eq("status","reserved"); if(error){alert("반려 처리 실패: "+error.message); return;} alert("사용예약이 반려되었습니다."); loadRentalApproveList(); loadMaterials(); }
+async function loadReturnApproveList(){ let query=supabaseClient.from("materials").select('id,"관리번호","분류명","물품명",current_class,status,current_user_id').eq("status","return_requested").or("is_deleted.is.false,is_deleted.is.null").order("관리번호",{ascending:true}); query=applyManagerClassFilter(query,"return"); const {data}=await query; const list=document.getElementById("return-approve-list"); list.innerHTML=""; if(!data?.length){list.innerHTML=`<tr><td colspan="6">선택한 연령/반의 반납요청이 없습니다.</td></tr>`; return;} for(const item of data){ const record=await getActiveRecord(item.id,["return_requested"]); const returnUserName=await getUserNameById(record?.returned_by||item.current_user_id); list.innerHTML+=`<tr><td>${item["관리번호"]||""}</td><td>${item["분류명"]||""}</td><td>${item["물품명"]||""}</td><td>${item.current_class||"-"}</td><td>${returnUserName}</td><td><button class="btn-approve" onclick="approveReturn('${item.id}')">반납승인</button><button class="btn-danger" onclick="rejectReturn('${item.id}')">반납반려</button></td></tr>`; } }
+async function approveReturn(id){ await supabaseClient.from("materials").update({status:"available",current_class:null,current_user_id:null}).eq("id",id); await supabaseClient.from("material_records").update({status:"returned",returned_at:new Date().toISOString(),return_approved_by:currentUser.id}).eq("material_id",id).eq("status","return_requested"); loadReturnApproveList(); loadMaterials(); }
+async function rejectReturn(id){ const reason=prompt("반납 반려 사유를 입력해주세요."); if(!reason?.trim()){alert("반려 사유를 입력해야 합니다."); return;} await supabaseClient.from("materials").update({status:"borrowed"}).eq("id",id); const {error}=await supabaseClient.from("material_records").update({status:"return_rejected",return_reject_reason:reason.trim(),return_rejected_at:new Date().toISOString(),return_rejected_by:currentUser.id}).eq("material_id",id).eq("status","return_requested"); if(error){alert("반납 반려 실패: "+error.message); return;} alert("반납요청이 반려되었습니다."); loadReturnApproveList(); loadMaterials(); }
+function getMonthRange(){ const year=Number(document.getElementById("print-year").value), month=Number(document.getElementById("print-month").value)-1; return {year,month,startDate:new Date(year,month,1).toISOString(),endDate:new Date(year,month+1,1).toISOString()}; }
+function setDefaultPrintMonth(){ const now=new Date(); const yearEl=document.getElementById("print-year"), monthEl=document.getElementById("print-month"); if(yearEl) yearEl.value=String(now.getFullYear()); if(monthEl) monthEl.value=String(now.getMonth()+1); }
+async function getMonthlyRecords(){ const {startDate,endDate}=getMonthRange(); const {data:records,error}=await supabaseClient.from("material_records").select("*").gte("approved_at",startDate).lt("approved_at",endDate).in("status",["borrowed","return_requested","returned","return_rejected"]); if(error){alert("기록을 불러오지 못했습니다: "+error.message); return [];} const result=[]; for(const record of records||[]){ const {data:item}=await supabaseClient.from("materials").select('"관리번호","물품명"').eq("id",record.material_id).maybeSingle(); result.push({...record,materialNumber:item?.["관리번호"]||"",materialName:item?.["물품명"]||"",borrowerName:record.borrower_name||await getUserNameById(record.user_id),approvedByName:await getUserNameById(record.approved_by),returnedByName:await getUserNameById(record.returned_by),returnApprovedByName:await getUserNameById(record.return_approved_by)}); } return result; }
+async function loadMonthlyRecordList(){ const records=await getMonthlyRecords(); const list=document.getElementById("monthly-record-list"); list.innerHTML=""; if(!records.length){list.innerHTML=`<tr><td colspan="10">선택 월 사용기록이 없습니다.</td></tr>`; return;} records.forEach(r=>{ const resetCell=currentUser.role==="admin"?`<button class="btn-danger" onclick="deleteRecord('${r.id}')">초기화</button>`:`관리자 문의`; list.innerHTML+=`<tr><td>${formatDate(r.approved_at)}</td><td>${r.class_name||""}</td><td>${r.materialNumber}</td><td>${r.materialName}</td><td>${r.borrowerName}</td><td>${r.approvedByName}</td><td>${formatDate(r.returned_at)}</td><td>${r.returnedByName}</td><td>${r.returnApprovedByName}</td><td>${resetCell}</td></tr>`; }); }
+async function deleteRecord(id){ if(currentUser.role!=="admin"){alert("사용기록 초기화는 관리자만 가능합니다."); return;} if(!confirm("이 사용기록을 삭제하고 교재교구를 사용가능 상태로 초기화하시겠습니까?")) return; const {data:record}=await supabaseClient.from("material_records").select("*").eq("id",id).maybeSingle(); if(!record){alert("기록 정보를 찾을 수 없습니다."); return;} await supabaseClient.from("materials").update({status:"available",current_class:null,current_user_id:null}).eq("id",record.material_id); await supabaseClient.from("material_records").delete().eq("id",id); alert("사용기록이 삭제되고 교재교구가 사용가능 상태로 초기화되었습니다."); loadMonthlyRecordList(); loadMaterials(); }
+async function printMonthlyRecords(){ const {year,month}=getMonthRange(); const records=await getMonthlyRecords(); const printArea=document.getElementById("print-area"); let rows=""; if(!records.length) rows=`<tr><td colspan="9">사용기록이 없습니다.</td></tr>`; else records.forEach(r=>rows+=`<tr><td>${formatDate(r.approved_at)}</td><td>${r.class_name||""}</td><td>${r.materialNumber}</td><td>${r.materialName}</td><td>${r.borrowerName}</td><td>${r.approvedByName}</td><td>${formatDate(r.returned_at)}</td><td>${r.returnedByName}</td><td>${r.returnApprovedByName}</td></tr>`); printArea.innerHTML=`<h2>탕정삼성어린이집 교재교구 사용·반납 기록</h2><h3>${year}년 ${month+1}월 전체 사용기록</h3><table><thead><tr><th>사용승인일</th><th>반</th><th>관리번호</th><th>물품명</th><th>요청자</th><th>승인자</th><th>반납일</th><th>반납자</th><th>반납승인자</th></tr></thead><tbody>${rows}</tbody></table>`; printArea.classList.remove("hidden"); printArea.style.display="block"; setTimeout(()=>{window.print(); setTimeout(()=>{printArea.classList.add("hidden"); printArea.style.display="none";},1000);},300); }
+async function openAdminPage(){ if(currentUser.role!=="admin") return; showScreen("admin-screen"); loadMaterialManagerRequests(); loadCurrentMaterialManagers(); }
+async function loadMaterialManagerRequests(){ const {data}=await supabaseClient.from("material_manager_role_requests").select("*").eq("status","pending").order("created_at",{ascending:false}); const list=document.getElementById("material-manager-request-list"); list.innerHTML=""; if(!data?.length){list.innerHTML=`<tr><td colspan="4">대기중인 요청이 없습니다.</td></tr>`; return;} data.forEach(req=>list.innerHTML+=`<tr><td>${req.name}</td><td>${req.user_role==="manager"?"교재교구담당자":"선생님"}</td><td>교재교구담당자</td><td><button class="btn-approve" onclick="approveMaterialManagerRole('${req.id}','${req.user_id}')">승인</button></td></tr>`); }
+async function approveMaterialManagerRole(requestId,userId){ await supabaseClient.from("users").update({material_role:"manager"}).eq("id",userId); await supabaseClient.from("material_manager_role_requests").update({status:"approved",approved_by:currentUser.id,processed_at:new Date().toISOString()}).eq("id",requestId); await refreshCurrentUser(); loadMaterialManagerRequests(); loadCurrentMaterialManagers(); }
+async function loadCurrentMaterialManagers(){ const {data,error}=await supabaseClient.from("users").select("*").eq("material_role","manager").eq("approval_status","approved").order("class_name",{ascending:true}); const list=document.getElementById("current-material-manager-list"); list.innerHTML=""; if(error){list.innerHTML=`<tr><td colspan="5">교재교구담당자 목록을 불러오지 못했습니다.</td></tr>`; return;} if(!data?.length){list.innerHTML=`<tr><td colspan="5">현재 교재교구담당자가 없습니다.</td></tr>`; return;} data.forEach(u=>list.innerHTML+=`<tr><td>${u.name}</td><td>${u.username}</td><td>${u.class_name}</td><td>교재교구담당자</td><td><button class="btn-danger" onclick="changeMaterialManagerToTeacher('${u.id}')">선생님 권한으로 변경</button></td></tr>`); }
+async function changeMaterialManagerToTeacher(userId){ if(!confirm("이 교재교구담당자를 선생님 권한으로 변경하시겠습니까?")) return; const {error}=await supabaseClient.from("users").update({material_role:"teacher"}).eq("id",userId); if(error){alert("권한 변경 실패: "+error.message); return;} alert("선생님 권한으로 변경되었습니다."); loadCurrentMaterialManagers(); }
+async function handleExcelUpload(e){ const file=e.target.files[0]; if(!file) return; const reader=new FileReader(); reader.onload=async function(ev){ const data=new Uint8Array(ev.target.result); const workbook=XLSX.read(data,{type:"array"}); const worksheet=workbook.Sheets[workbook.SheetNames[0]]; const jsonData=XLSX.utils.sheet_to_json(worksheet); if(!jsonData.length){alert("엑셀 데이터가 없습니다."); return;} let successCount=0,duplicateCount=0,missingCount=0,errorCount=0; for(const row of jsonData){ const purchaseDate=row["구입일자"]?.toString().trim(); const itemNumber=row["관리번호"]?.toString().trim(); const type=row["구분"]?.toString().trim(); const category=row["분류명"]?.toString().trim(); const itemName=row["물품명"]?.toString().trim(); const size=row["규격"]?.toString().trim(); const vendor=row["구입처"]?.toString().trim(); const quantity=Number(row["수량"]||1); const price=row["금"]?.toString().trim(); const usePlace=row["사용처"]?.toString().trim(); const voucherNumber=row["전표(증빙번호)"]?.toString().trim()||row["전표증빙번호"]?.toString().trim(); const photo=row["사진"]?.toString().trim(); const note=row["비고"]?.toString().trim(); if(!itemNumber||!itemName){missingCount++; continue;} const {data:existing}=await supabaseClient.from("materials").select("id").eq("관리번호",itemNumber).maybeSingle(); if(existing){duplicateCount++; continue;} const {error}=await supabaseClient.from("materials").insert([{"구입일자":purchaseDate||null,"관리번호":itemNumber,"구분":type||null,"분류명":category||null,"물품명":itemName,"규격":size||null,"구입처":vendor||null,"수량":Number.isFinite(quantity)?quantity:1,"금":price||null,"사용처":usePlace||null,"전표증빙번호":voucherNumber||null,"사진":photo||null,"비고":note||null,status:"available",current_class:null,current_user_id:null,is_deleted:false}]); if(error) errorCount++; else successCount++; } const result=`엑셀 등록 완료
+성공: ${successCount}개
+중복: ${duplicateCount}개
+필수값 누락: ${missingCount}개
+기타 오류: ${errorCount}개`; setMessage("excel-upload-result",result); alert(result); loadMaterials(); }; reader.readAsArrayBuffer(file); }
+async function searchManageMaterials(){ const kw=document.getElementById("manage-material-search").value.trim(); if(!kw){alert("검색어를 입력해주세요."); return;} const {data,error}=await supabaseClient.from("materials").select('id,"구입일자","관리번호","분류명","물품명","수량",status,created_at,is_deleted').or("is_deleted.is.false,is_deleted.is.null").or(`물품명.ilike.%${kw}%,관리번호.ilike.%${kw}%,분류명.ilike.%${kw}%`).limit(50); renderManageMaterials(data,error); }
+async function searchMaterialsByDate(){ const start=document.getElementById("material-start-date").value, end=document.getElementById("material-end-date").value; if(!start||!end){alert("시작일과 종료일을 모두 선택해주세요."); return;} const {data,error}=await supabaseClient.from("materials").select('id,"구입일자","관리번호","분류명","물품명","수량",status,created_at,is_deleted').or("is_deleted.is.false,is_deleted.is.null").gte("created_at",new Date(start+"T00:00:00").toISOString()).lte("created_at",new Date(end+"T23:59:59").toISOString()).order("created_at",{ascending:false}).limit(100); renderManageMaterials(data,error); }
+function safePromptText(v){return (v||"").replaceAll("'","\'");}
+function renderManageMaterials(data,error){ const list=document.getElementById("manage-material-list"); list.innerHTML=""; if(error){list.innerHTML=`<tr><td colspan="8">교재교구 조회 실패: ${error.message}</td></tr>`; return;} if(!data?.length){list.innerHTML=`<tr><td colspan="8">조회 결과가 없습니다.</td></tr>`; return;} data.forEach(item=>{ const pd=safePromptText(item["구입일자"]), num=safePromptText(item["관리번호"]), cat=safePromptText(item["분류명"]), name=safePromptText(item["물품명"]), qty=item["수량"]??1; list.innerHTML+=`<tr><td>${item["구입일자"]||""}</td><td>${item["관리번호"]||""}</td><td>${item["분류명"]||""}</td><td>${item["물품명"]||""}</td><td>${qty}</td><td>${getStatusName(item.status)}</td><td><button class="btn-basic" onclick="editMaterial('${item.id}','${pd}','${num}','${cat}','${name}','${qty}')">수정</button></td><td><button class="btn-danger" onclick="deleteMaterialSoft('${item.id}','${item.status||""}')">삭제</button></td></tr>`; }); }
+async function editMaterial(id,oldPurchaseDate,oldNumber,oldCategory,oldName,oldQuantity){ const newPurchaseDate=prompt("구입일자를 수정하세요.",oldPurchaseDate); if(newPurchaseDate===null) return; const newNumber=prompt("관리번호를 수정하세요.",oldNumber); if(newNumber===null) return; const newCategory=prompt("분류명을 수정하세요.",oldCategory); if(newCategory===null) return; const newName=prompt("물품명을 수정하세요.",oldName); if(newName===null) return; const newQuantity=prompt("수량을 수정하세요.",oldQuantity); if(newQuantity===null) return; if(!newNumber.trim()||!newName.trim()){alert("관리번호와 물품명은 비워둘 수 없습니다."); return;} const q=Number(newQuantity||1); if(!Number.isFinite(q)){alert("수량은 숫자로 입력해주세요."); return;} const {error}=await supabaseClient.from("materials").update({"구입일자":newPurchaseDate.trim()||null,"관리번호":newNumber.trim(),"분류명":newCategory.trim()||null,"물품명":newName.trim(),"수량":q}).eq("id",id); if(error){alert("교재교구 수정 실패: "+error.message); return;} alert("교재교구 정보가 수정되었습니다."); loadMaterials(); searchManageMaterials(); }
+async function deleteMaterialSoft(id,status){ if(["reserved","borrowed","return_requested"].includes(status)){alert("예약/사용/반납요청 중인 교재교구는 삭제할 수 없습니다. 먼저 사용기록을 초기화해주세요."); return;} if(!confirm("이 교재교구를 삭제 처리하시겠습니까? 관리자 화면에서 복구할 수 있습니다.")) return; const {error}=await supabaseClient.from("materials").update({is_deleted:true,deleted_at:new Date().toISOString(),deleted_by:currentUser.id}).eq("id",id); if(error){alert("교재교구 삭제 처리 실패: "+error.message); return;} alert("교재교구가 삭제 처리되었습니다."); loadMaterials(); searchManageMaterials(); }
+async function loadDeletedMaterials(){ if(currentUser.role!=="admin") return; const {data,error}=await supabaseClient.from("materials").select('id,"관리번호","분류명","물품명",deleted_at,deleted_by').eq("is_deleted",true).order("deleted_at",{ascending:false}); const list=document.getElementById("deleted-material-list"); list.innerHTML=""; if(error){list.innerHTML=`<tr><td colspan="6">삭제 교재교구 목록을 불러오지 못했습니다.</td></tr>`; return;} if(!data?.length){list.innerHTML=`<tr><td colspan="6">삭제 처리된 교재교구가 없습니다.</td></tr>`; return;} for(const item of data){ const deletedByName=await getUserNameById(item.deleted_by); list.innerHTML+=`<tr><td>${item["관리번호"]||""}</td><td>${item["분류명"]||""}</td><td>${item["물품명"]||""}</td><td>${formatDateTime(item.deleted_at)}</td><td>${deletedByName}</td><td><button class="btn-approve" onclick="restoreDeletedMaterial('${item.id}')">복구</button></td></tr>`; } }
+async function restoreDeletedMaterial(id){ if(!confirm("이 교재교구를 복구하시겠습니까?")) return; const {error}=await supabaseClient.from("materials").update({is_deleted:false,deleted_at:null,deleted_by:null}).eq("id",id); if(error){alert("복구 실패: "+error.message); return;} alert("교재교구가 복구되었습니다."); loadDeletedMaterials(); loadMaterials(); }
+function bindEvents(){ document.getElementById("login-btn").addEventListener("click",login); document.getElementById("logout-btn").addEventListener("click",logout); document.getElementById("extend-session-btn").addEventListener("click",extendSession); document.getElementById("go-portal-btn").addEventListener("click",()=>location.href="index.html"); document.getElementById("portal-btn").addEventListener("click",()=>location.href="index.html"); document.getElementById("profile-btn").addEventListener("click",openProfile); document.getElementById("profile-back-btn").addEventListener("click",()=>showScreen("app-screen")); document.getElementById("change-password-btn").addEventListener("click",changePassword); document.getElementById("request-material-manager-btn").addEventListener("click",requestMaterialManagerRole); document.getElementById("my-materials-btn").addEventListener("click",loadMyMaterials); document.getElementById("my-materials-back-btn").addEventListener("click",()=>showScreen("app-screen")); document.getElementById("manager-page-btn").addEventListener("click",openManagerPage); document.getElementById("manager-back-btn").addEventListener("click",()=>showScreen("app-screen")); document.getElementById("rental-filter-age").addEventListener("change",()=>updateClassOptions("rental-filter-age","rental-filter-class")); document.getElementById("return-filter-age").addEventListener("change",()=>updateClassOptions("return-filter-age","return-filter-class")); document.getElementById("load-rental-filter-btn").addEventListener("click",loadRentalApproveList); document.getElementById("load-return-filter-btn").addEventListener("click",loadReturnApproveList); document.getElementById("admin-page-btn").addEventListener("click",openAdminPage); document.getElementById("admin-back-btn").addEventListener("click",()=>showScreen("app-screen")); document.getElementById("material-manage-page-btn").addEventListener("click",()=>showScreen("material-manage-screen")); document.getElementById("material-manage-back-btn").addEventListener("click",()=>showScreen("app-screen")); document.getElementById("deleted-page-btn").addEventListener("click",()=>showScreen("deleted-screen")); document.getElementById("deleted-back-btn").addEventListener("click",()=>showScreen("app-screen")); document.getElementById("prev-page-btn").addEventListener("click",prevPage); document.getElementById("next-page-btn").addEventListener("click",nextPage); document.getElementById("print-all-month-btn").addEventListener("click",printMonthlyRecords); document.getElementById("load-record-month-btn").addEventListener("click",loadMonthlyRecordList); document.getElementById("excel-upload-btn").addEventListener("click",()=>document.getElementById("excel-upload").click()); document.getElementById("excel-upload").addEventListener("change",handleExcelUpload); document.getElementById("manage-material-search-btn").addEventListener("click",searchManageMaterials); document.getElementById("search-material-date-btn").addEventListener("click",searchMaterialsByDate); document.getElementById("load-deleted-materials-btn").addEventListener("click",loadDeletedMaterials); document.getElementById("page-size").addEventListener("change",e=>{pageSize=Number(e.target.value); currentPage=1; loadMaterials();}); document.getElementById("login-username").addEventListener("keydown",e=>{if(e.key==="Enter") login();}); document.getElementById("login-password").addEventListener("keydown",e=>{if(e.key==="Enter") login();}); document.getElementById("search").addEventListener("input",e=>{currentKeyword=e.target.value.trim(); currentPage=1; loadMaterials();}); }
+bindEvents(); setDefaultPrintMonth(); restoreLogin();
+</script>
 </body>
 </html>
