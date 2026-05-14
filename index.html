@@ -3,67 +3,152 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>탕정삼성어린이집 대여 포털</title>
+  <title>탕정삼성어린이집 통합 관리 포털</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
       font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
-      background: #f3f4f6;
+      background: #f6f7fb;
       color: #111827;
     }
 
     .header {
       background: white;
-      padding: 18px 24px;
+      padding: 16px 20px;
       border-bottom: 1px solid #e5e7eb;
       box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
 
     .header-inner {
-      max-width: 1400px;
+      max-width: 1100px;
       margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 14px;
+      gap: 12px;
     }
 
     .logo {
-      width: 58px;
+      width: 48px;
       height: auto;
       object-fit: contain;
     }
 
     .header h1 {
       margin: 0;
-      font-size: 2rem;
+      font-size: 1.75rem;
       font-weight: 800;
       text-align: center;
+    }
+
+    .wrapper {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 18px 36px;
+    }
+
+    .box {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.04);
+      margin-bottom: 20px;
+    }
+
+    .login-box {
+      max-width: 420px;
+      margin: 28px auto;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 1.35rem;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 10px 14px;
+      margin: 3px;
+      cursor: pointer;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: white;
+      font-size: 14px;
+    }
+
+    .btn-primary {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #bbf7d0;
+      font-weight: 700;
+    }
+
+    .btn-danger {
+      background: #fef2f2;
+      color: #b91c1c;
+      border-color: #fecaca;
+    }
+
+    .btn-blue {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+    }
+
+    .message {
+      color: #2563eb;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-line;
+      margin-top: 10px;
+    }
+
+    .notice {
+      color: #6b7280;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .hidden { display: none !important; }
+
+    .user-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 14px 16px;
     }
 
     .subtext {
       text-align: center;
       color: #6b7280;
-      margin: 14px 20px 18px;
-      font-size: 1rem;
-    }
-
-    .portal-wrapper {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 0 20px 30px;
+      margin: 8px 0 24px;
+      font-size: 0.98rem;
     }
 
     .portal-container {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 20px;
-      min-height: 72vh;
+      gap: 18px;
     }
 
     .portal-card {
@@ -72,136 +157,420 @@
       justify-content: center;
       align-items: center;
       text-decoration: none;
-      color: white;
-      padding: 50px 30px;
+      color: #111827;
+      padding: 46px 24px;
       border-radius: 24px;
-      transition: transform 0.25s ease, box-shadow 0.25s ease;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
       text-align: center;
+      border: 1px solid #e5e7eb;
+      min-height: 260px;
     }
 
     .portal-card:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 18px 36px rgba(0,0,0,0.12);
+      transform: translateY(-4px);
+      box-shadow: 0 14px 30px rgba(0,0,0,0.08);
     }
 
     .library {
-      background: linear-gradient(135deg, #60a5fa, #3b82f6);
+      background: linear-gradient(135deg, #eff6ff, #dbeafe);
     }
 
     .materials {
-      background: linear-gradient(135deg, #86efac, #22c55e);
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
     }
 
     .icon {
-      font-size: 4rem;
-      margin-bottom: 20px;
+      font-size: 3.2rem;
+      margin-bottom: 16px;
     }
 
     .portal-card h2 {
-      font-size: 2.4rem;
-      margin: 0 0 16px;
+      font-size: 1.8rem;
+      margin: 0 0 12px;
       font-weight: 800;
     }
 
     .portal-card p {
-      font-size: 1.05rem;
-      line-height: 1.7;
+      font-size: 0.98rem;
+      line-height: 1.65;
       margin: 0;
-      max-width: 420px;
-      opacity: 0.95;
+      max-width: 360px;
+      color: #4b5563;
     }
 
     .footer {
       text-align: center;
       padding: 18px;
-      background: white;
-      border-top: 1px solid #e5e7eb;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       color: #6b7280;
-      margin-top: 20px;
     }
 
-    @media (max-width: 1000px) {
-      .portal-container {
-        grid-template-columns: 1fr;
-      }
-
-      .portal-card {
-        min-height: 320px;
-      }
-
-      .portal-card h2 {
-        font-size: 2rem;
-      }
-
-      .icon {
-        font-size: 3.5rem;
-      }
-
-      .header h1 {
-        font-size: 1.5rem;
-      }
-
-      .logo {
-        width: 46px;
-      }
-    }
-
-    @media (max-width: 600px) {
-      .portal-wrapper {
-        padding: 0 14px 20px;
-      }
-
-      .portal-card {
-        padding: 40px 20px;
-        border-radius: 18px;
-      }
-
-      .portal-card h2 {
-        font-size: 1.7rem;
-      }
-
-      .portal-card p {
-        font-size: 0.95rem;
-      }
-
-      .subtext {
-        font-size: 0.9rem;
-      }
+    @media (max-width: 760px) {
+      .header h1 { font-size: 1.3rem; }
+      .logo { width: 40px; }
+      .portal-container { grid-template-columns: 1fr; }
+      .portal-card { min-height: 210px; padding: 34px 18px; }
+      .portal-card h2 { font-size: 1.45rem; }
+      .wrapper { padding: 16px 12px 28px; }
+      .box { padding: 18px; }
     }
   </style>
 </head>
+
 <body>
 
-  <header class="header">
-    <div class="header-inner">
-      <img src="logo.png" alt="탕정삼성어린이집 로고" class="logo">
-      <h1>탕정삼성어린이집 통합 대여 포털</h1>
+<header class="header">
+  <div class="header-inner">
+    <img src="logo.png" alt="탕정삼성어린이집 로고" class="logo">
+    <h1>탕정삼성어린이집 통합 관리 포털</h1>
+  </div>
+</header>
+
+<div class="wrapper">
+
+  <div id="login-screen" class="box login-box">
+    <h2>로그인</h2>
+    <input id="login-username" placeholder="아이디" autocomplete="username" />
+    <input id="login-password" type="password" placeholder="비밀번호" autocomplete="current-password" />
+    <button id="login-btn" class="btn-primary">로그인</button>
+    <button id="show-signup-btn" class="btn-blue">회원가입</button>
+    <button id="show-find-id-btn">아이디 찾기</button>
+    <p id="login-message" class="message"></p>
+    <p class="notice">로그인 후 도서관리와 교재교구관리를 한 번에 이용할 수 있습니다.</p>
+  </div>
+
+  <div id="signup-screen" class="box login-box hidden">
+    <h2>회원가입</h2>
+    <input id="signup-name" placeholder="이름" />
+    <input id="signup-username" placeholder="아이디" />
+    <input id="signup-password" type="password" placeholder="비밀번호" />
+    <select id="signup-class">
+      <option value="">반 선택</option>
+      <option value="햇빛반">햇빛반</option>
+      <option value="달빛반">달빛반</option>
+      <option value="별빛반">별빛반</option>
+      <option value="풀빛반">풀빛반</option>
+      <option value="온빛반">온빛반</option>
+      <option value="예빛반">예빛반</option>
+      <option value="봄빛반">봄빛반</option>
+      <option value="물빛반">물빛반</option>
+      <option value="꿈빛반">꿈빛반</option>
+      <option value="한빛반">한빛반</option>
+      <option value="은빛반">은빛반</option>
+      <option value="새빛반">새빛반</option>
+      <option value="윤빛반">윤빛반</option>
+      <option value="꽃빛반">꽃빛반</option>
+      <option value="들빛반">들빛반</option>
+      <option value="솔빛반">솔빛반</option>
+    </select>
+    <button id="signup-btn" class="btn-primary">가입 신청</button>
+    <button id="signup-back-btn">돌아가기</button>
+    <p id="signup-message" class="message"></p>
+    <p class="notice">가입 후 관리자의 승인이 있어야 로그인할 수 있습니다.</p>
+  </div>
+
+  <div id="find-id-screen" class="box login-box hidden">
+    <h2>아이디 찾기</h2>
+    <input id="find-name" placeholder="이름" />
+    <select id="find-class">
+      <option value="">반 선택</option>
+      <option value="햇빛반">햇빛반</option>
+      <option value="달빛반">달빛반</option>
+      <option value="별빛반">별빛반</option>
+      <option value="풀빛반">풀빛반</option>
+      <option value="온빛반">온빛반</option>
+      <option value="예빛반">예빛반</option>
+      <option value="봄빛반">봄빛반</option>
+      <option value="물빛반">물빛반</option>
+      <option value="꿈빛반">꿈빛반</option>
+      <option value="한빛반">한빛반</option>
+      <option value="은빛반">은빛반</option>
+      <option value="새빛반">새빛반</option>
+      <option value="윤빛반">윤빛반</option>
+      <option value="꽃빛반">꽃빛반</option>
+      <option value="들빛반">들빛반</option>
+      <option value="솔빛반">솔빛반</option>
+    </select>
+    <button id="find-id-btn" class="btn-primary">아이디 찾기</button>
+    <button id="find-id-back-btn">돌아가기</button>
+    <p id="find-id-message" class="message"></p>
+  </div>
+
+  <div id="portal-screen" class="hidden">
+    <div class="user-bar">
+      <strong id="user-info"></strong>
+      <div>
+        <button id="refresh-user-btn">정보 새로고침</button>
+        <button id="logout-btn" class="btn-danger">로그아웃</button>
+      </div>
     </div>
-  </header>
 
+    <p class="subtext">도서관리 및 교재교구관리를 하나의 포털에서 이용하세요.</p>
 
-
-  <div class="portal-wrapper">
     <main class="portal-container">
-
       <a href="library.html" class="portal-card library">
         <div class="icon">📚</div>
         <h2>도서관리 시스템</h2>
+        <p>
+          도서 대여, 반납, 승인, 월별 기록 관리까지<br>
+          어린이집 도서를 체계적으로 운영할 수 있습니다.
+        </p>
       </a>
 
       <a href="materials.html" class="portal-card materials">
         <div class="icon">🧩</div>
         <h2>교재교구관리 시스템</h2>
+        <p>
+          교재교구 등록, 수량, 위치, 사용반 관리 및<br>
+          대여·반납까지 통합 관리할 수 있습니다.
+        </p>
       </a>
-
     </main>
   </div>
 
-  <footer class="footer">
-    기타 문의사항: 김혜인 교사 | 탕정삼성어린이집
-  </footer>
+</div>
+
+<footer class="footer">
+  기타 문의사항: 김혜인 교사 | 탕정삼성어린이집
+</footer>
+
+<script>
+const supabaseUrl = "https://vohcugxfwxdvkbcpjcgl.supabase.co";
+const supabaseKey = "sb_publishable_Q0cXaglzBaz9Py2oct_NTQ_vMHsUeSQ";
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+let currentUser = null;
+
+function showOnly(screenId) {
+  ["login-screen", "signup-screen", "find-id-screen", "portal-screen"].forEach(id => {
+    document.getElementById(id).classList.add("hidden");
+  });
+  document.getElementById(screenId).classList.remove("hidden");
+}
+
+function setMessage(id, text, color = "#2563eb") {
+  const el = document.getElementById(id);
+  el.innerText = text;
+  el.style.color = color;
+}
+
+function getRoleText(user) {
+  if (!user) return "";
+  if (user.role === "admin") return "관리자";
+  if (user.material_role === "manager") return "교재교구담당자";
+  if (user.role === "manager") return "도서담당자";
+  return "선생님";
+}
+
+function saveIntegratedLogin(user) {
+  currentUser = user;
+  localStorage.setItem("libraryCurrentUser", JSON.stringify(user));
+  localStorage.setItem("materialsCurrentUser", JSON.stringify(user));
+}
+
+function clearIntegratedLogin() {
+  currentUser = null;
+  localStorage.removeItem("libraryCurrentUser");
+  localStorage.removeItem("materialsCurrentUser");
+}
+
+async function refreshCurrentUser() {
+  if (!currentUser?.id) return false;
+
+  const { data, error } = await supabaseClient
+    .from("users")
+    .select("*")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+
+  if (error || !data) return false;
+
+  if (data.approval_status !== "approved") {
+    clearIntegratedLogin();
+    showOnly("login-screen");
+    setMessage("login-message", "승인되지 않았거나 비활성화된 계정입니다.", "red");
+    return false;
+  }
+
+  saveIntegratedLogin(data);
+  renderPortal();
+  return true;
+}
+
+function renderPortal() {
+  if (!currentUser) {
+    showOnly("login-screen");
+    return;
+  }
+
+  document.getElementById("user-info").innerText =
+    `${currentUser.name} / ${currentUser.class_name} / ${getRoleText(currentUser)}`;
+
+  showOnly("portal-screen");
+}
+
+async function restoreLogin() {
+  const savedUser =
+    localStorage.getItem("libraryCurrentUser") ||
+    localStorage.getItem("materialsCurrentUser");
+
+  if (!savedUser) {
+    showOnly("login-screen");
+    return;
+  }
+
+  try {
+    currentUser = JSON.parse(savedUser);
+    const ok = await refreshCurrentUser();
+    if (!ok && currentUser) renderPortal();
+  } catch (error) {
+    clearIntegratedLogin();
+    showOnly("login-screen");
+  }
+}
+
+async function login() {
+  const username = document.getElementById("login-username").value.trim();
+  const password = document.getElementById("login-password").value.trim();
+
+  if (!username || !password) {
+    setMessage("login-message", "아이디와 비밀번호를 모두 입력해주세요.", "red");
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("users")
+    .select("*")
+    .eq("username", username)
+    .maybeSingle();
+
+  if (error || !data) {
+    setMessage("login-message", "등록되지 않은 아이디입니다.", "red");
+    return;
+  }
+
+  if (data.password !== password) {
+    setMessage("login-message", "비밀번호가 틀렸습니다.", "red");
+    return;
+  }
+
+  if (data.approval_status === "inactive") {
+    setMessage("login-message", "비활성화된 계정입니다. 관리자에게 문의해주세요.", "red");
+    return;
+  }
+
+  if (data.approval_status !== "approved") {
+    setMessage("login-message", "관리자 승인 대기중입니다.");
+    return;
+  }
+
+  saveIntegratedLogin(data);
+  setMessage("login-message", "");
+  renderPortal();
+}
+
+async function signup() {
+  const name = document.getElementById("signup-name").value.trim();
+  const username = document.getElementById("signup-username").value.trim();
+  const password = document.getElementById("signup-password").value.trim();
+  const className = document.getElementById("signup-class").value;
+
+  if (!name || !username || !password || !className) {
+    setMessage("signup-message", "이름, 아이디, 비밀번호, 반을 모두 입력해주세요.", "red");
+    return;
+  }
+
+  const { data: existing } = await supabaseClient
+    .from("users")
+    .select("id")
+    .eq("username", username)
+    .maybeSingle();
+
+  if (existing) {
+    setMessage("signup-message", "이미 사용 중인 아이디입니다.", "red");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("users")
+    .insert([{
+      name,
+      username,
+      password,
+      class_name: className,
+      role: "teacher",
+      material_role: "teacher",
+      approval_status: "pending"
+    }]);
+
+  if (error) {
+    setMessage("signup-message", "회원가입 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("signup-message", "가입 신청이 완료되었습니다. 관리자 승인 후 로그인할 수 있습니다.");
+}
+
+async function findId() {
+  const name = document.getElementById("find-name").value.trim();
+  const className = document.getElementById("find-class").value;
+
+  if (!name || !className) {
+    setMessage("find-id-message", "이름과 반을 모두 입력해주세요.", "red");
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("users")
+    .select("username")
+    .eq("name", name)
+    .eq("class_name", className);
+
+  if (error) {
+    setMessage("find-id-message", "아이디 찾기 실패: " + error.message, "red");
+    return;
+  }
+
+  if (!data || !data.length) {
+    setMessage("find-id-message", "일치하는 계정을 찾을 수 없습니다.", "red");
+    return;
+  }
+
+  const ids = data.map(user => user.username).join(", ");
+  setMessage("find-id-message", `아이디: ${ids}`);
+}
+
+function logout() {
+  clearIntegratedLogin();
+  document.getElementById("login-username").value = "";
+  document.getElementById("login-password").value = "";
+  setMessage("login-message", "");
+  showOnly("login-screen");
+}
+
+function bindEvents() {
+  document.getElementById("login-btn").onclick = login;
+  document.getElementById("show-signup-btn").onclick = () => showOnly("signup-screen");
+  document.getElementById("show-find-id-btn").onclick = () => showOnly("find-id-screen");
+  document.getElementById("signup-back-btn").onclick = () => showOnly("login-screen");
+  document.getElementById("find-id-back-btn").onclick = () => showOnly("login-screen");
+  document.getElementById("signup-btn").onclick = signup;
+  document.getElementById("find-id-btn").onclick = findId;
+  document.getElementById("logout-btn").onclick = logout;
+  document.getElementById("refresh-user-btn").onclick = refreshCurrentUser;
+
+  document.getElementById("login-username").addEventListener("keydown", e => {
+    if (e.key === "Enter") login();
+  });
+
+  document.getElementById("login-password").addEventListener("keydown", e => {
+    if (e.key === "Enter") login();
+  });
+}
+
+bindEvents();
+restoreLogin();
+</script>
 
 </body>
 </html>
