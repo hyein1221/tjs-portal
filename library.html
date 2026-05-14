@@ -158,7 +158,7 @@
   <table>
     <thead>
       <tr>
-        <th class="check-col"><input type="checkbox" class="master-check" title="전체선택"></th>
+        <th class="check-col"><input type="checkbox" class="master-check" onclick="toggleTableChecks(this)" title="전체선택"></th>
         <th>관리번호</th>
         <th>도서명</th>
         <th>상태</th>
@@ -214,7 +214,7 @@
       </div>
     </div>
     <button id="batch-rental-approve-btn" class="btn-approve">선택 도서 일괄 대여승인</button>
-    <table><thead><tr><th class="check-col"><input type="checkbox" class="master-check" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
+    <table><thead><tr><th class="check-col"><input type="checkbox" class="master-check" onclick="toggleTableChecks(this)" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
 
     </div>
 
@@ -235,7 +235,7 @@
       </div>
     </div>
     <button id="batch-return-approve-btn" class="btn-approve">선택 도서 일괄 반납승인</button>
-    <table><thead><tr><th class="check-col"><input type="checkbox" class="master-check" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
+    <table><thead><tr><th class="check-col"><input type="checkbox" class="master-check" onclick="toggleTableChecks(this)" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
     </div>
 
   </div>
@@ -591,7 +591,7 @@ function renderBooks(books) {
     }
 
     if (statusText === "대여예약중" && isSameClass) {
-      rentalButton = `<button class="btn-cancel" onclick="cancelReservation('${book.id}')">예약취소</button>`;
+      rentalButton = `<button class="btn-cancel" onclick="cancelReservation('${book.id}')">대여취소</button>`;
     }
 
     if (statusText === "대여중" && isSameClass) {
@@ -599,7 +599,7 @@ function renderBooks(books) {
     }
 
     if (statusText === "반납요청중" && isSameClass) {
-      returnButton = `<button class="btn-wait" disabled>반납대기</button>`;
+      returnButton = `<button class="btn-cancel" onclick="cancelReturnRequest('${book.id}')">반납취소</button>`;
     }
 
     bookList.innerHTML += `
@@ -683,7 +683,7 @@ async function reserveBook(bookId) {
 }
 
 async function cancelReservation(bookId) {
-  if (!confirm("예약을 취소하시겠습니까?")) return;
+  if (!confirm("대여를 취소하시겠습니까?")) return;
 
   const { error } = await supabaseClient
     .from("books")
@@ -696,7 +696,7 @@ async function cancelReservation(bookId) {
     .eq("current_class", currentUser.class_name);
 
   if (error) {
-    alert("예약취소 실패: " + error.message);
+    alert("대여취소 실패: " + error.message);
     return;
   }
 
@@ -707,7 +707,7 @@ async function cancelReservation(bookId) {
     .eq("class_name", currentUser.class_name)
     .eq("status", "reserved");
 
-  alert("예약이 취소되었습니다.");
+  alert("대여가 취소되었습니다.");
   loadBooks();
 }
 
@@ -740,6 +740,41 @@ async function requestReturn(bookId) {
   loadBooks();
 }
 
+async function cancelReturnRequest(bookId) {
+  if (!confirm("반납요청을 취소하시겠습니까?")) return;
+
+  const { error } = await supabaseClient
+    .from("books")
+    .update({ status: "borrowed" })
+    .eq("id", bookId)
+    .eq("current_class", currentUser.class_name);
+
+  if (error) {
+    alert("반납취소 실패: " + error.message);
+    return;
+  }
+
+  await supabaseClient
+    .from("rental_records")
+    .update({
+      status: "borrowed",
+      returned_by: null,
+      return_requested_at: null
+    })
+    .eq("book_id", bookId)
+    .eq("class_name", currentUser.class_name)
+    .eq("status", "return_requested");
+
+  alert("반납요청이 취소되었습니다.");
+  loadBooks();
+}
+
+async function cancelReturnRequestAndReloadMyBooks(bookId) {
+  await cancelReturnRequest(bookId);
+  await loadMyBooks();
+}
+
+
 async function loadMyBooks() {
   showScreen("my-books-screen");
 
@@ -761,7 +796,7 @@ async function loadMyBooks() {
       let returnBtn = "-";
 
       if (book.status === "reserved") {
-        rentalBtn = `<button class="btn-cancel" onclick="cancelReservationAndReloadMyBooks('${book.id}')">예약취소</button>`;
+        rentalBtn = `<button class="btn-cancel" onclick="cancelReservationAndReloadMyBooks('${book.id}')">대여취소</button>`;
       }
 
       if (book.status === "borrowed") {
@@ -769,7 +804,7 @@ async function loadMyBooks() {
       }
 
       if (book.status === "return_requested") {
-        returnBtn = `<button class="btn-wait" disabled>반납대기</button>`;
+        returnBtn = `<button class="btn-cancel" onclick="cancelReturnRequestAndReloadMyBooks('${book.id}')">반납취소</button>`;
       }
 
       const checkBox = book.status === "borrowed"
