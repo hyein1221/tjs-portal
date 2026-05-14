@@ -313,6 +313,7 @@
   <div class="manager-tabs">
     <button class="manager-tab-btn active" data-tab="rental-tab">대여관리</button>
     <button class="manager-tab-btn" data-tab="material-tab">교재교구관리</button>
+    <button class="manager-tab-btn" data-tab="record-tab">대여기록관리</button>
   </div>
 
   <div id="rental-tab" class="manager-tab-content active">
@@ -354,7 +355,7 @@
       <tbody id="return-approve-list"></tbody>
     </table>
 
-    <h3>기간별 사용기록 조회 / 출력</h3>
+    <h3>기간별 대여기록 조회 / 출력</h3>
     <div class="panel">
       <div class="grid-row">
         <input id="record-start-date" type="date" />
@@ -381,6 +382,11 @@
       </thead>
       <tbody id="monthly-record-list"></tbody>
     </table>
+  </div>
+
+
+  <div id="record-tab" class="manager-tab-content">
+
   </div>
 
   <div id="material-tab" class="manager-tab-content">
@@ -483,7 +489,7 @@ function getStatusName(status) {
     return_requested: "반납요청",
     returned: "반납완료",
     rental_rejected: "예약반려",
-    return_rejected: "반납반려",
+    return_rejected: "반려",
     repair: "수리중",
     discarded: "폐기"
   };
@@ -728,7 +734,7 @@ function renderMaterials(materials) {
     }
 
     if (item.status === "return_requested" && isSameClass) {
-      returnBtn = `<button class="btn-wait" disabled>대기</button>`;
+      returnBtn = `<button class="btn-cancel" onclick="cancelReturnRequest('${item.id}')">반납취소</button>`;
     }
 
     list.innerHTML += `
@@ -906,6 +912,41 @@ async function bulkRequestReturn() {
   loadMyMaterials();
 }
 
+async function cancelReturnRequest(materialId) {
+  if (!confirm("반납신청을 취소하시겠습니까?")) return;
+
+  const { error } = await supabaseClient
+    .from("materials")
+    .update({ status: "borrowed" })
+    .eq("id", materialId)
+    .eq("current_class", currentUser.class_name);
+
+  if (error) {
+    alert("반납취소 실패: " + error.message);
+    return;
+  }
+
+  await supabaseClient
+    .from("material_records")
+    .update({
+      status: "borrowed",
+      returned_by: null,
+      return_requested_at: null
+    })
+    .eq("material_id", materialId)
+    .eq("class_name", currentUser.class_name)
+    .eq("status", "return_requested");
+
+  alert("반납신청이 취소되었습니다.");
+  loadMaterials();
+}
+
+async function cancelReturnRequestAndReloadMyMaterials(materialId) {
+  await cancelReturnRequest(materialId);
+  await loadMyMaterials();
+}
+
+
 async function loadMyMaterials() {
   showScreen("my-materials-screen");
 
@@ -932,7 +973,7 @@ async function loadMyMaterials() {
       }
 
       if (item.status === "return_requested") {
-        returnBtn = `<button class="btn-wait" disabled>반납대기</button>`;
+        returnBtn = `<button class="btn-cancel" onclick="cancelReturnRequestAndReloadMyMaterials('${item.id}')">반납취소</button>`;
       }
 
       list.innerHTML += `
@@ -995,7 +1036,7 @@ async function loadMyRejections() {
       .eq("id", record.material_id)
       .maybeSingle();
 
-    const type = record.status === "rental_rejected" ? "예약반려" : "반납반려";
+    const type = record.status === "rental_rejected" ? "예약반려" : "반려";
     const reason = record.status === "rental_rejected" ? record.reject_reason : record.return_reject_reason;
     const rejectedAt = record.status === "rental_rejected" ? record.rejected_at : record.return_rejected_at;
 
@@ -1167,7 +1208,8 @@ async function loadReturnApproveList() {
       ? `<input type="checkbox" class="manager-return-check" value="${item.id}">`
       : "-";
     const actionBtn = item.status === "return_requested"
-      ? `<button class="btn-approve" onclick="approveReturn('${item.id}')">반납확인</button>`
+      ? `<button class="btn-approve" onclick="approveReturn('${item.id}')">반납확인</button>
+         <button class="btn-danger" onclick="rejectReturn('${item.id}')">반려</button>`
       : `<button class="btn-wait" disabled>사용중</button>`;
 
     list.innerHTML += `
@@ -1257,7 +1299,7 @@ async function bulkApproveReturn() {
 }
 
 async function rejectReturn(materialId) {
-  const reason = prompt("반납 반려 사유를 입력해주세요.");
+  const reason = prompt("반려 사유를 입력해주세요.");
 
   if (!reason || !reason.trim()) {
     alert("반려 사유를 입력해야 합니다.");
@@ -1281,11 +1323,11 @@ async function rejectReturn(materialId) {
     .eq("status", "return_requested");
 
   if (error) {
-    alert("반납 반려 실패: " + error.message);
+    alert("반려 처리 실패: " + error.message);
     return;
   }
 
-  alert("반납요청이 반려되었습니다.");
+  alert("반려 처리되었습니다.");
   loadReturnApproveList();
   loadMaterials();
 }
@@ -1371,8 +1413,8 @@ async function loadMonthlyRecordList() {
 
     list.innerHTML += `
       <tr>
-        <td>${formatDate(record.approved_at)}</td>
         <td>${record.class_name || ""}</td>
+        <td>${formatDate(record.approved_at)}</td>
         <td>${record.materialNumber}</td>
         <td>${record.materialName}</td>
         <td>${record.borrowerName}</td>
@@ -1430,13 +1472,13 @@ async function printMonthlyRecords() {
   let rows = "";
 
   if (!records.length) {
-    rows = `<tr><td colspan="9">사용기록이 없습니다.</td></tr>`;
+    rows = `<tr><td colspan="8">사용기록이 없습니다.</td></tr>`;
   } else {
     records.forEach(record => {
       rows += `
         <tr>
-          <td>${formatDate(record.approved_at)}</td>
           <td>${record.class_name || ""}</td>
+          <td>${formatDate(record.approved_at)}</td>
           <td>${record.materialNumber}</td>
           <td>${record.materialName}</td>
           <td>${record.borrowerName}</td>
@@ -1454,8 +1496,8 @@ async function printMonthlyRecords() {
     <table>
       <thead>
         <tr>
-          <th>대여일</th>
           <th>반</th>
+          <th>대여일</th>
           <th>관리번호</th>
           <th>교재교구명</th>
           <th>대여자</th>
@@ -1645,7 +1687,7 @@ async function handleExcelUpload(event) {
         "수량": Number(row["수량"] || 1),
         "금": row["금"] || null,
         "사용처": row["사용처"] || null,
-        "전표증빙번호": row["전표(증빙번호)"] || null,
+        "전표증빙번호": row["전표증빙번호"] || row["전표(증빙번호)"] || null,
         "사진": row["사진"] || null,
         "비고": row["비고"] || null,
         status: "available",
