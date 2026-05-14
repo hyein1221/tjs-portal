@@ -158,7 +158,8 @@
   <table>
     <thead>
       <tr>
-        <th class="check-col"><input type="checkbox" class="master-check" onclick="toggleTableChecks(this)" title="전체선택"></th>
+        <th class="check-col"><input type="checkbox" class="master-check" title="전체선택"
+          onchange="this.closest('table').querySelectorAll('tbody input[type=checkbox]').forEach(cb => cb.checked = this.checked)"></th>
         <th>관리번호</th>
         <th>도서명</th>
         <th>상태</th>
@@ -214,7 +215,8 @@
       </div>
     </div>
     <button id="batch-rental-approve-btn" class="btn-approve">선택 도서 일괄 대여승인</button>
-    <table><thead><tr><th class="check-col"><input type="checkbox" class="master-check" onclick="toggleTableChecks(this)" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
+    <table><thead><tr><th class="check-col"><input type="checkbox" class="master-check" title="전체선택"
+          onchange="this.closest('table').querySelectorAll('tbody input[type=checkbox]').forEach(cb => cb.checked = this.checked)"></th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
 
     </div>
 
@@ -235,7 +237,8 @@
       </div>
     </div>
     <button id="batch-return-approve-btn" class="btn-approve">선택 도서 일괄 반납승인</button>
-    <table><thead><tr><th class="check-col"><input type="checkbox" class="master-check" onclick="toggleTableChecks(this)" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
+    <table><thead><tr><th class="check-col"><input type="checkbox" class="master-check" title="전체선택"
+          onchange="this.closest('table').querySelectorAll('tbody input[type=checkbox]').forEach(cb => cb.checked = this.checked)"></th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
     </div>
 
   </div>
@@ -1055,7 +1058,7 @@ async function loadReturnApproveList() {
         <td>${returnUserName}</td>
         <td>
           <button class="btn-approve" onclick="approveReturn('${book.id}')">반납승인</button>
-          <button class="btn-danger" onclick="rejectReturn('${book.id}')">반납반려</button>
+          <button class="btn-danger" onclick="rejectReturn('${book.id}')">반려</button>
         </td>
       </tr>
     `;
@@ -1079,7 +1082,7 @@ async function approveReturn(bookId) {
 }
 
 async function rejectReturn(bookId) {
-  const reason = prompt("반납 반려 사유를 입력해주세요.");
+  const reason = prompt("반려 사유를 입력해주세요.");
   if (!reason || !reason.trim()) {
     alert("반려 사유를 입력해야 합니다.");
     return;
@@ -1099,11 +1102,11 @@ async function rejectReturn(bookId) {
     .eq("status", "return_requested");
 
   if (error) {
-    alert("반납 반려 실패: " + error.message);
+    alert("반려 처리 실패: " + error.message);
     return;
   }
 
-  alert("반납요청이 반려되었습니다.");
+  alert("반려 처리되었습니다.");
   loadReturnApproveList();
   loadBooks();
 }
@@ -1736,12 +1739,6 @@ function bindEvents() {
   document.addEventListener("change", (e) => {
     if (e.target.matches("input[data-check-group]")) {
       setCheckedByClass(e.target.dataset.checkGroup, e.target.checked);
-    }
-  });
-
-  document.addEventListener("change", (e) => {
-    if (e.target.matches("input.master-check")) {
-      setCheckedInSameTable(e.target);
     }
   });
 
