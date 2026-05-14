@@ -1153,7 +1153,7 @@ async function loadDeletedBooks() {
   }
 
   if (!data || !data.length) {
-    list.innerHTML = `<tr><td colspan="3">삭제 도서가 없습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="5">삭제 도서가 없습니다.</td></tr>`;
     return;
   }
 
@@ -1339,7 +1339,7 @@ async function loadDeletedMaterials() {
   list.innerHTML = "";
 
   if (error) {
-    list.innerHTML = `<tr><td colspan="3">삭제 교재교구 목록을 불러오지 못했습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="5">삭제 교재교구 목록을 불러오지 못했습니다.</td></tr>`;
     return;
   }
 
