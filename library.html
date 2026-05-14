@@ -46,6 +46,13 @@
     .btn-danger { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
     .btn-wait { background:#f3f4f6; color:#6b7280; border-color:#d1d5db; cursor:default; }
 
+
+    .manager-tabs { display:flex; gap:8px; margin:20px 0; border-bottom:1px solid #ddd; padding-bottom:10px; }
+    .manager-tab-btn { padding:10px 16px; border:1px solid #ccc; background:#f9fafb; cursor:pointer; border-radius:8px; font-weight:700; }
+    .manager-tab-btn.active { background:#dbeafe; color:#1d4ed8; }
+    .manager-tab-content { display:none; }
+    .manager-tab-content.active { display:block; }
+
     @media (max-width:700px) {
       .grid-row, .book-search-row { grid-template-columns:1fr; }
       .top { align-items:flex-start; }
@@ -111,12 +118,10 @@
   <div class="top">
     <div>
       <strong id="user-info"></strong>
-      <button id="portal-btn" class="btn-basic">통합포털로 이동</button>
-      <button id="portal-btn" class="btn-basic">통합포털로 이동</button>
       <button id="profile-btn" class="btn-basic">내 정보 변경</button>
       <button id="my-books-btn" class="btn-basic">내 대여현황</button>
       <button id="manager-page-btn" class="hidden btn-approve">도서담당자 페이지</button>
-      <button id="book-manage-page-btn" class="hidden btn-reserve">도서관리</button>
+      <button id="portal-btn" class="btn-basic">통합포털로 이동</button>
     </div>
 
     <div class="session-box">
@@ -198,141 +203,72 @@
 <div id="manager-screen" class="box hidden">
   <h2>도서담당자 페이지</h2>
 
-  <h3>대여예약 승인</h3>
-  <div class="panel">
-    <div class="grid-row">
-      <select id="rental-filter-age">
-        <option value="">연령 선택</option>
-        <option value="만1세">만1세</option>
-        <option value="만2세">만2세</option>
-        <option value="만3세">만3세</option>
-        <option value="만4세">만4세</option>
-        <option value="만5세">만5세</option>
-      </select>
-      <select id="rental-filter-class">
-        <option value="">반 선택</option>
-      </select>
-      <button id="load-rental-filter-btn" class="btn-basic">조회</button>
-    </div>
+  <div class="manager-tabs">
+    <button class="manager-tab-btn active" data-tab="rental-tab">대여관리</button>
+    <button class="manager-tab-btn" data-tab="book-tab">도서관리</button>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>관리번호</th>
-        <th>도서명</th>
-        <th>요청반</th>
-        <th>요청자</th>
-        <th>처리</th>
-      </tr>
-    </thead>
-    <tbody id="rental-approve-list"></tbody>
-  </table>
-
-  <h3>반납요청 승인</h3>
-  <div class="panel">
-    <div class="grid-row">
-      <select id="return-filter-age">
-        <option value="">연령 선택</option>
-        <option value="만1세">만1세</option>
-        <option value="만2세">만2세</option>
-        <option value="만3세">만3세</option>
-        <option value="만4세">만4세</option>
-        <option value="만5세">만5세</option>
-      </select>
-      <select id="return-filter-class">
-        <option value="">반 선택</option>
-      </select>
-      <button id="load-return-filter-btn" class="btn-basic">조회</button>
+  <div id="rental-tab" class="manager-tab-content active">
+    <h3>대여예약 승인</h3>
+    <div class="panel">
+      <div class="grid-row">
+        <select id="rental-filter-age">
+          <option value="">연령 선택</option>
+          <option value="만1세">만1세</option>
+          <option value="만2세">만2세</option>
+          <option value="만3세">만3세</option>
+          <option value="만4세">만4세</option>
+          <option value="만5세">만5세</option>
+        </select>
+        <select id="rental-filter-class"><option value="">반 선택</option></select>
+        <button id="load-rental-filter-btn" class="btn-basic">조회</button>
+      </div>
     </div>
+    <table><thead><tr><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
+
+    <h3>반납요청 승인</h3>
+    <div class="panel">
+      <div class="grid-row">
+        <select id="return-filter-age">
+          <option value="">연령 선택</option>
+          <option value="만1세">만1세</option>
+          <option value="만2세">만2세</option>
+          <option value="만3세">만3세</option>
+          <option value="만4세">만4세</option>
+          <option value="만5세">만5세</option>
+        </select>
+        <select id="return-filter-class"><option value="">반 선택</option></select>
+        <button id="load-return-filter-btn" class="btn-basic">조회</button>
+      </div>
+    </div>
+    <table><thead><tr><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
+
+    <h3>대여기록 출력</h3>
+    <div class="panel">
+      <div class="grid-row">
+        <select id="print-year"><option value="2026">2026년</option><option value="2027">2027년</option><option value="2028">2028년</option></select>
+        <select id="print-month"><option value="1">1월</option><option value="2">2월</option><option value="3">3월</option><option value="4">4월</option><option value="5">5월</option><option value="6">6월</option><option value="7">7월</option><option value="8">8월</option><option value="9">9월</option><option value="10">10월</option><option value="11">11월</option><option value="12">12월</option></select>
+        <button id="print-all-month-btn" class="btn-basic">전체 기록 출력</button>
+      </div>
+      <div class="grid-row">
+        <select id="print-age"><option value="">연령 선택</option><option value="만1세">만1세</option><option value="만2세">만2세</option><option value="만3세">만3세</option><option value="만4세">만4세</option><option value="만5세">만5세</option></select>
+        <select id="print-class"><option value="">반 선택</option></select>
+        <button id="print-class-month-btn" class="btn-basic">선택한 반 기록 출력</button>
+      </div>
+    </div>
+
+    <h3>월별 대여기록 조회</h3>
+    <button id="load-record-month-btn" class="btn-basic">선택 월 대여기록 불러오기</button>
+    <table>
+      <thead><tr><th>대여일</th><th>반</th><th>관리번호</th><th>도서명</th><th>대여자</th><th>대여승인자</th><th>반납일</th><th>반납자</th><th>반납승인자</th><th>초기화</th></tr></thead>
+      <tbody id="monthly-record-list"></tbody>
+    </table>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>관리번호</th>
-        <th>도서명</th>
-        <th>사용반</th>
-        <th>반납신청자</th>
-        <th>처리</th>
-      </tr>
-    </thead>
-    <tbody id="return-approve-list"></tbody>
-  </table>
-
-  <h3>대여기록 출력</h3>
-  <div class="panel">
-    <div class="grid-row">
-      <select id="print-year">
-        <option value="2026">2026년</option>
-        <option value="2027">2027년</option>
-        <option value="2028">2028년</option>
-      </select>
-
-      <select id="print-month">
-        <option value="1">1월</option>
-        <option value="2">2월</option>
-        <option value="3">3월</option>
-        <option value="4">4월</option>
-        <option value="5">5월</option>
-        <option value="6">6월</option>
-        <option value="7">7월</option>
-        <option value="8">8월</option>
-        <option value="9">9월</option>
-        <option value="10">10월</option>
-        <option value="11">11월</option>
-        <option value="12">12월</option>
-      </select>
-
-      <button id="print-all-month-btn" class="btn-basic">전체 기록 출력</button>
-    </div>
-
-    <div class="grid-row">
-      <select id="print-age">
-        <option value="">연령 선택</option>
-        <option value="만1세">만1세</option>
-        <option value="만2세">만2세</option>
-        <option value="만3세">만3세</option>
-        <option value="만4세">만4세</option>
-        <option value="만5세">만5세</option>
-      </select>
-
-      <select id="print-class">
-        <option value="">반 선택</option>
-      </select>
-
-      <button id="print-class-month-btn" class="btn-basic">선택한 반 기록 출력</button>
-    </div>
-  </div>
-
-  <h3>월별 대여기록 조회</h3>
-  <p class="notice danger-text">※ 월별 대여기록 삭제는 김혜인 교사에게 문의주세요.</p>
-  <button id="load-record-month-btn" class="btn-basic">선택 월 대여기록 불러오기</button>
-
-  <table>
-    <thead>
-      <tr>
-        <th>대여일</th>
-        <th>반</th>
-        <th>관리번호</th>
-        <th>도서명</th>
-        <th>대여자</th>
-        <th>대여승인자</th>
-        <th>반납일</th>
-        <th>반납자</th>
-        <th>반납승인자</th>
-        <th>초기화</th>
-      </tr>
-    </thead>
-    <tbody id="monthly-record-list"></tbody>
-  </table>
-
-  <button id="manager-back-btn" class="btn-basic">돌아가기</button>
-</div>
+  <div id="book-tab" class="manager-tab-content">
 
 
-<div id="book-manage-screen" class="box hidden">
-  <h2>도서관리</h2>
+  
 
   <h3>엑셀로 도서 등록</h3>
   <div class="panel">
@@ -383,7 +319,9 @@
     </table>
   </div>
 
-  <button id="book-manage-back-btn" class="btn-basic">돌아가기</button>
+  </div>
+
+  <button id="manager-back-btn" class="btn-basic">돌아가기</button>
 </div>
 
 <div id="print-area" class="hidden"></div>
@@ -456,7 +394,7 @@ function setMessage(id, text, color = "#2563eb") {
 function showScreen(screenId, addHistory = true) {
   [
     "login-screen","signup-screen","find-id-screen","profile-screen",
-    "app-screen","my-books-screen","manager-screen","book-manage-screen"
+    "app-screen","my-books-screen","manager-screen"
   ].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add("hidden");
@@ -546,16 +484,13 @@ function afterLoginSuccess() {
   document.getElementById("user-info").innerText = `${currentUser.name} / ${currentUser.class_name} / ${getRoleName(currentUser.role)}`;
 
   document.getElementById("manager-page-btn").classList.add("hidden");
-  document.getElementById("book-manage-page-btn").classList.add("hidden");
 
   if (currentUser.role === "manager") {
     document.getElementById("manager-page-btn").classList.remove("hidden");
-    document.getElementById("book-manage-page-btn").classList.remove("hidden");
   }
 
   if (currentUser.role === "admin") {
     document.getElementById("manager-page-btn").classList.remove("hidden");
-    document.getElementById("book-manage-page-btn").classList.remove("hidden");
   }
 
   startAutoLogout();
@@ -1009,7 +944,8 @@ function resetManagerApproveLists() {
 
 async function openBookManagePage() {
   if (!currentUser || (currentUser.role !== "manager" && currentUser.role !== "admin")) return;
-  showScreen("book-manage-screen");
+  showScreen("manager-screen");
+  switchManagerTab("book-tab");
 }
 
 function applyManagerClassFilter(query, type = "rental") {
@@ -1654,7 +1590,16 @@ async function restoreDeletedBook(bookId) {
   loadBooks();
 }
 
+
+function switchManagerTab(tabId) {
+  document.querySelectorAll('.manager-tab-content').forEach(tab => tab.classList.remove('active'));
+  document.querySelectorAll('.manager-tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+}
+
 function bindEvents() {
+
   const portalLoginBtn = document.getElementById("portal-btn-login");
   if (portalLoginBtn) portalLoginBtn.addEventListener("click", () => location.href = "index.html");
 
@@ -1677,8 +1622,6 @@ function bindEvents() {
   document.getElementById("manager-page-btn").addEventListener("click", openManagerPage);
   document.getElementById("manager-back-btn").addEventListener("click", () => showScreen("app-screen"));
 
-  document.getElementById("book-manage-page-btn").addEventListener("click", openBookManagePage);
-  document.getElementById("book-manage-back-btn").addEventListener("click", () => showScreen("app-screen"));
 
   document.getElementById("change-password-btn").addEventListener("click", changePassword);
   document.getElementById("request-class-change-btn").addEventListener("click", requestClassChange);
@@ -1702,6 +1645,10 @@ function bindEvents() {
     pageSize = Number(e.target.value);
     currentPage = 1;
     loadBooks();
+  });
+
+  document.querySelectorAll(".manager-tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => switchManagerTab(btn.dataset.tab));
   });
 
   document.getElementById("search").addEventListener("input", (e) => {
