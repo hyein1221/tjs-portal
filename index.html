@@ -514,6 +514,7 @@
             <th>교재교구권한</th>
             <th>소모품권한</th>
             <th>통합권한변경</th>
+            <th>계정관리</th>
             <th>삭제</th>
           </tr>
         </thead>
@@ -1315,7 +1316,7 @@ async function loadCurrentUsers() {
   list.innerHTML = "";
 
   if (error) {
-    list.innerHTML = `<tr><td colspan="9">사용자 목록을 불러오지 못했습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="10">사용자 목록을 불러오지 못했습니다.</td></tr>`;
     return;
   }
 
@@ -1341,6 +1342,12 @@ async function loadCurrentUsers() {
       </select>
     `;
 
+    const accountButton = user.id === currentUser.id
+  ? "-"
+  : user.approval_status === "inactive"
+    ? `<button class="btn-blue" onclick="reactivateUser('${user.id}')">재활성화</button>`
+    : `<button class="btn-danger" onclick="deactivateUser('${user.id}')">비활성화</button>`;
+
     const deleteButton = user.approval_status === "rejected"
       ? `<button class="btn-danger" onclick="deleteRejectedUser('${user.id}', '${(user.name || "").replaceAll("'", "\'")}')">삭제</button>`
       : "-";
@@ -1360,7 +1367,8 @@ async function loadCurrentUsers() {
             <button class="btn-primary" onclick="updateUserRoles('${user.id}')">저장</button>
           </div>
         </td>
-        <td>${deleteButton}</td>
+        <td>${accountButton}</td>
+<td>${deleteButton}</td>
       </tr>
     `;
   });
@@ -1422,6 +1430,51 @@ async function updateUserRoles(userId) {
   loadMaterialManagers();
 }
 
+  async function deactivateUser(userId) {
+  if (userId === currentUser.id) {
+    setMessage("admin-message", "현재 로그인한 관리자 본인은 비활성화할 수 없습니다.", "red");
+    return;
+  }
+
+  if (!confirm("이 사용자를 비활성화하시겠습니까?")) return;
+
+  const { error } = await supabaseClient
+    .from("users")
+    .update({ approval_status: "inactive" })
+    .eq("id", userId);
+
+  if (error) {
+    setMessage("admin-message", "사용자 비활성화 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "사용자가 비활성화되었습니다.");
+  loadCurrentUsers();
+  loadLibraryManagers();
+  loadMaterialManagers();
+  loadConsumableManagers();
+}
+
+async function reactivateUser(userId) {
+  if (!confirm("이 사용자를 재활성화하시겠습니까?")) return;
+
+  const { error } = await supabaseClient
+    .from("users")
+    .update({ approval_status: "approved" })
+    .eq("id", userId);
+
+  if (error) {
+    setMessage("admin-message", "사용자 재활성화 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "사용자가 재활성화되었습니다.");
+  loadCurrentUsers();
+  loadLibraryManagers();
+  loadMaterialManagers();
+  loadConsumableManagers();
+}
+  
 async function deleteRejectedUser(userId, userName) {
   if (!isOwnerAdmin()) {
     setMessage("admin-message", "삭제 권한은 최초 관리자에게만 있습니다.", "red");
