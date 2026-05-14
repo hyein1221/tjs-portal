@@ -158,7 +158,7 @@
   <table>
     <thead>
       <tr>
-        <th class="check-col"><input type="checkbox" data-check-group="my-return-check" title="전체선택"></th>
+        <th class="check-col"><input type="checkbox" class="master-check" title="전체선택"></th>
         <th>관리번호</th>
         <th>도서명</th>
         <th>상태</th>
@@ -214,7 +214,7 @@
       </div>
     </div>
     <button id="batch-rental-approve-btn" class="btn-approve">선택 도서 일괄 대여승인</button>
-    <table><thead><tr><th class="check-col"><input type="checkbox" data-check-group="manager-rental-check" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
+    <table><thead><tr><th class="check-col"><input type="checkbox" class="master-check" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>요청반</th><th>요청자</th><th>처리</th></tr></thead><tbody id="rental-approve-list"></tbody></table>
 
     </div>
 
@@ -235,7 +235,7 @@
       </div>
     </div>
     <button id="batch-return-approve-btn" class="btn-approve">선택 도서 일괄 반납승인</button>
-    <table><thead><tr><th class="check-col"><input type="checkbox" data-check-group="manager-return-check" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
+    <table><thead><tr><th class="check-col"><input type="checkbox" class="master-check" title="전체선택"></th><th>관리번호</th><th>도서명</th><th>사용반</th><th>반납신청자</th><th>처리</th></tr></thead><tbody id="return-approve-list"></tbody></table>
     </div>
 
   </div>
@@ -773,7 +773,7 @@ async function loadMyBooks() {
       }
 
       const checkBox = book.status === "borrowed"
-        ? `<input type="checkbox" class="my-return-check batch-check" data-group="my-return-check" value="${book.id}">`
+        ? `<input type="checkbox" class="my-return-check row-check" value="${book.id}">`
         : "-";
 
       list.innerHTML += `
@@ -929,7 +929,7 @@ async function loadRentalApproveList() {
     const borrowerName = record?.borrower_name || await getUserNameById(book.current_user_id);
     list.innerHTML += `
       <tr>
-        <td class="check-cell"><input type="checkbox" class="manager-rental-check batch-check" data-group="manager-rental-check" value="${book.id}"></td>
+        <td class="check-cell"><input type="checkbox" class="manager-rental-check row-check" value="${book.id}"></td>
         <td>${book["관리번호"] || ""}</td>
         <td>${book["도서명"] || ""}</td>
         <td>${book.current_class || "-"}</td>
@@ -1013,7 +1013,7 @@ async function loadReturnApproveList() {
     const returnUserName = await getUserNameById(record?.returned_by || book.current_user_id);
     list.innerHTML += `
       <tr>
-        <td class="check-cell"><input type="checkbox" class="manager-return-check batch-check" data-group="manager-return-check" value="${book.id}"></td>
+        <td class="check-cell"><input type="checkbox" class="manager-return-check row-check" value="${book.id}"></td>
         <td>${book["관리번호"] || ""}</td>
         <td>${book["도서명"] || ""}</td>
         <td>${book.current_class || "-"}</td>
@@ -1701,6 +1701,12 @@ function bindEvents() {
   document.addEventListener("change", (e) => {
     if (e.target.matches("input[data-check-group]")) {
       setCheckedByClass(e.target.dataset.checkGroup, e.target.checked);
+    }
+  });
+
+  document.addEventListener("change", (e) => {
+    if (e.target.matches("input.master-check")) {
+      setCheckedInSameTable(e.target);
     }
   });
 
