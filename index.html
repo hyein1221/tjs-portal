@@ -524,10 +524,11 @@
       <h3>삭제 교재교구 복구</h3>
       <table>
         <thead>
-          <tr>
-            <th>관리번호</th>
-            <th>물품명</th>
-            <th>복구</th>
+          <tr><th>관리번호</th>
+  <th>물품명</th>
+  <th>삭제자</th>
+  <th>삭제일</th>
+  <th>복구</th>
           </tr>
         </thead>
         <tbody id="deleted-material-list"></tbody>
@@ -1148,7 +1149,7 @@ async function loadDeletedBooks() {
   list.innerHTML = "";
 
   if (error) {
-    list.innerHTML = `<tr><td colspan="3">삭제 도서 목록을 불러오지 못했습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="5">삭제 도서 목록을 불러오지 못했습니다.</td></tr>`;
     return;
   }
 
