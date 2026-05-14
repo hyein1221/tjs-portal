@@ -9,54 +9,171 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
   <style>
-    body { font-family:sans-serif; padding:20px; background:#fafafa; }
-    h1 { margin:0; }
-    h2, h3 { margin-top:20px; }
-    .box { background:white; padding:20px; border:1px solid #ddd; max-width:1100px; margin-bottom:20px; }
-    input, select { width:100%; padding:12px; margin-bottom:10px; box-sizing:border-box; font-size:14px; }
-    button { padding:9px 12px; margin:2px; cursor:pointer; border:1px solid #ccc; border-radius:4px; }
-    table { width:100%; border-collapse:collapse; background:white; table-layout:fixed; margin-bottom:16px; }
-    th, td { border:1px solid #ddd; padding:8px; font-size:14px; word-break:keep-all; vertical-align:middle; }
-    th { background:#f1f1f1; text-align:center; }
-    .hidden { display:none; }
-    .status, .btn-cell { text-align:center; }
-    .message { font-size:14px; margin-top:10px; color:#2563eb; white-space:pre-line; }
-    .notice { font-size:13px; color:#666; line-height:1.5; }
-    .title-row { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
-    .logo { width:52px; height:auto; object-fit:contain; }
-    .top { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:15px; flex-wrap:wrap; }
-    .session-box { display:flex; align-items:center; gap:6px; white-space:nowrap; }
-    .session-timer { font-size:13px; color:#6b7280; margin-right:4px; }
-    .pagination { margin-top:15px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-    .pagination button.active { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
-    .page-size-box { max-width:160px; margin-top:10px; }
-    .panel { background:#f9fafb; border:1px solid #e5e7eb; padding:14px; margin:10px 0 20px; }
-    .grid-row { display:grid; grid-template-columns:1fr 1fr auto; gap:8px; align-items:center; margin-bottom:8px; }
-    .grid-row select, .grid-row input { margin-bottom:0; }
-    .material-search-row { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; margin-bottom:8px; }
-    .material-search-row input { margin-bottom:0; }
+    * { box-sizing: border-box; }
 
-    .btn-basic { background:white; color:#111; }
-    .btn-reserve { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
-    .btn-cancel { background:#f3f4f6; color:#4b5563; border-color:#d1d5db; }
-    .btn-return { background:#fff7ed; color:#c2410c; border-color:#fed7aa; }
-    .btn-approve { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
-    .btn-danger { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
-    .btn-wait { background:#f3f4f6; color:#6b7280; border-color:#d1d5db; cursor:default; }
+    body {
+      font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+      padding: 20px;
+      background: #fafafa;
+      color: #111827;
+    }
 
-    @media (max-width:700px) {
-      .grid-row, .material-search-row { grid-template-columns:1fr; }
-      .top { align-items:flex-start; }
-      .session-box { flex-wrap:wrap; }
-      table { table-layout:auto; }
-      th, td { font-size:12px; padding:6px; }
+    h1 { margin: 0; }
+    h2, h3 { margin-top: 20px; }
+
+    .box {
+      background: white;
+      padding: 20px;
+      border: 1px solid #ddd;
+      max-width: 1100px;
+      margin-bottom: 20px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 9px 12px;
+      margin: 2px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      table-layout: fixed;
+      margin-bottom: 16px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      font-size: 14px;
+      word-break: keep-all;
+      vertical-align: middle;
+    }
+
+    th {
+      background: #f1f1f1;
+      text-align: center;
+    }
+
+    .hidden { display: none !important; }
+    .status, .btn-cell { text-align: center; }
+    .message { font-size: 14px; margin-top: 10px; color: #2563eb; white-space: pre-line; }
+    .notice { font-size: 13px; color: #666; line-height: 1.5; }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .logo {
+      width: 52px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .session-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .session-timer {
+      font-size: 13px;
+      color: #6b7280;
+      margin-right: 4px;
+    }
+
+    .pagination {
+      margin-top: 15px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .pagination button.active {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #bbf7d0;
+    }
+
+    .page-size-box { max-width: 160px; margin-top: 10px; }
+
+    .panel {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      padding: 14px;
+      margin: 10px 0 20px;
+    }
+
+    .grid-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .grid-row select, .grid-row input { margin-bottom: 0; }
+
+    .material-search-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .material-search-row input { margin-bottom: 0; }
+
+    .btn-basic { background: white; color: #111; }
+    .btn-reserve { background: #ecfdf5; color: #047857; border-color: #bbf7d0; }
+    .btn-cancel { background: #f3f4f6; color: #4b5563; border-color: #d1d5db; }
+    .btn-return { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+    .btn-approve { background: #ecfdf5; color: #047857; border-color: #bbf7d0; }
+    .btn-danger { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+    .btn-wait { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; cursor: default; }
+
+    @media (max-width: 700px) {
+      body { padding: 12px; }
+      .grid-row, .material-search-row { grid-template-columns: 1fr; }
+      .top { align-items: flex-start; }
+      .session-box { flex-wrap: wrap; }
+      table { table-layout: auto; }
+      th, td { font-size: 12px; padding: 6px; }
+      .title-row h1 { font-size: 1.4rem; }
+      .logo { width: 42px; }
     }
 
     @media print {
-      body * { visibility:hidden; }
-      #print-area, #print-area * { visibility:visible; }
-      #print-area { position:absolute; left:0; top:0; width:100%; display:block !important; }
-      button, input, select { display:none !important; }
+      body * { visibility: hidden; }
+      #print-area, #print-area * { visibility: visible; }
+      #print-area { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+      button, input, select { display: none !important; }
     }
   </style>
 </head>
@@ -195,11 +312,7 @@
         <option value="만4세">만4세</option>
         <option value="만5세">만5세</option>
       </select>
-
-      <select id="rental-filter-class">
-        <option value="">반 전체</option>
-      </select>
-
+      <select id="rental-filter-class"><option value="">반 전체</option></select>
       <button id="load-rental-filter-btn" class="btn-basic">조회</button>
     </div>
   </div>
@@ -229,11 +342,7 @@
         <option value="만4세">만4세</option>
         <option value="만5세">만5세</option>
       </select>
-
-      <select id="return-filter-class">
-        <option value="">반 전체</option>
-      </select>
-
+      <select id="return-filter-class"><option value="">반 전체</option></select>
       <button id="load-return-filter-btn" class="btn-basic">조회</button>
     </div>
   </div>
@@ -260,7 +369,6 @@
         <option value="2027">2027년</option>
         <option value="2028">2028년</option>
       </select>
-
       <select id="print-month">
         <option value="1">1월</option>
         <option value="2">2월</option>
@@ -275,7 +383,6 @@
         <option value="11">11월</option>
         <option value="12">12월</option>
       </select>
-
       <button id="print-all-month-btn" class="btn-basic">전체 기록 출력</button>
     </div>
   </div>
@@ -431,7 +538,6 @@ let currentKeyword = "";
 let logoutTimer = null;
 let countdownTimer = null;
 let remainingSeconds = 30 * 60;
-
 const AUTO_LOGOUT_TIME = 30 * 60 * 1000;
 
 const classMap = {
@@ -460,7 +566,6 @@ function getStatusName(status) {
     repair: "수리중",
     discarded: "폐기"
   };
-
   return map[status] || status || "-";
 }
 
@@ -502,7 +607,6 @@ function showScreen(screenId) {
 function updateClassOptions(ageId, classId) {
   const age = document.getElementById(ageId).value;
   const classSelect = document.getElementById(classId);
-
   classSelect.innerHTML = `<option value="">반 전체</option>`;
 
   if (!classMap[age]) return;
@@ -551,17 +655,18 @@ async function restoreLogin() {
     localStorage.getItem("libraryCurrentUser");
 
   if (!savedUser) {
-    location.href = "index.html";
+    showScreen("login-screen");
     return;
   }
 
   try {
     currentUser = JSON.parse(savedUser);
     await afterLoginSuccess();
-  } catch {
+  } catch (error) {
+    console.error(error);
     localStorage.removeItem("materialsCurrentUser");
     localStorage.removeItem("libraryCurrentUser");
-    location.href = "index.html";
+    showScreen("login-screen");
   }
 }
 
@@ -571,10 +676,9 @@ async function afterLoginSuccess() {
   document.getElementById("user-info").innerText =
     `${currentUser.name} / ${currentUser.class_name} / ${getMaterialRoleName(currentUser.material_role)}`;
 
-  document.getElementById("manager-page-btn").classList.add("hidden");
-  document.getElementById("material-manage-page-btn").classList.add("hidden");
-  document.getElementById("admin-page-btn").classList.add("hidden");
-  document.getElementById("deleted-page-btn").classList.add("hidden");
+  ["manager-page-btn", "material-manage-page-btn", "admin-page-btn", "deleted-page-btn"].forEach(id => {
+    document.getElementById(id).classList.add("hidden");
+  });
 
   if (currentUser.material_role === "manager" || currentUser.role === "admin") {
     document.getElementById("manager-page-btn").classList.remove("hidden");
@@ -596,10 +700,8 @@ function logout() {
   currentUser = null;
   localStorage.removeItem("materialsCurrentUser");
   localStorage.removeItem("libraryCurrentUser");
-
   clearTimeout(logoutTimer);
   clearInterval(countdownTimer);
-
   location.href = "index.html";
 }
 
@@ -625,10 +727,7 @@ function resetAutoLogoutTimer() {
   countdownTimer = setInterval(() => {
     remainingSeconds--;
     updateCountdownDisplay();
-
-    if (remainingSeconds <= 0) {
-      clearInterval(countdownTimer);
-    }
+    if (remainingSeconds <= 0) clearInterval(countdownTimer);
   }, 1000);
 
   logoutTimer = setTimeout(() => {
@@ -678,7 +777,6 @@ async function changePassword() {
 
   currentUser.password = newPassword;
   saveSession();
-
   setMessage("profile-message", "비밀번호가 변경되었습니다.");
 }
 
@@ -720,7 +818,6 @@ async function requestMaterialManagerRole() {
 
 async function loadMaterials() {
   const list = document.getElementById("material-list");
-
   list.innerHTML = `<tr><td colspan="9">교재교구 목록을 불러오는 중입니다...</td></tr>`;
 
   const start = (currentPage - 1) * pageSize;
@@ -745,7 +842,6 @@ async function loadMaterials() {
   }
 
   totalMaterials = count || 0;
-
   renderMaterials(data || []);
   renderPagination();
 }
@@ -761,7 +857,6 @@ function renderMaterials(materials) {
 
   materials.forEach(item => {
     const isSameClass = item.current_class === currentUser.class_name;
-
     let reserveBtn = "-";
     let returnBtn = "-";
 
@@ -851,16 +946,14 @@ async function reserveMaterial(materialId) {
     return;
   }
 
-  await supabaseClient
-    .from("material_records")
-    .insert([{
-      material_id: materialId,
-      user_id: currentUser.id,
-      class_name: currentUser.class_name,
-      borrower_name: currentUser.name,
-      reserved_at: new Date().toISOString(),
-      status: "reserved"
-    }]);
+  await supabaseClient.from("material_records").insert([{
+    material_id: materialId,
+    user_id: currentUser.id,
+    class_name: currentUser.class_name,
+    borrower_name: currentUser.name,
+    reserved_at: new Date().toISOString(),
+    status: "reserved"
+  }]);
 
   alert("사용예약이 완료되었습니다.");
   loadMaterials();
@@ -1065,7 +1158,6 @@ async function loadRentalApproveList() {
     .order("관리번호", { ascending: true });
 
   query = applyManagerClassFilter(query, "rental");
-
   const { data } = await query;
 
   const list = document.getElementById("rental-approve-list");
@@ -1163,7 +1255,6 @@ async function loadReturnApproveList() {
     .order("관리번호", { ascending: true });
 
   query = applyManagerClassFilter(query, "return");
-
   const { data } = await query;
 
   const list = document.getElementById("return-approve-list");
@@ -1266,7 +1357,6 @@ function getMonthRange() {
 
 function setDefaultPrintMonth() {
   const now = new Date();
-
   const yearEl = document.getElementById("print-year");
   const monthEl = document.getElementById("print-month");
 
@@ -1314,7 +1404,6 @@ async function getMonthlyRecords() {
 
 async function loadMonthlyRecordList() {
   const records = await getMonthlyRecords();
-
   const list = document.getElementById("monthly-record-list");
   list.innerHTML = "";
 
@@ -1379,7 +1468,6 @@ async function deleteRecord(recordId) {
     .eq("id", recordId);
 
   alert("사용기록이 삭제되고 교재교구가 사용가능 상태로 초기화되었습니다.");
-
   loadMonthlyRecordList();
   loadMaterials();
 }
@@ -1387,9 +1475,7 @@ async function deleteRecord(recordId) {
 async function printMonthlyRecords() {
   const { year, month } = getMonthRange();
   const records = await getMonthlyRecords();
-
   const printArea = document.getElementById("print-area");
-
   let rows = "";
 
   if (!records.length) {
@@ -1438,14 +1524,14 @@ async function printMonthlyRecords() {
 
   setTimeout(() => {
     window.print();
-
     setTimeout(() => {
       printArea.classList.add("hidden");
       printArea.style.display = "none";
     }, 1000);
   }, 300);
 }
-  async function openAdminPage() {
+
+async function openAdminPage() {
   if (currentUser.role !== "admin") return;
 
   showScreen("admin-screen");
@@ -1499,8 +1585,6 @@ async function approveMaterialManagerRole(requestId, userId) {
     })
     .eq("id", requestId);
 
-  await refreshCurrentUser();
-
   alert("교재교구담당자 권한이 승인되었습니다.");
   loadMaterialManagerRequests();
   loadCurrentMaterialManagers();
@@ -1512,103 +1596,6 @@ async function loadCurrentMaterialManagers() {
     .select("*")
     .eq("material_role", "manager")
     .eq("approval_status", "approved")
-    .order("class_name", { ascending: true });
-
-  const list = document.getElementById("current-material-manager-list");
-  list.innerHTML = "";
-
-  if (error) {
-    list.innerHTML = `<tr><td colspan="5">교재교구담당자 목록을 불러오지 못했습니다.</td></tr>`;
-    return;
-  }
-
-  if (!data || !data.length) {
-    list.innerHTML = `<tr><td colspan="5">현재 교재교구담당자가 없습니다.</td></tr>`;
-    return;
-  }
-
-  data.forEach(user => {
-    list.innerHTML += `
-      <tr>
-        <td>${user.name}</td>
-        <td>${user.username}</td>
-        <td>${user.class_name}</td>
-        <td>교재교구담당자</td>
-        <td>
-          <button class="btn-danger" onclick="changeMaterialManagerToTeacher('${user.id}')">선생님 권한으로 변경</button>
-        </td>
-      </tr>
-    `;
-  });
-}
-
-async function changeMaterialManagerToTeacher(userId) {
-  if (!confirm("이 교재교구담당자를 선생님 권한으로 변경하시겠습니까?")) return;
-
-  const { error } = await supabaseClient
-    .from("users")
-    .update({ material_role: "teacher" })
-    .eq("id", userId);
-
-  if (error) {
-    alert("권한 변경 실패: " + error.message);
-    return;
-  }
-
-  alert("선생님 권한으로 변경되었습니다.");
-  loadCurrentMaterialManagers();
-}
-  lse });
-
-  const list = document.getElementById("material-manager-request-list");
-  list.innerHTML = "";
-
-  if (!data || !data.length) {
-    list.innerHTML = `<tr><td colspan="4">대기중인 요청이 없습니다.</td></tr>`;
-    return;
-  }
-
-  data.forEach(req => {
-    const currentRoleName = req.user_role === "manager" ? "교재교구담당자" : "선생님";
-
-    list.innerHTML += `
-      <tr>
-        <td>${req.name}</td>
-        <td>${currentRoleName}</td>
-        <td>교재교구담당자</td>
-        <td>
-          <button class="btn-approve" onclick="approveMaterialManagerRole('${req.id}','${req.user_id}')">승인</button>
-        </td>
-      </tr>
-    `;
-  });
-}
-
-async function approveMaterialManagerRole(requestId, userId) {
-  await supabaseClient
-    .from("users")
-    .update({ material_role: "manager" })
-    .eq("id", userId);
-
-  await supabaseClient
-    .from("material_manager_role_requests")
-    .update({
-      status: "approved",
-      approved_by: currentUser.id,
-      processed_at: new Date().toISOString()
-    })
-    .eq("id", requestId);
-
-  alert("교재교구담당자 권한이 승인되었습니다.");
-  loadMaterialManagerRequests();
-  loadCurrentMaterialManagers();
-}
-
-async function loadCurrentMaterialManagers() {
-  const { data, error } = await supabaseClient
-    .from("users")
-    .select("*")
-    .eq("material_role", "manager")
     .order("class_name", { ascending: true });
 
   const list = document.getElementById("current-material-manager-list");
@@ -1668,6 +1655,11 @@ async function handleExcelUpload(event) {
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+    if (!jsonData.length) {
+      alert("엑셀 데이터가 없습니다.");
+      return;
+    }
+
     let successCount = 0;
     let duplicateCount = 0;
     let missingCount = 0;
@@ -1721,10 +1713,224 @@ async function handleExcelUpload(event) {
       `엑셀 등록 완료\n성공: ${successCount}개\n중복: ${duplicateCount}개\n필수값 누락: ${missingCount}개\n기타 오류: ${errorCount}개`;
 
     setMessage("excel-upload-result", resultText);
+    alert(resultText);
     loadMaterials();
   };
 
   reader.readAsArrayBuffer(file);
+}
+
+async function searchManageMaterials() {
+  const keyword = document.getElementById("manage-material-search").value.trim();
+
+  if (!keyword) {
+    alert("검색어를 입력해주세요.");
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("materials")
+    .select('id,"구입일자","관리번호","분류명","물품명","수량",status,created_at,is_deleted')
+    .or("is_deleted.is.false,is_deleted.is.null")
+    .or(`물품명.ilike.%${keyword}%,관리번호.ilike.%${keyword}%,분류명.ilike.%${keyword}%`)
+    .limit(50);
+
+  renderManageMaterials(data, error);
+}
+
+async function searchMaterialsByDate() {
+  const start = document.getElementById("material-start-date").value;
+  const end = document.getElementById("material-end-date").value;
+
+  if (!start || !end) {
+    alert("시작일과 종료일을 모두 선택해주세요.");
+    return;
+  }
+
+  const startDate = new Date(start + "T00:00:00").toISOString();
+  const endDate = new Date(end + "T23:59:59").toISOString();
+
+  const { data, error } = await supabaseClient
+    .from("materials")
+    .select('id,"구입일자","관리번호","분류명","물품명","수량",status,created_at,is_deleted')
+    .or("is_deleted.is.false,is_deleted.is.null")
+    .gte("created_at", startDate)
+    .lte("created_at", endDate)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  renderManageMaterials(data, error);
+}
+
+function safePromptText(value) {
+  return (value || "").replaceAll("'", "\\'");
+}
+
+function renderManageMaterials(data, error) {
+  const list = document.getElementById("manage-material-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="8">교재교구 조회 실패: ${error.message}</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="8">조회 결과가 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(item => {
+    const purchaseDate = safePromptText(item["구입일자"]);
+    const number = safePromptText(item["관리번호"]);
+    const category = safePromptText(item["분류명"]);
+    const name = safePromptText(item["물품명"]);
+    const quantity = item["수량"] ?? 1;
+
+    list.innerHTML += `
+      <tr>
+        <td>${item["구입일자"] || ""}</td>
+        <td>${item["관리번호"] || ""}</td>
+        <td>${item["분류명"] || ""}</td>
+        <td>${item["물품명"] || ""}</td>
+        <td>${quantity}</td>
+        <td>${getStatusName(item.status)}</td>
+        <td>
+          <button class="btn-basic" onclick="editMaterial('${item.id}', '${purchaseDate}', '${number}', '${category}', '${name}', '${quantity}')">수정</button>
+        </td>
+        <td>
+          <button class="btn-danger" onclick="deleteMaterialSoft('${item.id}', '${item.status || ""}')">삭제</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function editMaterial(materialId, oldPurchaseDate, oldNumber, oldCategory, oldName, oldQuantity) {
+  const newPurchaseDate = prompt("구입일자를 수정하세요.", oldPurchaseDate);
+  if (newPurchaseDate === null) return;
+
+  const newNumber = prompt("관리번호를 수정하세요.", oldNumber);
+  if (newNumber === null) return;
+
+  const newCategory = prompt("분류명을 수정하세요.", oldCategory);
+  if (newCategory === null) return;
+
+  const newName = prompt("물품명을 수정하세요.", oldName);
+  if (newName === null) return;
+
+  const newQuantity = prompt("수량을 수정하세요.", oldQuantity);
+  if (newQuantity === null) return;
+
+  if (!newNumber.trim() || !newName.trim()) {
+    alert("관리번호와 물품명은 비워둘 수 없습니다.");
+    return;
+  }
+
+  const quantityNumber = Number(newQuantity || 1);
+
+  if (!Number.isFinite(quantityNumber)) {
+    alert("수량은 숫자로 입력해주세요.");
+    return;
+  }
+
+  const { error } = await supabaseClient.from("materials").update({
+    "구입일자": newPurchaseDate.trim() || null,
+    "관리번호": newNumber.trim(),
+    "분류명": newCategory.trim() || null,
+    "물품명": newName.trim(),
+    "수량": quantityNumber
+  }).eq("id", materialId);
+
+  if (error) {
+    alert("교재교구 수정 실패: " + error.message);
+    return;
+  }
+
+  alert("교재교구 정보가 수정되었습니다.");
+  loadMaterials();
+  searchManageMaterials();
+}
+
+async function deleteMaterialSoft(materialId, status) {
+  if (["reserved", "borrowed", "return_requested"].includes(status)) {
+    alert("예약/사용/반납요청 중인 교재교구는 삭제할 수 없습니다. 먼저 사용기록을 초기화해주세요.");
+    return;
+  }
+
+  if (!confirm("이 교재교구를 삭제 처리하시겠습니까? 관리자 화면에서 복구할 수 있습니다.")) return;
+
+  const { error } = await supabaseClient.from("materials").update({
+    is_deleted: true,
+    deleted_at: new Date().toISOString(),
+    deleted_by: currentUser.id
+  }).eq("id", materialId);
+
+  if (error) {
+    alert("교재교구 삭제 처리 실패: " + error.message);
+    return;
+  }
+
+  alert("교재교구가 삭제 처리되었습니다.");
+  loadMaterials();
+  searchManageMaterials();
+}
+
+async function loadDeletedMaterials() {
+  if (currentUser.role !== "admin") return;
+
+  const { data, error } = await supabaseClient
+    .from("materials")
+    .select('id,"관리번호","분류명","물품명",deleted_at,deleted_by')
+    .eq("is_deleted", true)
+    .order("deleted_at", { ascending: false });
+
+  const list = document.getElementById("deleted-material-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="6">삭제 교재교구 목록을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="6">삭제 처리된 교재교구가 없습니다.</td></tr>`;
+    return;
+  }
+
+  for (const item of data) {
+    const deletedByName = await getUserNameById(item.deleted_by);
+
+    list.innerHTML += `
+      <tr>
+        <td>${item["관리번호"] || ""}</td>
+        <td>${item["분류명"] || ""}</td>
+        <td>${item["물품명"] || ""}</td>
+        <td>${formatDateTime(item.deleted_at)}</td>
+        <td>${deletedByName}</td>
+        <td><button class="btn-approve" onclick="restoreDeletedMaterial('${item.id}')">복구</button></td>
+      </tr>
+    `;
+  }
+}
+
+async function restoreDeletedMaterial(materialId) {
+  if (!confirm("이 교재교구를 복구하시겠습니까?")) return;
+
+  const { error } = await supabaseClient.from("materials").update({
+    is_deleted: false,
+    deleted_at: null,
+    deleted_by: null
+  }).eq("id", materialId);
+
+  if (error) {
+    alert("복구 실패: " + error.message);
+    return;
+  }
+
+  alert("교재교구가 복구되었습니다.");
+  loadDeletedMaterials();
+  loadMaterials();
 }
 
 function bindEvents() {
@@ -1759,19 +1965,18 @@ function bindEvents() {
   document.getElementById("load-rental-filter-btn").onclick = loadRentalApproveList;
   document.getElementById("load-return-filter-btn").onclick = loadReturnApproveList;
 
-  document.getElementById("rental-filter-age").onchange = () =>
-    updateClassOptions("rental-filter-age", "rental-filter-class");
-
-  document.getElementById("return-filter-age").onchange = () =>
-    updateClassOptions("return-filter-age", "return-filter-class");
+  document.getElementById("rental-filter-age").onchange = () => updateClassOptions("rental-filter-age", "rental-filter-class");
+  document.getElementById("return-filter-age").onchange = () => updateClassOptions("return-filter-age", "return-filter-class");
 
   document.getElementById("print-all-month-btn").onclick = printMonthlyRecords;
   document.getElementById("load-record-month-btn").onclick = loadMonthlyRecordList;
 
-  document.getElementById("excel-upload-btn").onclick = () =>
-    document.getElementById("excel-upload").click();
-
+  document.getElementById("excel-upload-btn").onclick = () => document.getElementById("excel-upload").click();
   document.getElementById("excel-upload").addEventListener("change", handleExcelUpload);
+
+  document.getElementById("manage-material-search-btn").onclick = searchManageMaterials;
+  document.getElementById("search-material-date-btn").onclick = searchMaterialsByDate;
+  document.getElementById("load-deleted-materials-btn").onclick = loadDeletedMaterials;
 
   document.getElementById("page-size").onchange = (e) => {
     pageSize = Number(e.target.value);
