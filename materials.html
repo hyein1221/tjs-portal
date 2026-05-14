@@ -490,6 +490,18 @@ function getStatusName(status) {
   return map[status] || status || "-";
 }
 
+
+function formatExcelOrTextDate(value) {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "number") {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const date = new Date(excelEpoch.getTime() + value * 86400000);
+    return date.toISOString().slice(0, 10);
+  }
+  return String(value);
+}
+
+
 function formatDate(value) {
   if (!value) return "-";
   return new Date(value).toLocaleDateString("ko-KR");
@@ -669,7 +681,6 @@ async function loadMaterials() {
   let query = supabaseClient
     .from("materials")
     .select('id,"구입일자","관리번호","분류명","물품명","수량",status,current_class,current_user_id,is_deleted', { count: "exact" })
-    .or("is_deleted.is.false,is_deleted.is.null")
     .order("관리번호", { ascending: true })
     .range(start, end);
 
@@ -684,8 +695,9 @@ async function loadMaterials() {
     return;
   }
 
+  const visibleData = (data || []).filter(item => item.is_deleted !== true);
   totalMaterials = count || 0;
-  renderMaterials(data || []);
+  renderMaterials(visibleData);
   renderPagination();
 }
 
@@ -721,7 +733,7 @@ function renderMaterials(materials) {
 
     list.innerHTML += `
       <tr>
-        <td>${item["구입일자"] || ""}</td>
+        <td>${formatExcelOrTextDate(item["구입일자"])}</td>
         <td>${item["관리번호"] || ""}</td>
         <td>${item["분류명"] || ""}</td>
         <td>${item["물품명"] || ""}</td>
@@ -1412,7 +1424,7 @@ async function deleteRecord(recordId) {
 }
 
 async function printMonthlyRecords() {
-  const { year, month } = getMonthRange();
+  const { title } = getRecordRange();
   const records = await getMonthlyRecords();
   const printArea = document.getElementById("print-area");
   let rows = "";
@@ -1438,7 +1450,7 @@ async function printMonthlyRecords() {
 
   printArea.innerHTML = `
     <h2>탕정삼성어린이집 교재교구 사용·반납 기록</h2>
-    <h3>${year}년 ${month + 1}월 전체 사용기록</h3>
+    <h3>${title} 전체 사용기록</h3>
     <table>
       <thead>
         <tr>
@@ -1668,7 +1680,6 @@ async function searchManageMaterials() {
   const { data, error } = await supabaseClient
     .from("materials")
     .select('id,"구입일자","관리번호","분류명","물품명","수량",status,created_at,is_deleted')
-    .or("is_deleted.is.false,is_deleted.is.null")
     .or(`물품명.ilike.%${keyword}%,관리번호.ilike.%${keyword}%,분류명.ilike.%${keyword}%`)
     .limit(50);
 
@@ -1690,7 +1701,6 @@ async function searchMaterialsByDate() {
   const { data, error } = await supabaseClient
     .from("materials")
     .select('id,"구입일자","관리번호","분류명","물품명","수량",status,created_at,is_deleted')
-    .or("is_deleted.is.false,is_deleted.is.null")
     .gte("created_at", startDate)
     .lte("created_at", endDate)
     .order("created_at", { ascending: false })
@@ -1717,6 +1727,13 @@ function renderManageMaterials(data, error) {
     return;
   }
 
+  data = (data || []).filter(item => item.is_deleted !== true);
+
+  if (!data.length) {
+    list.innerHTML = `<tr><td colspan="8">조회 결과가 없습니다.</td></tr>`;
+    return;
+  }
+
   data.forEach(item => {
     const purchaseDate = safePromptText(item["구입일자"]);
     const number = safePromptText(item["관리번호"]);
@@ -1726,7 +1743,7 @@ function renderManageMaterials(data, error) {
 
     list.innerHTML += `
       <tr>
-        <td>${item["구입일자"] || ""}</td>
+        <td>${formatExcelOrTextDate(item["구입일자"])}</td>
         <td>${item["관리번호"] || ""}</td>
         <td>${item["분류명"] || ""}</td>
         <td>${item["물품명"] || ""}</td>
