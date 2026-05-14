@@ -952,7 +952,7 @@ async function requestLibraryManagerRole() {
     .insert([{
       user_id: currentUser.id,
       name: currentUser.name,
-      current_role: currentUser.role || "teacher",
+      user_role: currentUser.role || "teacher",
       requested_role: "manager",
       status: "pending"
     }]);
@@ -1343,7 +1343,7 @@ async function loadLibraryManagerRequests() {
   }
 
   data.forEach(req => {
-    const role = req.current_role || req.user_role || "teacher";
+    const role = req.user_role || req.user_role || "teacher";
     list.innerHTML += `
       <tr>
         <td>${req.name || ""}</td>
@@ -1530,7 +1530,7 @@ async function loadMaterialManagerRequests() {
   }
 
   data.forEach(req => {
-    const role = req.user_role || req.current_role || "teacher";
+    const role = req.user_role || req.user_role || "teacher";
     list.innerHTML += `
       <tr>
         <td>${req.name || ""}</td>
