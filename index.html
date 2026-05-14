@@ -71,6 +71,12 @@
       font-size: 1.35rem;
     }
 
+    h3 {
+      margin-top: 24px;
+      margin-bottom: 10px;
+      font-size: 1.05rem;
+    }
+
     input, select {
       width: 100%;
       padding: 12px;
@@ -90,6 +96,28 @@
       font-size: 14px;
     }
 
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      table-layout: fixed;
+      margin: 8px 0 18px;
+    }
+
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 8px;
+      font-size: 13px;
+      word-break: keep-all;
+      vertical-align: middle;
+      text-align: center;
+    }
+
+    th {
+      background: #f9fafb;
+      font-weight: 700;
+    }
+
     .btn-primary {
       background: #ecfdf5;
       color: #047857;
@@ -107,6 +135,12 @@
       background: #eff6ff;
       color: #1d4ed8;
       border-color: #bfdbfe;
+    }
+
+    .btn-gray {
+      background: #f9fafb;
+      color: #374151;
+      border-color: #d1d5db;
     }
 
     .message {
@@ -171,13 +205,8 @@
       box-shadow: 0 14px 30px rgba(0,0,0,0.08);
     }
 
-    .library {
-      background: linear-gradient(135deg, #eff6ff, #dbeafe);
-    }
-
-    .materials {
-      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-    }
+    .library { background: linear-gradient(135deg, #eff6ff, #dbeafe); }
+    .materials { background: linear-gradient(135deg, #f0fdf4, #dcfce7); }
 
     .icon {
       font-size: 3.2rem;
@@ -213,6 +242,8 @@
       .portal-card h2 { font-size: 1.45rem; }
       .wrapper { padding: 16px 12px 28px; }
       .box { padding: 18px; }
+      table { table-layout: auto; }
+      th, td { font-size: 12px; padding: 6px; }
     }
   </style>
 </head>
@@ -236,7 +267,10 @@
     <button id="show-signup-btn" class="btn-blue">회원가입</button>
     <button id="show-find-id-btn">아이디 찾기</button>
     <p id="login-message" class="message"></p>
-    <p class="notice">로그인 후 도서관리와 교재교구관리를 한 번에 이용할 수 있습니다.<br>비밀번호 찾기는 김혜인 교사에게 문의해주세요.</p>
+    <p class="notice">
+      로그인 후 도서관리와 교재교구관리를 한 번에 이용할 수 있습니다.<br>
+      비밀번호 찾기는 김혜인 교사에게 문의해주세요.
+    </p>
   </div>
 
   <div id="signup-screen" class="box login-box hidden">
@@ -300,6 +334,7 @@
     <div class="user-bar">
       <strong id="user-info"></strong>
       <div>
+        <button id="admin-page-btn" class="btn-blue hidden">관리자 페이지</button>
         <button id="refresh-user-btn">정보 새로고침</button>
         <button id="logout-btn" class="btn-danger">로그아웃</button>
       </div>
@@ -328,6 +363,69 @@
     </main>
   </div>
 
+  <div id="admin-screen" class="box hidden">
+    <h2>통합 관리자 페이지</h2>
+    <p class="notice">가입 승인, 도서담당자 권한, 교재교구담당자 권한을 이곳에서 관리합니다.</p>
+
+    <h3>회원가입 승인 대기</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>아이디</th>
+          <th>반</th>
+          <th>승인</th>
+        </tr>
+      </thead>
+      <tbody id="pending-user-list"></tbody>
+    </table>
+
+    <h3>도서담당자 권한 요청</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>현재권한</th>
+          <th>요청권한</th>
+          <th>승인</th>
+        </tr>
+      </thead>
+      <tbody id="library-manager-request-list"></tbody>
+    </table>
+
+    <h3>교재교구담당자 권한 요청</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>현재권한</th>
+          <th>요청권한</th>
+          <th>승인</th>
+        </tr>
+      </thead>
+      <tbody id="material-manager-request-list"></tbody>
+    </table>
+
+    <h3>현재 담당자 목록</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>아이디</th>
+          <th>반</th>
+          <th>도서권한</th>
+          <th>교재교구권한</th>
+          <th>권한변경</th>
+        </tr>
+      </thead>
+      <tbody id="current-manager-list"></tbody>
+    </table>
+
+    <button id="admin-refresh-btn" class="btn-blue">관리자 정보 새로고침</button>
+    <button id="admin-back-btn">포털로 돌아가기</button>
+    <p id="admin-message" class="message"></p>
+  </div>
+
 </div>
 
 <footer class="footer">
@@ -342,7 +440,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 let currentUser = null;
 
 function showOnly(screenId) {
-  ["login-screen", "signup-screen", "find-id-screen", "portal-screen"].forEach(id => {
+  ["login-screen", "signup-screen", "find-id-screen", "portal-screen", "admin-screen"].forEach(id => {
     document.getElementById(id).classList.add("hidden");
   });
   document.getElementById(screenId).classList.remove("hidden");
@@ -357,8 +455,20 @@ function setMessage(id, text, color = "#2563eb") {
 function getRoleText(user) {
   if (!user) return "";
   if (user.role === "admin") return "관리자";
-  if (user.material_role === "manager") return "교재교구담당자";
+  if (user.role === "manager" && user.material_role === "manager") return "도서담당자 / 교재교구담당자";
   if (user.role === "manager") return "도서담당자";
+  if (user.material_role === "manager") return "교재교구담당자";
+  return "선생님";
+}
+
+function getSimpleRoleName(role) {
+  if (role === "admin") return "관리자";
+  if (role === "manager") return "담당자";
+  return "선생님";
+}
+
+function getMaterialRoleName(role) {
+  if (role === "manager") return "교재교구담당자";
   return "선생님";
 }
 
@@ -405,6 +515,12 @@ function renderPortal() {
 
   document.getElementById("user-info").innerText =
     `${currentUser.name} / ${currentUser.class_name} / ${getRoleText(currentUser)}`;
+
+  if (currentUser.role === "admin") {
+    document.getElementById("admin-page-btn").classList.remove("hidden");
+  } else {
+    document.getElementById("admin-page-btn").classList.add("hidden");
+  }
 
   showOnly("portal-screen");
 }
@@ -548,6 +664,269 @@ function logout() {
   showOnly("login-screen");
 }
 
+async function openAdminPage() {
+  if (!currentUser || currentUser.role !== "admin") return;
+  showOnly("admin-screen");
+  await loadAdminPage();
+}
+
+async function loadAdminPage() {
+  await Promise.all([
+    loadPendingUsers(),
+    loadLibraryManagerRequests(),
+    loadMaterialManagerRequests(),
+    loadCurrentManagers()
+  ]);
+}
+
+async function loadPendingUsers() {
+  const { data, error } = await supabaseClient
+    .from("users")
+    .select("*")
+    .eq("approval_status", "pending")
+    .order("created_at", { ascending: true });
+
+  const list = document.getElementById("pending-user-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="4">회원가입 대기 목록을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="4">승인 대기 회원이 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(user => {
+    list.innerHTML += `
+      <tr>
+        <td>${user.name || ""}</td>
+        <td>${user.username || ""}</td>
+        <td>${user.class_name || ""}</td>
+        <td><button class="btn-primary" onclick="approveUser('${user.id}')">승인</button></td>
+      </tr>
+    `;
+  });
+}
+
+async function approveUser(userId) {
+  const { error } = await supabaseClient
+    .from("users")
+    .update({ approval_status: "approved" })
+    .eq("id", userId);
+
+  if (error) {
+    setMessage("admin-message", "회원 승인 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "회원 승인이 완료되었습니다.");
+  loadPendingUsers();
+}
+
+async function loadLibraryManagerRequests() {
+  const { data, error } = await supabaseClient
+    .from("manager_role_requests")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  const list = document.getElementById("library-manager-request-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="4">도서담당자 요청 목록을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="4">도서담당자 권한 요청이 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(req => {
+    const roleName = req.current_role || req.user_role || "teacher";
+    list.innerHTML += `
+      <tr>
+        <td>${req.name || ""}</td>
+        <td>${getSimpleRoleName(roleName)}</td>
+        <td>도서담당자</td>
+        <td><button class="btn-primary" onclick="approveLibraryManagerRole('${req.id}','${req.user_id}')">승인</button></td>
+      </tr>
+    `;
+  });
+}
+
+async function approveLibraryManagerRole(requestId, userId) {
+  const userUpdate = await supabaseClient
+    .from("users")
+    .update({ role: "manager" })
+    .eq("id", userId);
+
+  if (userUpdate.error) {
+    setMessage("admin-message", "도서담당자 권한 승인 실패: " + userUpdate.error.message, "red");
+    return;
+  }
+
+  const requestUpdate = await supabaseClient
+    .from("manager_role_requests")
+    .update({ status: "approved" })
+    .eq("id", requestId);
+
+  if (requestUpdate.error) {
+    setMessage("admin-message", "요청 상태 변경 실패: " + requestUpdate.error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "도서담당자 권한이 승인되었습니다.");
+  loadLibraryManagerRequests();
+  loadCurrentManagers();
+}
+
+async function loadMaterialManagerRequests() {
+  const { data, error } = await supabaseClient
+    .from("material_manager_role_requests")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  const list = document.getElementById("material-manager-request-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="4">교재교구담당자 요청 목록을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="4">교재교구담당자 권한 요청이 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(req => {
+    const roleName = req.user_role || req.current_role || "teacher";
+    list.innerHTML += `
+      <tr>
+        <td>${req.name || ""}</td>
+        <td>${getMaterialRoleName(roleName)}</td>
+        <td>교재교구담당자</td>
+        <td><button class="btn-primary" onclick="approveMaterialManagerRole('${req.id}','${req.user_id}')">승인</button></td>
+      </tr>
+    `;
+  });
+}
+
+async function approveMaterialManagerRole(requestId, userId) {
+  const userUpdate = await supabaseClient
+    .from("users")
+    .update({ material_role: "manager" })
+    .eq("id", userId);
+
+  if (userUpdate.error) {
+    setMessage("admin-message", "교재교구담당자 권한 승인 실패: " + userUpdate.error.message, "red");
+    return;
+  }
+
+  const requestUpdate = await supabaseClient
+    .from("material_manager_role_requests")
+    .update({ status: "approved" })
+    .eq("id", requestId);
+
+  if (requestUpdate.error) {
+    setMessage("admin-message", "요청 상태 변경 실패: " + requestUpdate.error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "교재교구담당자 권한이 승인되었습니다.");
+  loadMaterialManagerRequests();
+  loadCurrentManagers();
+}
+
+async function loadCurrentManagers() {
+  const { data, error } = await supabaseClient
+    .from("users")
+    .select("*")
+    .or("role.eq.manager,role.eq.admin,material_role.eq.manager")
+    .eq("approval_status", "approved")
+    .order("class_name", { ascending: true });
+
+  const list = document.getElementById("current-manager-list");
+  list.innerHTML = "";
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="6">담당자 목록을 불러오지 못했습니다.</td></tr>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="6">현재 담당자가 없습니다.</td></tr>`;
+    return;
+  }
+
+  data.forEach(user => {
+    const libraryRole = user.role === "admin" ? "관리자" : (user.role === "manager" ? "도서담당자" : "선생님");
+    const materialRole = user.role === "admin" ? "관리자" : (user.material_role === "manager" ? "교재교구담당자" : "선생님");
+
+    let changeButtons = "";
+    if (user.role === "manager") {
+      changeButtons += `<button class="btn-danger" onclick="changeLibraryManagerToTeacher('${user.id}')">도서권한 해제</button>`;
+    }
+    if (user.material_role === "manager") {
+      changeButtons += `<button class="btn-danger" onclick="changeMaterialManagerToTeacher('${user.id}')">교재교구권한 해제</button>`;
+    }
+    if (user.role === "admin") {
+      changeButtons = "관리자";
+    }
+
+    list.innerHTML += `
+      <tr>
+        <td>${user.name || ""}</td>
+        <td>${user.username || ""}</td>
+        <td>${user.class_name || ""}</td>
+        <td>${libraryRole}</td>
+        <td>${materialRole}</td>
+        <td>${changeButtons || "-"}</td>
+      </tr>
+    `;
+  });
+}
+
+async function changeLibraryManagerToTeacher(userId) {
+  if (!confirm("도서담당자 권한을 해제하시겠습니까?")) return;
+
+  const { error } = await supabaseClient
+    .from("users")
+    .update({ role: "teacher" })
+    .eq("id", userId);
+
+  if (error) {
+    setMessage("admin-message", "도서담당자 권한 해제 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "도서담당자 권한이 해제되었습니다.");
+  loadCurrentManagers();
+}
+
+async function changeMaterialManagerToTeacher(userId) {
+  if (!confirm("교재교구담당자 권한을 해제하시겠습니까?")) return;
+
+  const { error } = await supabaseClient
+    .from("users")
+    .update({ material_role: "teacher" })
+    .eq("id", userId);
+
+  if (error) {
+    setMessage("admin-message", "교재교구담당자 권한 해제 실패: " + error.message, "red");
+    return;
+  }
+
+  setMessage("admin-message", "교재교구담당자 권한이 해제되었습니다.");
+  loadCurrentManagers();
+}
+
 function bindEvents() {
   document.getElementById("login-btn").onclick = login;
   document.getElementById("show-signup-btn").onclick = () => showOnly("signup-screen");
@@ -558,6 +937,9 @@ function bindEvents() {
   document.getElementById("find-id-btn").onclick = findId;
   document.getElementById("logout-btn").onclick = logout;
   document.getElementById("refresh-user-btn").onclick = refreshCurrentUser;
+  document.getElementById("admin-page-btn").onclick = openAdminPage;
+  document.getElementById("admin-back-btn").onclick = renderPortal;
+  document.getElementById("admin-refresh-btn").onclick = loadAdminPage;
 
   document.getElementById("login-username").addEventListener("keydown", e => {
     if (e.key === "Enter") login();
