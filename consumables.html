@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>탕정삼성어린이집 소모품관리 시스템</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f6fa;
+      color: #111827;
+    }
+    header {
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 18px 24px;
+      font-size: 26px;
+      font-weight: 900;
+      color: #000;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-img { height: 32px; width: auto; object-fit: contain; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .top-box {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .user-info { font-weight: 700; }
+    .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    button {
+      border: 1px solid #d1d5db;
+      background: white;
+      padding: 9px 13px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    button:hover { background: #f3f4f6; }
+    .primary { background: #2563eb; color: white; border-color: #2563eb; }
+    .primary:hover { background: #1d4ed8; }
+    .danger { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+    .green { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+    .blue { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+    .gray-box {
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 18px;
+      line-height: 1.6;
+    }
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+    .tab {
+      background: white;
+      border: 1px solid #d1d5db;
+      padding: 12px 16px;
+      border-radius: 999px;
+      font-weight: 800;
+    }
+    .tab.active { background: #111827; color: white; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+    h2 { margin: 0 0 14px; font-size: 21px; }
+    h3 { margin: 18px 0 10px; font-size: 17px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    label { font-size: 13px; font-weight: 800; color: #374151; display: block; margin-bottom: 5px; }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 9px;
+      font-size: 14px;
+      background: white;
+    }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 8px;
+      font-size: 13px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    th { background: #f3f4f6; font-weight: 800; }
+    td.left { text-align: left; }
+    .table-wrap { overflow-x: auto; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .summary div {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      font-weight: 800;
+    }
+    .small { font-size: 12px; color: #6b7280; font-weight: 500; }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .over-budget {
+      background: #fee2e2 !important;
+      border-color: #fca5a5 !important;
+      color: #b91c1c !important;
+    }
+    .budget-ok {
+      background: #ecfdf5 !important;
+      border-color: #bbf7d0 !important;
+      color: #166534 !important;
+    }
+    .budget-warning {
+      background: #fff7ed !important;
+      border-color: #fdba74 !important;
+      color: #c2410c !important;
+    }
+    .site-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      line-height: 1.6;
+    }
+    .hidden { display: none; }
+    .error-box {
+      display: none;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+      font-weight: 800;
+      line-height: 1.5;
+    }
+    .success-box {
+      display: none;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #dcfce7;
+      border: 1px solid #86efac;
+      color: #166534;
+      font-weight: 800;
+      line-height: 1.5;
+    }
+    .locked-area {
+      opacity: 0.55;
+      background: #f3f4f6;
+      border-color: #d1d5db;
+    }
+    .locked-row {
+      background: #f3f4f6 !important;
+      color: #6b7280;
+    }
+    .lock-notice {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      color: #374151;
+      font-weight: 800;
+      display: none;
+    }
+    @media (max-width: 850px) {
+      .grid, .grid-3, .summary { grid-template-columns: 1fr; }
+      .top-box { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <header><img src="logo.png" alt="로고" class="logo-img"> 탕정삼성어린이집 소모품관리 시스템</header>
+  <div class="wrap">
+    <div class="top-box">
+      <div class="user-info">
+        <span id="loginName">꿈빛반</span> / <span id="loginRole">반별 신청 페이지</span>
+      </div>
+      <div class="btns">
+        <button class="blue" onclick="setMode('teacher')">반별 신청 페이지</button>
+        <button class="green" onclick="setMode('manager')">소모품담당자 페이지</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-apply" onclick="openPanel('apply')">반별 소모품 신청서</button>
+      <button class="tab" id="tab-sites" onclick="openPanel('sites')">구매 가능 사이트</button>
+      <button class="tab manager-only" id="tab-common" onclick="openPanel('common')">공동 소모품 신청서</button>
+      <button class="tab manager-only" id="tab-collect" onclick="openPanel('collect')">소모품 취합</button>
+      <button class="tab admin-only" id="tab-history" onclick="openPanel('history')">수정·삭제 기록</button>
+    </div>
+
+    <section id="panel-apply" class="panel active">
+      <div class="card">
+        <h2>반별 소모품 신청서</h2>
+        <div class="grid">
+          <div><label>연도/월</label><input type="month" id="month" onchange="renderMy()"></div>
+        </div>
+        <!-- 실제 운영 시 아래 값은 Supabase 로그인 프로필에서 자동으로 받아옵니다. -->
+        <input type="hidden" id="age" value="만2세">
+        <input type="hidden" id="room" value="꿈빛반">
+        <input type="hidden" id="writer" value="김혜인">
+        <input type="hidden" id="budget">
+
+        <h3>품목 입력</h3>
+        <div id="lockNotice" class="lock-notice">🔒 신청 완료 상태입니다. 수정하려면 신청 취소를 먼저 눌러주세요.</div>
+        <div class="grid" id="inputArea">
+          <div><label>구매처</label><select id="vendor" onchange="toggleProductNo()"><option>우림문구</option><option>G마켓</option><option>기타 지정 사이트</option></select></div>
+          <div id="productNoBox" class="hidden"><label>G마켓 상품번호</label><input id="productNo" placeholder="G마켓일 때만 입력"></div>
+          <div><label>품명</label><input id="itemName" placeholder="예: 화이트보드"></div>
+          <div><label>크기</label><input id="itemSize" placeholder="예: 26x26cm"></div>
+          <div><label>색상</label><input id="itemColor" placeholder="예: 분홍"></div>
+          <div><label>금액</label><input id="price" type="number" placeholder="단가"></div>
+          <div><label>단위</label><select id="unit"><option>EA</option><option>SET</option><option>BOX</option><option>개</option><option>권</option><option>봉</option></select></div>
+          <div><label>수량</label><input id="qty" type="number" value="1"></div>
+          <div><label>사용용도</label><input id="purpose" placeholder="예: 미술영역 비치용"></div>
+        </div>
+        <div class="btns" style="margin-top:12px;">
+          <button class="primary" id="addBtn" onclick="addItem()">품목 추가</button>
+          <button id="copyBtn" onclick="copyLastMonth()">지난달 신청서 복사</button>
+          <button class="green" id="submitBtn" onclick="submitRoom()">신청 완료</button>
+          <button class="danger" id="cancelSubmitBtn" onclick="cancelSubmit()" style="display:none;">신청 취소</button>
+        </div>
+        <div id="formError" class="error-box"></div>
+        <div id="formSuccess" class="success-box"></div>
+      </div>
+
+      <div class="card">
+        <h2 id="myListTitle">꿈빛반 소모품 신청 목록</h2>
+        <div class="summary">
+          <div>총 품목 수<br><span id="myCount">0</span></div>
+          <div id="myTotalBox">총 금액<br><span id="myTotal">0원</span><br><span class="small" id="budgetMessage">예산 미입력</span></div>
+          <div>신청 상태<br><span id="myStatus">작성중</span></div>
+          <div>예산 상태<br><span id="budgetStatus">정상</span></div>
+        </div>
+        <div class="table-wrap"><table id="myTable"></table></div>
+      </div>
+    </section>
+
+    <section id="panel-sites" class="panel">
+      <div class="card">
+        <h2>구매 가능 사이트</h2>
+        <div class="grid-3" id="fixedSites"></div>
+      </div>
+    </section>
+
+    <section id="panel-common" class="panel">
+      <div class="card">
+        <h2>공동 소모품 신청서</h2>
+        <div class="grid">
+          <div><label>연도/월</label><input type="month" id="commonMonth" onchange="renderCommon()"></div>
+          <div><label>구매처</label><select id="commonVendor" onchange="toggleCommonProductNo()"><option>우림문구</option><option>G마켓</option><option>기타 지정 사이트</option></select></div>
+          <div id="commonProductNoBox" class="hidden"><label>G마켓 상품번호</label><input id="commonProductNo" placeholder="G마켓일 때만 입력"></div>
+          <div><label>품명</label><input id="commonItemName"></div>
+          <div><label>크기</label><input id="commonItemSize"></div>
+          <div><label>색상</label><input id="commonItemColor"></div>
+          <div><label>금액</label><input id="commonPrice" type="number"></div>
+          <div><label>단위</label><select id="commonUnit"><option>EA</option><option>SET</option><option>BOX</option><option>개</option><option>권</option><option>봉</option></select></div>
+          <div><label>수량</label><input id="commonQty" type="number" value="1"></div>
+          <div><label>사용용도</label><input id="commonPurpose" placeholder="예: 공동 소모품"></div>
+        </div>
+        <div class="btns" style="margin-top:12px;">
+          <button class="primary" onclick="addCommonItem()">공동 품목 추가</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>공동 소모품 신청 목록</h2>
+        <div class="table-wrap"><table id="commonTable"></table></div>
+      </div>
+    </section>
+
+    <section id="panel-collect" class="panel">
+      <div class="card">
+        <h2>소모품담당자 페이지 - 소모품 취합</h2>
+        <div class="grid-3">
+          <div><label>조회 월</label><input type="month" id="filterMonth" onchange="renderCollect()"></div>
+          <div><label>연령별 조회</label><select id="filterAge" onchange="renderCollect()"><option value="">전체</option><option>만1세</option><option>만2세</option><option>만3세</option><option>만4세</option><option>만5세</option></select></div>
+          <div><label>반명 검색</label><input id="filterRoom" oninput="renderCollect()" placeholder="반명 입력"></div>
+        </div>
+        <div class="btns" style="margin-top:12px;">
+          <button onclick="setAgeFilter('만1세')">만1세</button>
+          <button onclick="setAgeFilter('만2세')">만2세</button>
+          <button onclick="setAgeFilter('만3세')">만3세</button>
+          <button onclick="setAgeFilter('만4세')">만4세</button>
+          <button onclick="setAgeFilter('만5세')">만5세</button>
+          <button class="green" onclick="exportExcel()">엑셀 다운로드</button>
+          <button onclick="window.print()">인쇄/PDF 저장</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2 id="collectTitle">소모품 신청서(전체연령)</h2>
+        <div class="summary">
+          <div>품목 수<br><span id="allCount">0</span></div>
+          <div>총 금액<br><span id="allTotal">0원</span></div>
+          <div>제출완료 반<br><span id="submittedRooms">0</span></div>
+          <div>작성중 반<br><span id="draftRooms">0</span></div>
+        </div>
+        <div class="table-wrap"><table id="allTable"></table></div>
+      </div>
+    </section>
+
+    <section id="panel-history" class="panel">
+      <div class="card">
+        <h2>수정·삭제 기록</h2>
+        <div class="table-wrap"><table id="historyTable"></table></div>
+      </div>
+    </section>
+  </div>
+
+<script>
+  const STORAGE_KEYS = {
+    items: 'consumable_items_v3',
+    history: 'consumable_history_v3',
+    roomStatus: 'consumable_room_status_v3'
+  };
+
+  const USER_PROFILE = { name: '김혜인', room: '꿈빛반', age: '만2세' };
+  let loginUser = { name: USER_PROFILE.name, role: '반별 신청 페이지', room: USER_PROFILE.room, age: USER_PROFILE.age };
+
+  const AGE_BUDGETS = {
+    '만1세': { total: 0, rooms: 1 },
+    '만2세': { total: 150000, rooms: 4 },
+    '만3세': { total: 0, rooms: 1 },
+    '만4세': { total: 0, rooms: 1 },
+    '만5세': { total: 0, rooms: 1 }
+  };
+
+  const FIXED_SITES = [
+    { name: '우림문구', url: 'https://www.woorimungo.co.kr', desc: '문구류, 미술재료 등 지정 구매처' },
+    { name: 'G마켓', url: 'https://www.gmarket.co.kr', desc: 'G마켓 신청 시 상품번호 입력 필요' },
+    { name: '기타 지정 사이트', url: '#', desc: '기관에서 별도로 허용한 구매처가 있을 때만 사용' }
+  ];
+
+  function load(key){ return JSON.parse(localStorage.getItem(key) || '[]'); }
+  function save(key, data){ localStorage.setItem(key, JSON.stringify(data)); }
+  function money(n){ return Number(n || 0).toLocaleString('ko-KR') + '원'; }
+  function today(){ return new Date().toLocaleString('ko-KR'); }
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+  function setDefaultMonth(){
+    const now = new Date();
+    const ym = now.toISOString().slice(0,7);
+    document.getElementById('month').value = ym;
+    document.getElementById('filterMonth').value = ym;
+  }
+
+  function getPerRoomBudget(age){
+    const config = AGE_BUDGETS[age];
+    if(!config || !config.total) return 0;
+    return Math.floor(config.total / (config.rooms || 1));
+  }
+
+  function getAgeTotalBudget(age){
+    return AGE_BUDGETS[age]?.total || 0;
+  }
+
+  function getAgeCurrentTotal(month, age){
+    return load(STORAGE_KEYS.items)
+      .filter(x => x.month === month && x.age === age && !x.deleted)
+      .reduce((sum, x) => sum + x.price * x.qty, 0);
+  }
+
+  function getRoomCurrentTotal(month, room){
+    return load(STORAGE_KEYS.items)
+      .filter(x => x.month === month && x.room === room && !x.deleted)
+      .reduce((sum, x) => sum + x.price * x.qty, 0);
+  }
+
+  function setMode(mode){
+    if(mode === 'manager') {
+      loginUser = {
+        name: USER_PROFILE.name,
+        role: '소모품담당자 페이지',
+        room: USER_PROFILE.room,
+        age: USER_PROFILE.age
+      };
+    } else {
+      loginUser = {
+        name: USER_PROFILE.name,
+        role: '반별 신청 페이지',
+        room: USER_PROFILE.room,
+        age: USER_PROFILE.age
+      };
+    }
+    document.getElementById('loginName').textContent = loginUser.role === '소모품담당자 페이지' ? '소모품담당자' : loginUser.room;
+    document.getElementById('loginRole').textContent = loginUser.role;
+    document.querySelectorAll('.manager-only').forEach(el => {
+      el.style.display = mode === 'manager' ? 'inline-block' : 'none';
+    });
+    document.querySelectorAll('.admin-only').forEach(el => {
+      el.style.display = 'none';
+    });
+    applyLoginProfile();
+    openPanel(mode === 'manager' ? 'collect' : 'apply');
+  }
+
+  function openPanel(name){
+    if((name === 'collect' || name === 'common') && loginUser.role !== '소모품담당자 페이지'){
+      alert('소모품담당자 페이지에서만 확인할 수 있는 탭입니다.');
+      return;
+    }
+    if(name === 'history' && loginUser.role !== '관리자'){
+      alert('관리자만 확인할 수 있는 탭입니다.');
+      return;
+    }
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+    renderMy();
+    renderCollect();
+    renderHistory();
+    renderFixedSites();
+    renderCommon();
+  }
+
+  function applyLoginProfile(){
+    document.getElementById('age').value = loginUser.age || '만2세';
+    document.getElementById('room').value = loginUser.room || '꿈빛반';
+    document.getElementById('writer').value = loginUser.name || '김혜인';
+    applyAgeBudget();
+    updateRoomTitle();
+  }
+
+  function applyAgeBudget(){
+    const age = document.getElementById('age').value;
+    const perRoomBudget = getPerRoomBudget(age);
+    document.getElementById('budget').value = perRoomBudget || '';
+  }
+
+  function toggleProductNo(){
+    const vendor = document.getElementById('vendor').value;
+    document.getElementById('productNoBox').classList.toggle('hidden', vendor !== 'G마켓');
+  }
+
+  function toggleCommonProductNo(){
+    const vendor = document.getElementById('commonVendor')?.value;
+    const box = document.getElementById('commonProductNoBox');
+    if(box) box.classList.toggle('hidden', vendor !== 'G마켓');
+  }
+
+  function updateRoomTitle(){
+    const room = document.getElementById('room').value.trim() || '반';
+    document.getElementById('myListTitle').textContent = `${room} 소모품 신청 목록`;
+  }
+
+  function showFormMessage(type, message){
+    const errorBox = document.getElementById('formError');
+    const successBox = document.getElementById('formSuccess');
+    errorBox.style.display = 'none';
+    successBox.style.display = 'none';
+    if(type === 'error'){
+      errorBox.innerHTML = message;
+      errorBox.style.display = 'block';
+      errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      successBox.innerHTML = message;
+      successBox.style.display = 'block';
+      successBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  function clearFormMessage(){
+    document.getElementById('formError').style.display = 'none';
+    document.getElementById('formSuccess').style.display = 'none';
+  }
+
+  function addHistory(action, target, beforeData, afterData){
+    const history = load(STORAGE_KEYS.history);
+    history.unshift({ id: uid(), action, target, user: loginUser.name, role: loginUser.role, date: today(), beforeData, afterData });
+    save(STORAGE_KEYS.history, history);
+  }
+
+  function isSubmitted(month, room){
+    return load(STORAGE_KEYS.roomStatus).some(s => s.month === month && s.room === room && s.status === '제출완료');
+  }
+
+  function forceUnlockApply(){
+    document.getElementById('inputArea').classList.remove('locked-area');
+    document.getElementById('lockNotice').style.display = 'none';
+    document.getElementById('addBtn').disabled = false;
+    document.getElementById('copyBtn').disabled = false;
+    document.getElementById('submitBtn').style.display = 'inline-block';
+    document.getElementById('cancelSubmitBtn').style.display = 'none';
+  }
+
+  function addItem(){
+    clearFormMessage();
+    const checkMonth = document.getElementById('month').value;
+    const checkRoom = document.getElementById('room').value.trim();
+    if(isSubmitted(checkMonth, checkRoom)){
+      showFormMessage('error', '🔒 신청 완료 상태입니다. 품목을 추가하려면 신청 취소를 먼저 눌러주세요.');
+      return;
+    }
+    const vendor = document.getElementById('vendor').value;
+    const productNo = document.getElementById('productNo').value.trim();
+    const month = document.getElementById('month').value;
+    const age = document.getElementById('age').value;
+    const room = document.getElementById('room').value.trim();
+    const writer = document.getElementById('writer').value.trim();
+    const itemName = document.getElementById('itemName').value.trim();
+    const price = Number(document.getElementById('price').value || 0);
+    const qty = Number(document.getElementById('qty').value || 1);
+    const newAmount = price * qty;
+
+    if(!month || !itemName){ showFormMessage('error', '⚠️ 연도/월과 품명은 필수입니다.'); return; }
+    if(price <= 0){ showFormMessage('error', '⚠️ 금액을 입력해주세요.'); return; }
+    if(qty <= 0){ showFormMessage('error', '⚠️ 수량을 입력해주세요.'); return; }
+    if(vendor === 'G마켓' && !productNo){ showFormMessage('error', '⚠️ G마켓 구매 품목은 상품번호를 입력해주세요.'); return; }
+
+    const roomBudget = getPerRoomBudget(age);
+    const totalBudget = getAgeTotalBudget(age);
+    const roomCurrentTotal = getRoomCurrentTotal(month, room);
+    const ageCurrentTotal = getAgeCurrentTotal(month, age);
+
+    if(roomBudget > 0 && roomCurrentTotal + newAmount > roomBudget){
+      showFormMessage('error', `🚨 금액이 초과되었습니다.<br>저장할 수 없습니다.<br><br>반명: ${room}<br>현재 반 사용액: ${money(roomCurrentTotal)}<br>추가 금액: ${money(newAmount)}<br>반별 한도: ${money(roomBudget)}`);
+      renderMy();
+      return;
+    }
+
+    if(totalBudget > 0 && ageCurrentTotal + newAmount > totalBudget){
+      showFormMessage('error', `🚨 금액이 초과되었습니다.<br>저장할 수 없습니다.<br><br>연령: ${age}<br>현재 ${age} 전체 사용액: ${money(ageCurrentTotal)}<br>추가 금액: ${money(newAmount)}<br>${age} 전체 예산: ${money(totalBudget)}`);
+      renderMy();
+      return;
+    }
+
+    const item = {
+      id: uid(),
+      month,
+      age,
+      room,
+      writer,
+      vendor,
+      productNo: vendor === 'G마켓' ? productNo : '',
+      itemName,
+      itemSize: document.getElementById('itemSize').value.trim(),
+      itemColor: document.getElementById('itemColor').value.trim(),
+      price,
+      unit: document.getElementById('unit').value,
+      qty,
+      purpose: document.getElementById('purpose').value.trim(),
+      createdBy: writer,
+      createdAt: today(),
+      deleted: false
+    };
+
+    const items = load(STORAGE_KEYS.items);
+    items.push(item);
+    save(STORAGE_KEYS.items, items);
+    addHistory('추가', item.itemName, null, item);
+
+    ['productNo','itemName','itemSize','itemColor','price','purpose'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('qty').value = 1;
+    renderMy();
+    renderCollect();
+    renderHistory();
+    showFormMessage('success', '✅ 품목이 추가되었습니다.');
+  }
+
+  function canEdit(item){
+    return item.createdBy === loginUser.name || loginUser.role === '소모품담당자 페이지';
+  }
+
+  function softDeleteItem(id){
+    const items = load(STORAGE_KEYS.items);
+    const item = items.find(x => x.id === id);
+    if(!item) return;
+
+    if(loginUser.role !== '소모품담당자 페이지' && isSubmitted(item.month, item.room)){
+      showFormMessage('error', '🔒 신청 완료 상태입니다. 삭제하려면 신청 취소를 먼저 눌러주세요.');
+      return;
+    }
+
+    if(!canEdit(item)){
+      showFormMessage('error', '⚠️ 본인이 작성한 항목만 삭제할 수 있습니다.');
+      return;
+    }
+
+    const before = {...item};
+    item.deleted = true;
+    item.deletedBy = loginUser.role === '소모품담당자 페이지' ? '소모품담당자 페이지' : loginUser.name;
+    item.deletedAt = today();
+    save(STORAGE_KEYS.items, items);
+    addHistory('삭제', item.itemName, before, item);
+    renderMy();
+    renderCollect();
+    renderHistory();
+    showFormMessage('success', '✅ 삭제 처리되었습니다.');
+  }
+
+  function restoreItem(id){
+    if(loginUser.role !== '소모품담당자 페이지'){ alert('소모품담당자 페이지에서만 복구할 수 있습니다.'); return; }
+    const items = load(STORAGE_KEYS.items);
+    const item = items.find(x => x.id === id);
+    if(!item) return;
+    const before = {...item};
+    item.deleted = false;
+    item.restoredBy = '소모품담당자 페이지';
+    item.restoredAt = today();
+    save(STORAGE_KEYS.items, items);
+    addHistory('복구', item.itemName, before, item);
+    renderMy();
+    renderCollect();
+    renderHistory();
+  }
+
+  function submitRoom(){
+    clearFormMessage();
+    const month = document.getElementById('month').value;
+    const room = document.getElementById('room').value.trim();
+    const age = document.getElementById('age').value;
+    const writer = document.getElementById('writer').value.trim();
+    const roomItems = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted);
+    if(!month){ showFormMessage('error', '⚠️ 연도/월을 확인해주세요.'); return; }
+    if(roomItems.length === 0){ showFormMessage('error', '⚠️ 신청 품목이 없습니다. 품목을 추가한 뒤 신청 완료를 눌러주세요.'); return; }
+    const statuses = load(STORAGE_KEYS.roomStatus).filter(s => !(s.month === month && s.room === room));
+    statuses.push({ id: uid(), month, age, room, writer, status: '제출완료', submittedBy: writer, submittedAt: today() });
+    save(STORAGE_KEYS.roomStatus, statuses);
+    addHistory('신청 완료', room, null, {month, age, room, writer});
+    renderMy();
+    renderCollect();
+    showFormMessage('success', '✅ 신청 완료 처리되었습니다. 신청 목록이 잠금 상태로 변경되었습니다.');
+  }
+
+  function cancelSubmit(){
+    clearFormMessage();
+    const month = document.getElementById('month').value;
+    const room = document.getElementById('room').value.trim();
+
+    const beforeStatuses = load(STORAGE_KEYS.roomStatus);
+    const afterStatuses = beforeStatuses.filter(s => !(s.month === month && s.room === room));
+    save(STORAGE_KEYS.roomStatus, afterStatuses);
+
+    addHistory('신청 취소', room, {month, room, status:'제출완료'}, {month, room, status:'작성중'});
+    forceUnlockApply();
+    renderMy();
+    renderCollect();
+
+    document.getElementById('myStatus').textContent = '작성중';
+    document.getElementById('inputArea').classList.remove('locked-area');
+    document.getElementById('lockNotice').style.display = 'none';
+    document.getElementById('addBtn').disabled = false;
+    document.getElementById('copyBtn').disabled = false;
+    document.getElementById('submitBtn').style.display = 'inline-block';
+    document.getElementById('cancelSubmitBtn').style.display = 'none';
+
+    showFormMessage('success', '✅ 신청 취소되었습니다. 다시 수정할 수 있습니다.');
+  }
+
+  function renderMy(){
+    const month = document.getElementById('month').value;
+    const room = document.getElementById('room').value.trim();
+    const age = document.getElementById('age').value;
+    const items = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted);
+    const roomTotal = items.reduce((sum, x) => sum + x.price * x.qty, 0);
+    const ageTotal = getAgeCurrentTotal(month, age);
+    const roomBudget = getPerRoomBudget(age);
+    const totalBudget = getAgeTotalBudget(age);
+
+    
+    document.getElementById('myCount').textContent = items.length;
+    document.getElementById('myTotal').textContent = money(roomTotal);
+    
+    updateRoomTitle();
+
+    const totalBox = document.getElementById('myTotalBox');
+    const budgetMessage = document.getElementById('budgetMessage');
+    totalBox.classList.remove('over-budget', 'budget-ok', 'budget-warning');
+
+    if(totalBudget > 0 && roomBudget > 0){
+      const roomRemaining = roomBudget - roomTotal;
+      const ageRemaining = totalBudget - ageTotal;
+      if(roomRemaining < 0 || ageRemaining < 0){
+        totalBox.classList.add('over-budget');
+        budgetMessage.textContent = `초과 / 반 한도 ${money(roomBudget)} · ${age} 전체 ${money(totalBudget)}`;
+      } else if(roomRemaining <= roomBudget * 0.1 || ageRemaining <= totalBudget * 0.1){
+        totalBox.classList.add('budget-warning');
+        budgetMessage.textContent = `반 남은 금액 ${money(roomRemaining)} / ${age} 전체 남은 금액 ${money(ageRemaining)}`;
+      } else {
+        totalBox.classList.add('budget-ok');
+        budgetMessage.textContent = `반 남은 금액 ${money(roomRemaining)} / ${age} 전체 남은 금액 ${money(ageRemaining)}`;
+      }
+    } else {
+      budgetMessage.textContent = '예산 미입력';
+    }
+
+    const statusList = load(STORAGE_KEYS.roomStatus);
+    const st = statusList.find(s => s.month === month && s.room === room)?.status || '작성중';
+    const locked = st === '제출완료';
+    document.getElementById('myStatus').textContent = st;
+    document.getElementById('inputArea').classList.toggle('locked-area', locked);
+    document.getElementById('lockNotice').style.display = locked ? 'block' : 'none';
+    document.getElementById('addBtn').disabled = locked;
+    document.getElementById('copyBtn').disabled = locked;
+    document.getElementById('submitBtn').style.display = locked ? 'none' : 'inline-block';
+    document.getElementById('cancelSubmitBtn').style.display = locked ? 'inline-block' : 'none';
+    document.getElementById('myTable').innerHTML = makeItemTable(items, locked);
+  }
+
+  function makeItemTable(items, locked=false){
+    let html = `<tr><th>번호</th><th>반 이름</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`;
+    if(items.length === 0) return html + `<tr><td colspan="14">등록된 품목이 없습니다.</td></tr>`;
+    items.forEach((x, i) => {
+      html += `<tr class="${locked ? 'locked-row' : ''}">
+        <td>${i+1}</td>
+        <td>${x.room || '-'}</td>
+        <td>${x.writer || '-'}</td>
+        <td>${x.vendor || '-'}</td>
+        <td>${x.productNo || '-'}</td>
+        <td class="left">${x.itemName}</td>
+        <td>${x.itemSize || '-'}</td>
+        <td>${x.itemColor || '-'}</td>
+        <td>${money(x.price)}</td>
+        <td>${x.unit}</td>
+        <td>${x.qty}</td>
+        <td>${money(x.price * x.qty)}</td>
+        <td class="left">${x.purpose || '-'}</td>
+        <td>${locked && loginUser.role !== '소모품담당자 페이지' ? '잠금' : (canEdit(x) ? `<button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button>` : '-')}</td>
+      </tr>`;
+    });
+    return html;
+  }
+
+  function setAgeFilter(age){
+    document.getElementById('filterAge').value = age;
+    renderCollect();
+  }
+
+  function addCommonItem(){
+    if(loginUser.role !== '소모품담당자 페이지') return;
+    const vendor = document.getElementById('commonVendor').value;
+    const productNo = document.getElementById('commonProductNo').value.trim();
+    const month = document.getElementById('commonMonth').value;
+    const writer = loginUser.name;
+    const itemName = document.getElementById('commonItemName').value.trim();
+    const price = Number(document.getElementById('commonPrice').value || 0);
+    const qty = Number(document.getElementById('commonQty').value || 1);
+    if(!month || !itemName || price <= 0 || qty <= 0){ alert('월, 품명, 금액, 수량을 확인해주세요.'); return; }
+    if(vendor === 'G마켓' && !productNo){ alert('G마켓 구매 품목은 상품번호를 입력해주세요.'); return; }
+    const item = {
+      id: uid(), month, age: '공동', room: '공동소모품', writer, vendor,
+      productNo: vendor === 'G마켓' ? productNo : '', itemName,
+      itemSize: document.getElementById('commonItemSize').value.trim(),
+      itemColor: document.getElementById('commonItemColor').value.trim(),
+      price, unit: document.getElementById('commonUnit').value, qty,
+      purpose: document.getElementById('commonPurpose').value.trim() || '공동 소모품',
+      createdBy: writer, createdAt: today(), deleted: false, isCommon: true
+    };
+    const items = load(STORAGE_KEYS.items);
+    items.push(item);
+    save(STORAGE_KEYS.items, items);
+    addHistory('공동 소모품 추가', item.itemName, null, item);
+    ['commonProductNo','commonItemName','commonItemSize','commonItemColor','commonPrice','commonPurpose'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('commonQty').value = 1;
+    renderCommon();
+    renderCollect();
+  }
+
+  function renderCommon(){
+    if(loginUser.role !== '소모품담당자 페이지') return;
+    const month = document.getElementById('commonMonth')?.value || document.getElementById('filterMonth')?.value;
+    let items = load(STORAGE_KEYS.items).filter(x => x.isCommon && !x.deleted);
+    if(month) items = items.filter(x => x.month === month);
+    const table = document.getElementById('commonTable');
+    if(table) table.innerHTML = makeCommonTable(items);
+  }
+
+  function makeCommonTable(items){
+    let html = `<tr><th>번호</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`;
+    if(items.length === 0) return html + `<tr><td colspan="13">등록된 품목이 없습니다.</td></tr>`;
+    items.forEach((x, i) => {
+      html += `<tr>
+        <td>${i+1}</td>
+        <td>${x.writer || '-'}</td>
+        <td>${x.vendor || '-'}</td>
+        <td>${x.productNo || '-'}</td>
+        <td class="left">${x.itemName}</td>
+        <td>${x.itemSize || '-'}</td>
+        <td>${x.itemColor || '-'}</td>
+        <td>${
+    if(loginUser.role !== '소모품담당자 페이지') return;
+    const month = document.getElementById('filterMonth').value;
+    const age = document.getElementById('filterAge').value;
+    const roomText = document.getElementById('filterRoom').value.trim();
+    let items = load(STORAGE_KEYS.items).filter(x => !x.deleted && !x.isCommon);
+    if(month) items = items.filter(x => x.month === month);
+    if(age) items = items.filter(x => x.age === age);
+    if(roomText) items = items.filter(x => x.room.includes(roomText));
+
+    const total = items.reduce((sum, x) => sum + x.price * x.qty, 0);
+    const statuses = load(STORAGE_KEYS.roomStatus).filter(s => (!month || s.month === month) && (!age || s.age === age));
+    const roomsWithItems = new Set(items.map(x => x.room));
+    const submitted = statuses.filter(s => s.status === '제출완료').length;
+
+    document.getElementById('collectTitle').textContent = getKoreanMonthTitle(month, age || '전체연령');
+    document.getElementById('allCount').textContent = items.length;
+    document.getElementById('allTotal').textContent = money(total);
+    document.getElementById('submittedRooms').textContent = submitted;
+    document.getElementById('draftRooms').textContent = Math.max(roomsWithItems.size - submitted, 0);
+    document.getElementById('allTable').innerHTML = makeCollectTable(items);
+  }
+
+  function makeCollectTable(items){
+    let html = `<tr><th>번호</th><th>반 이름</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`;
+    if(items.length === 0) return html + `<tr><td colspan="14">등록된 품목이 없습니다.</td></tr>`;
+    items.forEach((x, i) => {
+      html += `<tr>
+        <td>${i+1}</td>
+        <td>${x.room || '-'}</td>
+        <td>${x.writer || '-'}</td>
+        <td>${x.vendor || '-'}</td>
+        <td>${x.productNo || '-'}</td>
+        <td class="left">${x.itemName}</td>
+        <td>${x.itemSize || '-'}</td>
+        <td>${x.itemColor || '-'}</td>
+        <td>${money(x.price)}</td>
+        <td>${x.unit}</td>
+        <td>${x.qty}</td>
+        <td>${money(x.price * x.qty)}</td>
+        <td class="left">${x.purpose || '-'}</td>
+        <td><button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button></td>
+      </tr>`;
+    });
+    return html;
+  }
+
+  function renderFixedSites(){
+    const box = document.getElementById('fixedSites');
+    box.innerHTML = FIXED_SITES.map(site => `
+      <div class="site-card">
+        <b>${site.name}</b><br>
+        <span class="small">${site.desc}</span><br>
+        ${site.url === '#' ? '<span class="small">기관 지정 시 별도 안내</span>' : `<a href="${site.url}" target="_blank">사이트 바로가기</a>`}
+      </div>
+    `).join('');
+  }
+
+  function renderHistory(){
+    if(loginUser.role !== '소모품담당자 페이지') return;
+    const history = load(STORAGE_KEYS.history);
+    let html = `<tr><th>번호</th><th>작업</th><th>대상</th><th>처리자</th><th>권한</th><th>일시</th><th>비고</th></tr>`;
+    if(history.length === 0) html += `<tr><td colspan="7">기록이 없습니다.</td></tr>`;
+    history.forEach((h,i)=>{
+      const restoreBtn = h.action === '삭제' && h.afterData?.id ? `<button class="green" onclick="restoreItem('${h.afterData.id}')">복구</button>` : '';
+      html += `<tr><td>${i+1}</td><td>${h.action}</td><td class="left">${h.target}</td><td>${h.user}</td><td>${h.role}</td><td>${h.date}</td><td>${restoreBtn}</td></tr>`;
+    });
+    document.getElementById('historyTable').innerHTML = html;
+  }
+
+  function copyLastMonth(){
+    clearFormMessage();
+    const month = document.getElementById('month').value;
+    const room = document.getElementById('room').value.trim();
+    if(isSubmitted(month, room)){
+      showFormMessage('error', '🔒 신청 완료 상태입니다. 복사하려면 신청 취소를 먼저 눌러주세요.');
+      return;
+    }
+    const age = document.getElementById('age').value;
+    if(!month || !room){ alert('월과 반명을 먼저 입력해주세요.'); return; }
+
+    const d = new Date(month + '-01');
+    d.setMonth(d.getMonth() - 1);
+    const lastMonth = d.toISOString().slice(0,7);
+    const items = load(STORAGE_KEYS.items);
+    const targets = items.filter(x => x.month === lastMonth && x.room === room && !x.deleted);
+    if(targets.length === 0){ alert('지난달 신청 품목이 없습니다.'); return; }
+
+    const writer = document.getElementById('writer').value.trim();
+    const copiedAmount = targets.reduce((sum, x) => sum + x.price * x.qty, 0);
+    const roomBudget = getPerRoomBudget(age);
+    const totalBudget = getAgeTotalBudget(age);
+    const roomCurrentTotal = getRoomCurrentTotal(month, room);
+    const ageCurrentTotal = getAgeCurrentTotal(month, age);
+
+    if(roomBudget > 0 && roomCurrentTotal + copiedAmount > roomBudget){
+      alert(`지난달 신청서를 복사하면 반별 한도를 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n반별 한도: ${money(roomBudget)}`);
+      return;
+    }
+    if(totalBudget > 0 && ageCurrentTotal + copiedAmount > totalBudget){
+      alert(`지난달 신청서를 복사하면 연령 전체 예산을 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n${age} 전체 예산: ${money(totalBudget)}`);
+      return;
+    }
+
+    const copied = targets.map(x => ({...x, id: uid(), month, writer, createdBy: writer, createdAt: today(), deleted: false}));
+    save(STORAGE_KEYS.items, items.concat(copied));
+    addHistory('지난달 복사', room, {lastMonth}, {month, count: copied.length});
+    renderMy();
+    renderCollect();
+    renderHistory();
+  }
+
+  function getKoreanMonthTitle(month, age){
+    if(!month) return `소모품 신청서(${age || '전체연령'})`;
+    const [, mm] = month.split('-');
+    return `${Number(mm)}월 소모품 신청서(${age || '전체연령'})`;
+  }
+
+  function exportExcel(){
+    const month = document.getElementById('filterMonth').value;
+    const age = document.getElementById('filterAge').value;
+    let items = load(STORAGE_KEYS.items).filter(x => !x.deleted);
+    if(month) items = items.filter(x => x.month === month);
+    if(age) items = items.filter(x => x.age === age);
+
+    const title = getKoreanMonthTitle(month, age || '전체연령');
+    const total = items.reduce((sum, x) => sum + x.price * x.qty, 0);
+    const header = ['번호','품명','크기','색상','금액','단위','수량','구매처','사용용도','상품번호'];
+    const dataRows = items.map((x,i)=>[
+      i+1,
+      x.itemName,
+      x.itemSize || '-',
+      x.itemColor || '-',
+      x.price * x.qty,
+      x.unit,
+      x.qty,
+      x.vendor,
+      x.purpose || '-',
+      x.productNo || ''
+    ]);
+
+    const aoa = [
+      [title, '', '', '', '', '', '', '', '담당', '원장'],
+      ['', '', '', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', '', '', ''],
+      header,
+      ...dataRows,
+      ['총계', money(total), '', '', '', '', '', '', '', ''],
+      ['※ 작성시 참고사항', '', '', '', '', '', '', '', '', ''],
+      ['1. 보육사 홈페이지 및 책자의 상품명을 그대로 작성하시기 바랍니다.', '', '', '', '', '', '', '', '', ''],
+      ['2. 구매처 색상을 자세히 기입 바랍니다.', '', '', '', '', '', '', '', '', ''],
+      ['3. G마켓 신청 품목은 상품번호를 기입해주시기 바랍니다.', '', '', '', '', '', '', '', '', '']
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!merges'] = [
+      {s:{r:0,c:0}, e:{r:0,c:7}},
+      {s:{r:5 + dataRows.length,c:0}, e:{r:5 + dataRows.length,c:9}},
+      {s:{r:6 + dataRows.length,c:0}, e:{r:6 + dataRows.length,c:9}},
+      {s:{r:7 + dataRows.length,c:0}, e:{r:7 + dataRows.length,c:9}},
+      {s:{r:8 + dataRows.length,c:0}, e:{r:8 + dataRows.length,c:9}}
+    ];
+    ws['!cols'] = [
+      {wch:6},{wch:30},{wch:14},{wch:14},{wch:12},{wch:8},{wch:8},{wch:12},{wch:24},{wch:18}
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '소모품신청서');
+    const fileAge = age || '전체연령';
+    XLSX.writeFile(wb, `${month || '전체'}_${fileAge}_소모품신청서.xlsx`);
+  }
+
+  setDefaultMonth();
+  document.getElementById('commonMonth').value = document.getElementById('month').value;
+  applyLoginProfile();
+  setMode('teacher');
+  toggleProductNo();
+  toggleCommonProductNo();
+  renderFixedSites();
+</s
