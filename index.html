@@ -482,12 +482,14 @@
       <h3>삭제 도서 복구</h3>
       <table>
         <thead>
-          <tr>
-            <th>관리번호</th>
-            <th>도서명</th>
-            <th>복구</th>
-          </tr>
-        </thead>
+<tr>
+  <th>관리번호</th>
+  <th>도서명</th>
+  <th>삭제자</th>
+  <th>삭제일</th>
+  <th>복구</th>
+</tr>
+</thead>
         <tbody id="deleted-book-list"></tbody>
       </table>
     </div>
@@ -1351,10 +1353,12 @@ async function loadDeletedMaterials() {
     const title = item["물품명"] || item.title || item.material_name || "";
     list.innerHTML += `
       <tr>
-        <td>${number}</td>
-        <td>${title}</td>
-        <td><button class="btn-primary" onclick="restoreMaterial('${item.id}')">복구</button></td>
-      </tr>
+  <td>${number}</td>
+  <td>${title}</td>
+  <td>${book.deleted_by || "-"}</td>
+  <td>${book.deleted_at ? new Date(book.deleted_at).toLocaleDateString('ko-KR') : "-"}</td>
+  <td><button class="btn-primary" onclick="restoreBook('${book.id}')">복구</button></td>
+</tr>
     `;
   });
 }
