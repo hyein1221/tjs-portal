@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>탕정삼성어린이집 소모품관리 시스템</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <style>
     * { box-sizing: border-box; }
@@ -215,6 +216,17 @@
   <section id="panel-sites" class="panel">
     <div class="card">
       <h2>구매 가능 사이트</h2>
+      <div id="siteManageBox" class="card hidden" style="background:#f9fafb;">
+  <h3>구매 가능 사이트 추가</h3>
+  <div class="grid-3">
+    <div><label>사이트명</label><input id="siteName" placeholder="예: 우림문구"></div>
+    <div><label>사이트 주소</label><input id="siteUrl" placeholder="https://"></div>
+    <div><label>비고</label><input id="siteMemo" placeholder="예: 문구류, 미술재료"></div>
+  </div>
+  <div class="btns" style="margin-top:10px;">
+    <button class="primary" onclick="addPurchaseSite()">사이트 추가</button>
+  </div>
+</div>
       <div class="grid-3" id="fixedSites"></div>
     </div>
   </section>
@@ -282,6 +294,14 @@
 </div>
 
 <script>
+  const supabaseUrl = "https://vohcugxfwxdvkbcpjcgl.supabase.co";
+const supabaseKey = "sb_publishable_Q0cXaglzBaz9Py2oct_NTQ_vMHsUeSQ";
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+function isOwner() {
+  return currentUser?.username === "hyeinkk";
+}
+  
 const STORAGE_KEYS = {
   items: 'consumable_items_v4',
   history: 'consumable_history_v4',
@@ -308,11 +328,6 @@ const AGE_BUDGETS = {
   "만5세": { total: 0, rooms: 1 }
 };
 
-const FIXED_SITES = [
-  { name: "우림문구", url: "https://www.woorimungo.co.kr", desc: "문구류, 미술재료 등 지정 구매처" },
-  { name: "G마켓", url: "https://www.gmarket.co.kr", desc: "G마켓 신청 시 상품번호 입력 필요" },
-  { name: "기타 지정 사이트", url: "#", desc: "기관에서 별도로 허용한 구매처가 있을 때만 사용" }
-];
 
 let currentUser = null;
 let currentMode = "teacher";
@@ -805,17 +820,102 @@ function makeCollectTable(items){
   return html;
 }
 
-function renderFixedSites(){
+async function renderFixedSites(){
   const box = document.getElementById("fixedSites");
-  box.innerHTML = FIXED_SITES.map(site => `
+  const manageBox = document.getElementById("siteManageBox");
+
+  if (manageBox) {
+    manageBox.classList.toggle("hidden", !isOwner());
+  }
+
+  box.innerHTML = `<div class="site-card">구매 가능 사이트를 불러오는 중입니다...</div>`;
+
+  const { data, error } = await supabaseClient
+    .from("purchase_sites")
+    .select("*")
+    .eq("is_active", true)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    box.innerHTML = `<div class="site-card">사이트 목록을 불러오지 못했습니다.</div>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    box.innerHTML = `<div class="site-card">등록된 구매 가능 사이트가 없습니다.</div>`;
+    return;
+  }
+
+  box.innerHTML = data.map(site => `
     <div class="site-card">
-      <b>${site.name}</b><br>
-      <span class="small">${site.desc}</span><br>
-      ${site.url === "#" ? '<span class="small">기관 지정 시 별도 안내</span>' : `<a href="${site.url}" target="_blank">사이트 바로가기</a>`}
+      <b>${site.site_name}</b><br>
+      <span class="small">${site.memo || ""}</span><br>
+      <a href="${site.site_url}" target="_blank">사이트 바로가기</a>
+      ${isOwner() ? `<br><button class="danger" onclick="deletePurchaseSite('${site.id}')">삭제</button>` : ""}
     </div>
   `).join("");
 }
 
+  async function addPurchaseSite(){
+  if (!isOwner()) {
+    alert("구매 가능 사이트 추가는 관리자만 가능합니다.");
+    return;
+  }
+
+  const siteName = document.getElementById("siteName").value.trim();
+  const siteUrl = document.getElementById("siteUrl").value.trim();
+  const memo = document.getElementById("siteMemo").value.trim();
+
+  if (!siteName || !siteUrl) {
+    alert("사이트명과 사이트 주소를 입력해주세요.");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("purchase_sites")
+    .insert([{
+      site_name: siteName,
+      site_url: siteUrl,
+      memo,
+      created_by: currentUser.name,
+      is_active: true
+    }]);
+
+  if (error) {
+    alert("사이트 추가 실패: " + error.message);
+    return;
+  }
+
+  document.getElementById("siteName").value = "";
+  document.getElementById("siteUrl").value = "";
+  document.getElementById("siteMemo").value = "";
+
+  alert("구매 가능 사이트가 추가되었습니다.");
+  renderFixedSites();
+}
+
+async function deletePurchaseSite(siteId){
+  if (!isOwner()) {
+    alert("구매 가능 사이트 삭제는 최고관리자만 가능합니다.");
+    return;
+  }
+
+  if (!confirm("이 사이트를 목록에서 삭제하시겠습니까?")) return;
+
+  const { error } = await supabaseClient
+    .from("purchase_sites")
+    .update({ is_active: false })
+    .eq("id", siteId);
+
+  if (error) {
+    alert("사이트 삭제 실패: " + error.message);
+    return;
+  }
+
+  alert("구매 가능 사이트가 삭제되었습니다.");
+  renderFixedSites();
+}
+  
 function renderHistory(){
   if(!isAdmin()) return;
   const history = load(STORAGE_KEYS.history);
