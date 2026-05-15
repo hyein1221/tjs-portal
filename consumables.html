@@ -181,7 +181,14 @@
       <h3>품목 입력</h3>
       <div id="lockNotice" class="lock-notice">🔒 신청 완료 상태입니다. 수정하려면 신청 취소를 먼저 눌러주세요.</div>
       <div class="grid" id="inputArea">
-        <div><label>구매처</label><select id="vendor" onchange="toggleProductNo()"><option>우림문구</option><option>G마켓</option><option>기타 지정 사이트</option></select></div>
+        <div>
+  <label>구매처</label>
+  <select id="vendor" onchange="handleVendorChange('vendor','productNoBox','customVendorBox')"></select>
+</div>
+<div id="customVendorBox" class="hidden">
+  <label>기타 구매처명</label>
+  <input id="customVendorName" placeholder="구매처 이름을 입력해주세요">
+</div>
         <div id="productNoBox" class="hidden"><label>G마켓 상품번호</label><input id="productNo" placeholder="G마켓일 때만 입력"></div>
         <div><label>품명</label><input id="itemName" placeholder="예: 화이트보드"></div>
         <div><label>크기</label><input id="itemSize" placeholder="예: 26x26cm"></div>
@@ -236,7 +243,14 @@
       <h2>공동 소모품 신청서</h2>
       <div class="grid">
         <div><label>연도/월</label><input type="month" id="commonMonth" onchange="renderCommon()"></div>
-        <div><label>구매처</label><select id="commonVendor" onchange="toggleCommonProductNo()"><option>우림문구</option><option>G마켓</option><option>기타 지정 사이트</option></select></div>
+        <div>
+  <label>구매처</label>
+  <select id="commonVendor" onchange="handleVendorChange('commonVendor','commonProductNoBox','commonCustomVendorBox')"></select>
+</div>
+<div id="commonCustomVendorBox" class="hidden">
+  <label>기타 구매처명</label>
+  <input id="commonCustomVendorName" placeholder="구매처 이름을 입력해주세요">
+</div>
         <div id="commonProductNoBox" class="hidden"><label>G마켓 상품번호</label><input id="commonProductNo" placeholder="G마켓일 때만 입력"></div>
         <div><label>품명</label><input id="commonItemName"></div>
         <div><label>크기</label><input id="commonItemSize"></div>
@@ -535,8 +549,17 @@ function addItem(){
   const age = document.getElementById("age").value;
   const room = document.getElementById("room").value.trim();
   const writer = document.getElementById("writer").value.trim();
-  const vendor = document.getElementById("vendor").value;
-  const productNo = document.getElementById("productNo").value.trim();
+  let vendor = document.getElementById("vendor").value;
+const customVendorName = document.getElementById("customVendorName").value.trim();
+const productNo = document.getElementById("productNo").value.trim();
+
+if (vendor === "기타") {
+  if (!customVendorName) {
+    showFormMessage("error", "⚠️ 기타 구매처명을 입력해주세요.");
+    return;
+  }
+  vendor = customVendorName;
+}
   const itemName = document.getElementById("itemName").value.trim();
   const price = Number(document.getElementById("price").value || 0);
   const qty = Number(document.getElementById("qty").value || 1);
@@ -578,7 +601,10 @@ function addItem(){
   save(STORAGE_KEYS.items, items);
   addHistory("추가", item.itemName, null, item);
 
-  ["productNo","itemName","itemSize","itemColor","price","purpose"].forEach(id => document.getElementById(id).value = "");
+  ["productNo","customVendorName","itemName","itemSize","itemColor","price","purpose"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.value = "";
+});
   document.getElementById("qty").value = 1;
   renderMy(); renderCollect(); renderHistory();
   showFormMessage("success", "✅ 품목이 추가되었습니다.");
@@ -723,8 +749,17 @@ function makeItemTable(items, locked=false){
 
 function addCommonItem(){
   if(!isConsumableManager()) return;
-  const vendor = document.getElementById("commonVendor").value;
-  const productNo = document.getElementById("commonProductNo").value.trim();
+  let vendor = document.getElementById("commonVendor").value;
+const customVendorName = document.getElementById("commonCustomVendorName").value.trim();
+const productNo = document.getElementById("commonProductNo").value.trim();
+
+if (vendor === "기타") {
+  if (!customVendorName) {
+    alert("기타 구매처명을 입력해주세요.");
+    return;
+  }
+  vendor = customVendorName;
+}
   const month = document.getElementById("commonMonth").value;
   const writer = currentUser.name;
   const itemName = document.getElementById("commonItemName").value.trim();
@@ -748,7 +783,10 @@ function addCommonItem(){
   items.push(item);
   save(STORAGE_KEYS.items, items);
   addHistory("공동 소모품 추가", item.itemName, null, item);
-  ["commonProductNo","commonItemName","commonItemSize","commonItemColor","commonPrice","commonPurpose"].forEach(id => document.getElementById(id).value = "");
+  ["commonProductNo","commonCustomVendorName","commonItemName","commonItemSize","commonItemColor","commonPrice","commonPurpose"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.value = "";
+});
   document.getElementById("commonQty").value = 1;
   renderCommon(); renderCollect();
   const msg = document.getElementById("commonMessage");
@@ -854,7 +892,53 @@ async function renderFixedSites(){
     </div>
   `).join("");
 }
+async function loadVendorOptions(){
+  const selects = [
+    document.getElementById("vendor"),
+    document.getElementById("commonVendor")
+  ].filter(Boolean);
 
+  selects.forEach(select => {
+    select.innerHTML = `<option value="">구매처 선택</option>`;
+  });
+
+  const { data, error } = await supabaseClient
+    .from("purchase_sites")
+    .select("*")
+    .eq("is_active", true)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    selects.forEach(select => {
+      select.innerHTML = `
+        <option value="">구매처 불러오기 실패</option>
+        <option value="기타">기타</option>
+      `;
+    });
+    return;
+  }
+
+  data.forEach(site => {
+    selects.forEach(select => {
+      select.innerHTML += `<option value="${site.site_name}">${site.site_name}</option>`;
+    });
+  });
+
+  selects.forEach(select => {
+    select.innerHTML += `<option value="기타">기타</option>`;
+  });
+
+  handleVendorChange("vendor", "productNoBox", "customVendorBox");
+  handleVendorChange("commonVendor", "commonProductNoBox", "commonCustomVendorBox");
+}
+
+function handleVendorChange(selectId, productNoBoxId, customBoxId){
+  const vendor = document.getElementById(selectId).value;
+
+  document.getElementById(productNoBoxId).classList.toggle("hidden", vendor !== "G마켓");
+  document.getElementById(customBoxId).classList.toggle("hidden", vendor !== "기타");
+}
+  
   async function addPurchaseSite(){
   if (!isOwner()) {
     alert("구매 가능 사이트 추가는 관리자만 가능합니다.");
@@ -895,7 +979,7 @@ async function renderFixedSites(){
 
 async function deletePurchaseSite(siteId){
   if (!isOwner()) {
-    alert("구매 가능 사이트 삭제는 최고관리자만 가능합니다.");
+    alert("구매 가능 사이트 삭제는 관리자만 가능합니다.");
     return;
   }
 
@@ -999,8 +1083,7 @@ function init(){
   applyLoginProfile();
   setupPermissionUI();
   renderFixedSites();
-  toggleProductNo();
-  toggleCommonProductNo();
+loadVendorOptions();
   startAutoLogout();
 
   if(isConsumableManager()) setMode("teacher");
