@@ -321,13 +321,12 @@ const classMap = {
 };
 
 const AGE_BUDGETS = {
-  "만1세": { total: 0, rooms: 1 },
-  "만2세": { total: 150000, rooms: 4 },
-  "만3세": { total: 0, rooms: 1 },
-  "만4세": { total: 0, rooms: 1 },
-  "만5세": { total: 0, rooms: 1 }
+  "만1세": { total: 150000, rooms: 5 }, // 반별 30,000원
+  "만2세": { total: 150000, rooms: 4 }, // 반별 37,500원
+  "만3세": { total: 150000, rooms: 3 }, // 반별 50,000원
+  "만4세": { total: 150000, rooms: 2 }, // 반별 75,000원
+  "만5세": { total: 150000, rooms: 2 }  // 반별 75,000원
 };
-
 
 let currentUser = null;
 let currentMode = "teacher";
