@@ -1671,7 +1671,7 @@ async function deleteBookSoft(bookId, status) {
 const { error } = await supabaseClient.from("books").update({
   is_deleted: true,
   deleted_at: new Date().toISOString(),
-  deleted_by: currentUser.name
+  deleted_by: currentUser.id
 }).eq("id", bookId);
 
   if (error) {
