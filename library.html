@@ -18,7 +18,7 @@
     table { width:100%; border-collapse:collapse; background:white; table-layout:fixed; margin-bottom:16px; }
     th, td { border:1px solid #ddd; padding:8px; font-size:14px; word-break:keep-all; vertical-align:middle; }
     th { background:#f1f1f1; text-align:center; }
-    .hidden { display:none; }
+    .hidden { display:none !important; }
     .status, .btn-cell { text-align:center; }
     .check-col { width:48px; min-width:48px; max-width:48px; text-align:center; }
     .check-cell { width:48px; min-width:48px; max-width:48px; text-align:center; }
@@ -83,6 +83,31 @@
       z-index:9999;
       padding:16px;
     }
+    #extra-rental-modal.hidden { display:none !important; }
+    #extra-rental-modal { display:none; }
+    #extra-rental-modal:not(.hidden) { display:flex; }
+    .modal-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+      margin-bottom:8px;
+    }
+    .modal-header h3 { margin:0; }
+    .modal-close-btn {
+      width:32px;
+      height:32px;
+      padding:0;
+      border:none;
+      background:#f3f4f6;
+      color:#374151;
+      border-radius:50%;
+      font-size:20px;
+      line-height:1;
+      cursor:pointer;
+    }
+    .modal-close-btn:hover { background:#e5e7eb; }
+
     .modal-box {
       width:100%;
       max-width:440px;
@@ -389,14 +414,17 @@
   <button id="manager-back-btn" class="btn-basic">돌아가기</button>
 </div>
 
-<div id="extra-rental-modal" class="modal-overlay hidden">
-  <div class="modal-box">
-    <h3>기타대여 추가</h3>
+<div id="extra-rental-modal" class="modal-overlay hidden" style="display:none;">
+  <div class="modal-box" onclick="event.stopPropagation();">
+    <div class="modal-header">
+      <h3>기타대여 추가</h3>
+      <button id="extra-rental-close-btn" class="modal-close-btn" type="button" aria-label="닫기">×</button>
+    </div>
     <p class="notice">
       ※ 엑셀 도서목록에 없는 도서를 임시로 등록하고, 현재 반의 대여예약으로 올립니다.<br>
       도서담당자는 대여예약 승인 목록에서 확인 후 대여승인할 수 있습니다.
     </p>
-    <input id="extra-book-number" placeholder="관리번호 입력" />
+    <input id="extra-book-number" placeholder="관리번호 입력 예시: 10-ㄴ-7" />
     <input id="extra-book-title" placeholder="도서명 입력" />
     <div class="modal-actions">
       <button id="extra-rental-save-btn" class="btn-reserve">대여예약 등록</button>
@@ -734,14 +762,23 @@ function nextPage() {
 }
 
 function openExtraRentalModal() {
+  const modal = document.getElementById("extra-rental-modal");
   document.getElementById("extra-book-number").value = "";
   document.getElementById("extra-book-title").value = "";
-  document.getElementById("extra-rental-modal").classList.remove("hidden");
+  modal.classList.remove("hidden");
+  modal.style.display = "flex";
   setTimeout(() => document.getElementById("extra-book-number").focus(), 0);
 }
 
 function closeExtraRentalModal() {
-  document.getElementById("extra-rental-modal").classList.add("hidden");
+  const modal = document.getElementById("extra-rental-modal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.style.display = "none";
+  const numberInput = document.getElementById("extra-book-number");
+  const titleInput = document.getElementById("extra-book-title");
+  if (numberInput) numberInput.value = "";
+  if (titleInput) titleInput.value = "";
 }
 
 async function createExtraRentalRequest() {
@@ -1871,6 +1908,8 @@ function bindEvents() {
 
   document.getElementById("extra-rental-open-btn").addEventListener("click", openExtraRentalModal);
   document.getElementById("extra-rental-cancel-btn").addEventListener("click", closeExtraRentalModal);
+  document.getElementById("extra-rental-close-btn").addEventListener("click", closeExtraRentalModal);
+  document.getElementById("extra-rental-modal").addEventListener("click", closeExtraRentalModal);
   document.getElementById("extra-rental-save-btn").addEventListener("click", createExtraRentalRequest);
 
   document.getElementById("manager-page-btn").addEventListener("click", openManagerPage);
@@ -1918,6 +1957,7 @@ function bindEvents() {
 }
 
 bindEvents();
+closeExtraRentalModal();
 setDefaultPrintMonth();
 restoreLogin();
 </script>
