@@ -60,17 +60,30 @@
     .budget-ok { background: #ecfdf5 !important; border-color: #bbf7d0 !important; color: #166534 !important; }
     .budget-warning { background: #fff7ed !important; border-color: #fdba74 !important; color: #c2410c !important; }
     #printArea { display: none; }
+    .print-top-row { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:8px; }
+    .print-title-box h2 { margin:0 0 6px; }
+    .print-title-box h3 { margin:0; }
+    .approval-table { width:150px !important; border-collapse:collapse; table-layout:fixed; flex:0 0 150px; }
+    .approval-table th, .approval-table td { border:1px solid #111; text-align:center; padding:4px; }
+    .approval-table th { height:24px; font-weight:800; background:#f3f4f6; }
+    .approval-table td { height:46px; }
     @media (max-width: 850px) { .grid, .grid-3, .summary, .summary.two { grid-template-columns: 1fr; } .top-box { flex-direction: column; align-items: stretch; } }
     @media print {
       body * { visibility: hidden; }
       #printArea, #printArea * { visibility: visible; }
       #printArea { display: block !important; position: absolute; left: 0; top: 0; width: 100%; background: white; padding: 12px; font-size: 11px; }
-      #printArea h2 { font-size: 18px; margin: 0 0 10px; }
-      #printArea h3 { font-size: 14px; margin: 6px 0 10px; }
+      .print-top-row { display:flex !important; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:8px; }
+      .print-title-box { flex:1; }
+      #printArea h2 { font-size: 18px; margin: 0 0 6px; }
+      #printArea h3 { font-size: 14px; margin: 0; }
       .print-summary { font-size: 12px; font-weight: 700; margin: 6px 0 10px; }
-      #printArea table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-      #printArea th, #printArea td { border: 1px solid #111; padding: 4px; font-size: 9.5px; word-break: keep-all; }
-      #printArea th { background: #f3f4f6; }
+      .approval-table { width:150px !important; border-collapse:collapse; table-layout:fixed; flex:0 0 150px; margin-left:auto; }
+      .approval-table th, .approval-table td { border:1px solid #111; padding:4px; font-size:10px; text-align:center; word-break:keep-all; }
+      .approval-table th { height:24px; background:#f3f4f6; font-weight:800; }
+      .approval-table td { height:46px; }
+      #printArea table:not(.approval-table) { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      #printArea table:not(.approval-table) th, #printArea table:not(.approval-table) td { border: 1px solid #111; padding: 4px; font-size: 9.5px; word-break: keep-all; }
+      #printArea table:not(.approval-table) th { background: #f3f4f6; }
     }
   </style>
 </head>
@@ -451,7 +464,7 @@ function getKoreanMonthTitle(month, age){ if(!month) return `소모품 신청서
 function exportExcel(){ const month = document.getElementById("filterMonth").value; const age = document.getElementById("filterAge").value; let items = load(STORAGE_KEYS.items).filter(x => !x.deleted); if(age === "공동") items = items.filter(x => x.isCommon); else { items = items.filter(x => !x.isCommon); if(age) items = items.filter(x => x.age === age); } if(month) items = items.filter(x => x.month === month); const title = getKoreanMonthTitle(month, age || "전체연령"); const total = items.reduce((sum, x) => sum + x.price * x.qty, 0); const header = ["번호","반 이름","신청자","품명","크기","색상","금액","단위","수량","구매처","사용용도","상품번호"]; const dataRows = items.map((x,i)=>[i+1,x.room || "-",x.writer || "-",x.itemName,x.itemSize || "-",x.itemColor || "-",x.price*x.qty,x.unit,x.qty,x.vendor,x.purpose || "-",x.productNo || ""]); const aoa = [[title, "", "", "", "", "", "", "", "", "담당", "원장", ""],["", "", "", "", "", "", "", "", "", "", "", ""],["", "", "", "", "", "", "", "", "", "", "", ""], header, ...dataRows, ["총계", "", "", "", "", "", money(total), "", "", "", "", ""]]; const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{wch:6},{wch:12},{wch:12},{wch:30},{wch:14},{wch:14},{wch:12},{wch:8},{wch:8},{wch:12},{wch:24},{wch:18}]; const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "소모품신청서"); XLSX.writeFile(wb, `${month || "전체"}_${age || "전체연령"}_소모품신청서.xlsx`); }
 function getFilteredCollectItems(){ const month = document.getElementById("filterMonth").value; const age = document.getElementById("filterAge").value; const roomText = document.getElementById("filterRoom").value.trim(); let items = load(STORAGE_KEYS.items).filter(x => !x.deleted); if(age === "공동"){ items = items.filter(x => x.isCommon); } else { items = items.filter(x => !x.isCommon); if(age) items = items.filter(x => x.age === age); if(roomText) items = items.filter(x => x.room.includes(roomText)); } if(month) items = items.filter(x => x.month === month); const ageOrder = ["만1세", "만2세", "만3세", "만4세", "만5세", "공동"]; items.sort((a, b) => { const ageA = a.isCommon ? "공동" : a.age; const ageB = b.isCommon ? "공동" : b.age; const ageDiff = ageOrder.indexOf(ageA) - ageOrder.indexOf(ageB); if(ageDiff !== 0) return ageDiff; const roomA = classMap[a.age]?.indexOf(a.room) ?? 999; const roomB = classMap[b.age]?.indexOf(b.room) ?? 999; if(roomA !== roomB) return roomA - roomB; return String(a.itemName || "").localeCompare(String(b.itemName || ""), "ko"); }); return items; }
 function makePrintTable(items){ let html = `<table><thead><tr><th style="width:5%">번호</th><th style="width:9%">반 이름</th><th style="width:8%">신청자</th><th style="width:10%">구매처</th><th style="width:10%">상품번호</th><th style="width:16%">품명</th><th style="width:8%">크기</th><th style="width:7%">색상</th><th style="width:8%">단가</th><th style="width:5%">단위</th><th style="width:5%">수량</th><th style="width:9%">금액</th><th style="width:14%">사용용도</th></tr></thead><tbody>`; if(items.length === 0){ return html + `<tr><td colspan="13">등록된 품목이 없습니다.</td></tr></tbody></table>`; } items.forEach((x, i) => { html += `<tr><td>${i + 1}</td><td>${x.room || "-"}</td><td>${x.writer || "-"}</td><td>${x.vendor || "-"}</td><td>${x.productNo || "-"}</td><td>${x.itemName || "-"}</td><td>${x.itemSize || "-"}</td><td>${x.itemColor || "-"}</td><td>${money(x.price)}</td><td>${x.unit || "-"}</td><td>${x.qty || 0}</td><td>${money((x.price || 0) * (x.qty || 0))}</td><td>${x.purpose || "-"}</td></tr>`; }); return html + `</tbody></table>`; }
-function printCollectOnly(){ try { renderCollect(); const title = document.getElementById("collectTitle")?.textContent || "소모품 신청서"; const items = getFilteredCollectItems(); const total = items.reduce((sum, x) => sum + (Number(x.price || 0) * Number(x.qty || 0)), 0); const tableHtml = makePrintTable(items); const printArea = document.getElementById("printArea"); if(!printArea){ alert("인쇄 영역을 찾을 수 없습니다."); return; } printArea.innerHTML = `<h2>탕정삼성어린이집 소모품 신청서</h2><h3>${title}</h3><p class="print-summary">총 품목 수: ${items.length}개&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;총 금액: ${money(total)}</p>${tableHtml}`; printArea.classList.remove("hidden"); printArea.style.display = "block"; setTimeout(() => { window.print(); setTimeout(() => { printArea.classList.add("hidden"); printArea.style.display = "none"; }, 800); }, 100); } catch(error) { console.error(error); alert("인쇄 준비 중 오류가 발생했습니다: " + error.message); } }
+function printCollectOnly(){ try { renderCollect(); const title = document.getElementById("collectTitle")?.textContent || "소모품 신청서"; const items = getFilteredCollectItems(); const total = items.reduce((sum, x) => sum + (Number(x.price || 0) * Number(x.qty || 0)), 0); const tableHtml = makePrintTable(items); const printArea = document.getElementById("printArea"); if(!printArea){ alert("인쇄 영역을 찾을 수 없습니다."); return; } printArea.innerHTML = `<div class="print-top-row"><div class="print-title-box"><h2>탕정삼성어린이집 소모품 신청서</h2><h3>${title}</h3></div><table class="approval-table"><thead><tr><th>담당</th><th>원장</th></tr></thead><tbody><tr><td></td><td></td></tr></tbody></table></div><p class="print-summary">총 품목 수: ${items.length}개&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;총 금액: ${money(total)}</p>${tableHtml}`; printArea.classList.remove("hidden"); printArea.style.display = "block"; setTimeout(() => { window.print(); setTimeout(() => { printArea.classList.add("hidden"); printArea.style.display = "none"; }, 800); }, 100); } catch(error) { console.error(error); alert("인쇄 준비 중 오류가 발생했습니다: " + error.message); } }
 async function init(){ if(!requireLogin()) return; await initializeStoresFromSupabase(); setDefaultMonth(); applyLoginProfile(); setupPermissionUI(); renderFixedSites(); loadVendorOptions(); startAutoLogout(); if(isConsumableManager()) setMode("teacher"); else { currentMode = "teacher"; setupPermissionUI(); openPanel("apply"); } }
 init();
 </script>
