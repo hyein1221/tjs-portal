@@ -45,6 +45,9 @@
     .summary.two { grid-template-columns: repeat(2, 1fr); }
     .summary div { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; font-weight: 800; }
     .small { font-size: 12px; color: #6b7280; font-weight: 500; }
+    td input, td select { min-width: 90px; padding: 7px; font-size: 12px; }
+    td .green, td .gray, td .blue, td .danger { padding: 7px 9px; font-size: 12px; }
+
     .site-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; line-height: 1.6; }
     .hidden { display: none !important; }
     .error-box, .success-box, .lock-notice { display: none; margin-top: 12px; padding: 12px 14px; border-radius: 12px; font-weight: 800; line-height: 1.5; }
@@ -169,6 +172,7 @@ let logoutRemain = AUTO_LOGOUT_SECONDS;
 let logoutTimerId = null;
 let currentUser = null;
 let currentMode = "teacher";
+let editingItemId = null;
 const classMap = { "만1세": ["햇빛반","달빛반","별빛반","풀빛반","온빛반"], "만2세": ["예빛반","봄빛반","물빛반","꿈빛반"], "만3세": ["한빛반","은빛반","새빛반"], "만4세": ["윤빛반","꽃빛반"], "만5세": ["들빛반","솔빛반"] };
 const AGE_BUDGETS = { "만1세": { total: 150000, rooms: 5 }, "만2세": { total: 150000, rooms: 4 }, "만3세": { total: 150000, rooms: 3 }, "만4세": { total: 150000, rooms: 2 }, "만5세": { total: 150000, rooms: 2 } };
 
@@ -235,6 +239,21 @@ function forceUnlockApply(){ document.getElementById("inputArea").classList.remo
 function clearInputs(ids){ ids.forEach(id => { const el = document.getElementById(id); if(el) el.value = ""; }); }
 function addItem(){ clearFormMessage(); const month = document.getElementById("month").value; const age = document.getElementById("age").value; const room = document.getElementById("room").value.trim(); const writer = document.getElementById("writer").value.trim(); let vendor = document.getElementById("vendor").value; const customVendorName = document.getElementById("customVendorName").value.trim(); const productNo = document.getElementById("productNo").value.trim(); if(vendor === "기타"){ if(!customVendorName){ showFormMessage("error", "⚠️ 기타 구매처명을 입력해주세요."); return; } vendor = customVendorName; } const itemName = document.getElementById("itemName").value.trim(); const price = Number(document.getElementById("price").value || 0); const qty = Number(document.getElementById("qty").value || 1); const newAmount = price * qty; if(isSubmitted(month, room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 품목을 추가하려면 신청 취소를 먼저 눌러주세요."); return; } if(!month || !vendor || !itemName){ showFormMessage("error", "⚠️ 연도/월, 구매처, 품명은 필수입니다."); return; } if(price <= 0){ showFormMessage("error", "⚠️ 금액을 입력해주세요."); return; } if(qty <= 0){ showFormMessage("error", "⚠️ 수량을 입력해주세요."); return; } if(vendor === "G마켓" && !productNo){ showFormMessage("error", "⚠️ G마켓 구매 품목은 상품번호를 입력해주세요."); return; } const roomBudget = getPerRoomBudget(age); const totalBudget = getAgeTotalBudget(age); const roomCurrentTotal = getRoomCurrentTotal(month, room); const ageCurrentTotal = getAgeCurrentTotal(month, age); if(roomBudget > 0 && roomCurrentTotal + newAmount > roomBudget){ showFormMessage("error", `🚨 금액이 초과되었습니다.<br>저장할 수 없습니다.<br><br>반명: ${room}<br>현재 반 사용액: ${money(roomCurrentTotal)}<br>추가 금액: ${money(newAmount)}<br>반별 한도: ${money(roomBudget)}`); renderMy(); return; } if(totalBudget > 0 && ageCurrentTotal + newAmount > totalBudget){ showFormMessage("error", `🚨 금액이 초과되었습니다.<br>저장할 수 없습니다.<br><br>연령: ${age}<br>현재 ${age} 전체 사용액: ${money(ageCurrentTotal)}<br>추가 금액: ${money(newAmount)}<br>${age} 전체 예산: ${money(totalBudget)}`); renderMy(); return; } const item = { id: uid(), month, age, room, writer, vendor, productNo: vendor === "G마켓" ? productNo : "", itemName, itemSize: document.getElementById("itemSize").value.trim(), itemColor: document.getElementById("itemColor").value.trim(), price, unit: document.getElementById("unit").value, qty, purpose: document.getElementById("purpose").value.trim(), createdBy: writer, createdAt: today(), deleted: false, isCommon: false }; const items = load(STORAGE_KEYS.items); items.push(item); save(STORAGE_KEYS.items, items); addHistory("추가", item.itemName, null, item); clearInputs(["productNo","customVendorName","itemName","itemSize","itemColor","price","purpose"]); document.getElementById("qty").value = 1; handleVendorChange("vendor", "productNoBox", "customVendorBox"); renderMy(); renderCollect(); renderHistory(); showFormMessage("success", "✅ 품목이 추가되었습니다."); }
 function canEdit(item){ return item.createdBy === currentUser.name || isConsumableManager(); }
+function escapeHtml(value){
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function makeUnitOptions(selected){
+  const units = ["EA", "SET", "BOX", "개", "권", "봉"];
+  if(selected && !units.includes(selected)) units.push(selected);
+  return units.map(unit => `<option value="${escapeHtml(unit)}" ${unit === selected ? "selected" : ""}>${escapeHtml(unit)}</option>`).join("");
+}
+
 function editItem(id){
   const items = load(STORAGE_KEYS.items);
   const item = items.find(x => x.id === id);
@@ -250,40 +269,101 @@ function editItem(id){
     return;
   }
 
+  editingItemId = id;
+  renderMy();
+  renderCommon();
+  renderCollect();
+}
+
+function cancelEditItem(){
+  editingItemId = null;
+  renderMy();
+  renderCommon();
+  renderCollect();
+}
+
+function editInputId(id, field){
+  return `edit-${id}-${field}`;
+}
+
+function getEditValue(id, field){
+  return document.getElementById(editInputId(id, field))?.value?.trim() || "";
+}
+
+function makeInlineEditCells(x, i, type="normal"){
+  const id = x.id;
+  const vendor = escapeHtml(x.vendor || "");
+  const productNo = escapeHtml(x.productNo || "");
+  const itemName = escapeHtml(x.itemName || "");
+  const itemSize = escapeHtml(x.itemSize || "");
+  const itemColor = escapeHtml(x.itemColor || "");
+  const price = escapeHtml(x.price || 0);
+  const qty = escapeHtml(x.qty || 1);
+  const purpose = escapeHtml(x.purpose || "");
+  const unitOptions = makeUnitOptions(x.unit || "EA");
+  const saveCancel = `<button class="green" onclick="saveInlineEditItem('${id}')">저장</button> <button class="gray" onclick="cancelEditItem()">취소</button>`;
+
+  if(type === "common"){
+    return `<tr class="budget-warning">
+      <td>${i+1}</td>
+      <td>${escapeHtml(x.writer || "-")}</td>
+      <td><input id="${editInputId(id, 'vendor')}" value="${vendor}" placeholder="구매처"></td>
+      <td><input id="${editInputId(id, 'productNo')}" value="${productNo}" placeholder="상품번호"></td>
+      <td><input id="${editInputId(id, 'itemName')}" value="${itemName}" placeholder="품명"></td>
+      <td><input id="${editInputId(id, 'itemSize')}" value="${itemSize}" placeholder="크기"></td>
+      <td><input id="${editInputId(id, 'itemColor')}" value="${itemColor}" placeholder="색상"></td>
+      <td><input id="${editInputId(id, 'price')}" type="number" value="${price}" placeholder="단가"></td>
+      <td><select id="${editInputId(id, 'unit')}">${unitOptions}</select></td>
+      <td><input id="${editInputId(id, 'qty')}" type="number" value="${qty}" placeholder="수량"></td>
+      <td>${money(Number(x.price || 0) * Number(x.qty || 0))}</td>
+      <td><input id="${editInputId(id, 'purpose')}" value="${purpose}" placeholder="사용용도"></td>
+      <td>${saveCancel}</td>
+    </tr>`;
+  }
+
+  return `<tr class="budget-warning">
+    <td>${i+1}</td>
+    <td>${escapeHtml(x.room || "-")}</td>
+    <td>${escapeHtml(x.writer || "-")}</td>
+    <td><input id="${editInputId(id, 'vendor')}" value="${vendor}" placeholder="구매처"></td>
+    <td><input id="${editInputId(id, 'productNo')}" value="${productNo}" placeholder="상품번호"></td>
+    <td><input id="${editInputId(id, 'itemName')}" value="${itemName}" placeholder="품명"></td>
+    <td><input id="${editInputId(id, 'itemSize')}" value="${itemSize}" placeholder="크기"></td>
+    <td><input id="${editInputId(id, 'itemColor')}" value="${itemColor}" placeholder="색상"></td>
+    <td><input id="${editInputId(id, 'price')}" type="number" value="${price}" placeholder="단가"></td>
+    <td><select id="${editInputId(id, 'unit')}">${unitOptions}</select></td>
+    <td><input id="${editInputId(id, 'qty')}" type="number" value="${qty}" placeholder="수량"></td>
+    <td>${money(Number(x.price || 0) * Number(x.qty || 0))}</td>
+    <td><input id="${editInputId(id, 'purpose')}" value="${purpose}" placeholder="사용용도"></td>
+    <td>${saveCancel}</td>
+  </tr>`;
+}
+
+function saveInlineEditItem(id){
+  const items = load(STORAGE_KEYS.items);
+  const item = items.find(x => x.id === id);
+  if(!item) return;
+
+  if(!item.isCommon && !isConsumableManager() && isSubmitted(item.month, item.room)){
+    alert("🔒 신청 완료 상태입니다. 수정하려면 신청 취소를 먼저 눌러주세요.");
+    return;
+  }
+
+  if(!canEdit(item)){
+    alert("⚠️ 본인이 작성한 항목만 수정할 수 있습니다.");
+    return;
+  }
+
   const before = {...item};
-
-  const newVendor = prompt("구매처를 수정하세요.", item.vendor || "");
-  if(newVendor === null) return;
-
-  const newProductNo = prompt("상품번호를 수정하세요. G마켓이 아니면 비워두셔도 됩니다.", item.productNo || "");
-  if(newProductNo === null) return;
-
-  const newItemName = prompt("품명을 수정하세요.", item.itemName || "");
-  if(newItemName === null) return;
-
-  const newItemSize = prompt("크기를 수정하세요.", item.itemSize || "");
-  if(newItemSize === null) return;
-
-  const newItemColor = prompt("색상을 수정하세요.", item.itemColor || "");
-  if(newItemColor === null) return;
-
-  const newPriceText = prompt("단가를 수정하세요.", item.price || 0);
-  if(newPriceText === null) return;
-
-  const newUnit = prompt("단위를 수정하세요. 예: EA, SET, BOX, 개, 권, 봉", item.unit || "EA");
-  if(newUnit === null) return;
-
-  const newQtyText = prompt("수량을 수정하세요.", item.qty || 1);
-  if(newQtyText === null) return;
-
-  const newPurpose = prompt("사용용도를 수정하세요.", item.purpose || "");
-  if(newPurpose === null) return;
-
-  const vendor = newVendor.trim();
-  const productNo = newProductNo.trim();
-  const itemName = newItemName.trim();
-  const price = Number(newPriceText || 0);
-  const qty = Number(newQtyText || 0);
+  const vendor = getEditValue(id, "vendor");
+  const productNo = getEditValue(id, "productNo");
+  const itemName = getEditValue(id, "itemName");
+  const itemSize = getEditValue(id, "itemSize");
+  const itemColor = getEditValue(id, "itemColor");
+  const price = Number(getEditValue(id, "price") || 0);
+  const unit = getEditValue(id, "unit") || "EA";
+  const qty = Number(getEditValue(id, "qty") || 0);
+  const purpose = getEditValue(id, "purpose");
 
   if(!vendor || !itemName){
     alert("구매처와 품명은 비워둘 수 없습니다.");
@@ -325,37 +405,41 @@ function editItem(id){
   }
 
   item.vendor = vendor;
-  item.productNo = vendor === "G마켓" ? productNo : productNo;
+  item.productNo = productNo;
   item.itemName = itemName;
-  item.itemSize = newItemSize.trim();
-  item.itemColor = newItemColor.trim();
+  item.itemSize = itemSize;
+  item.itemColor = itemColor;
   item.price = price;
-  item.unit = newUnit.trim() || "EA";
+  item.unit = unit;
   item.qty = qty;
-  item.purpose = newPurpose.trim();
+  item.purpose = purpose;
   item.updatedBy = currentUser.name;
   item.updatedAt = today();
 
   save(STORAGE_KEYS.items, items);
   addHistory("수정", before.itemName, before, {...item});
+  editingItemId = null;
   renderMy();
   renderCommon();
   renderCollect();
   renderHistory();
-  alert("✅ 품목이 수정되었습니다.");
+
+  if(document.getElementById("panel-apply")?.classList.contains("active")){
+    showFormMessage("success", "✅ 품목이 수정되었습니다.");
+  }
 }
 function softDeleteItem(id){ const items = load(STORAGE_KEYS.items); const item = items.find(x => x.id === id); if(!item) return; if(!item.isCommon && !isConsumableManager() && isSubmitted(item.month, item.room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 삭제하려면 신청 취소를 먼저 눌러주세요."); return; } if(!canEdit(item)){ showFormMessage("error", "⚠️ 본인이 작성한 항목만 삭제할 수 있습니다."); return; } const before = {...item}; item.deleted = true; item.deletedBy = currentUser.name; item.deletedAt = today(); save(STORAGE_KEYS.items, items); addHistory("삭제", item.itemName, before, item); renderMy(); renderCommon(); renderCollect(); renderHistory(); if(document.getElementById("formSuccess")) showFormMessage("success", "✅ 삭제 처리되었습니다."); }
 function restoreItem(id){ if(!isOwnerAdmin()){ alert("최고관리자만 복구할 수 있습니다."); return; } const items = load(STORAGE_KEYS.items); const item = items.find(x => x.id === id); if(!item) return; const before = {...item}; item.deleted = false; item.restoredBy = currentUser.name; item.restoredAt = today(); save(STORAGE_KEYS.items, items); addHistory("복구", item.itemName, before, item); renderMy(); renderCommon(); renderCollect(); renderHistory(); }
 function submitRoom(){ clearFormMessage(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; const writer = document.getElementById("writer").value.trim(); const roomItems = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon); if(!month){ showFormMessage("error", "⚠️ 연도/월을 확인해주세요."); return; } if(roomItems.length === 0){ showFormMessage("error", "⚠️ 신청 품목이 없습니다. 품목을 추가한 뒤 신청 완료를 눌러주세요."); return; } const statuses = load(STORAGE_KEYS.roomStatus).filter(s => !(s.month === month && s.room === room)); statuses.push({ id: uid(), month, age, room, writer, status: "제출완료", submittedBy: writer, submittedAt: today() }); save(STORAGE_KEYS.roomStatus, statuses); addHistory("신청 완료", room, null, {month, age, room, writer}); renderMy(); renderCollect(); showFormMessage("success", "✅ 신청 완료 처리되었습니다. 신청 목록이 잠금 상태로 변경되었습니다."); }
 function cancelSubmit(){ clearFormMessage(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const statuses = load(STORAGE_KEYS.roomStatus).filter(s => !(s.month === month && s.room === room)); save(STORAGE_KEYS.roomStatus, statuses); addHistory("신청 취소", room, {month, room, status:"제출완료"}, {month, room, status:"작성중"}); forceUnlockApply(); renderMy(); renderCollect(); showFormMessage("success", "✅ 신청 취소되었습니다. 다시 수정할 수 있습니다."); }
 function renderMy(){ const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; const items = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon); const roomTotal = items.reduce((sum, x) => sum + x.price * x.qty, 0); const ageTotal = getAgeCurrentTotal(month, age); const roomBudget = getPerRoomBudget(age); const totalBudget = getAgeTotalBudget(age); document.getElementById("myCount").textContent = items.length; document.getElementById("myTotal").textContent = money(roomTotal); updateRoomTitle(); const totalBox = document.getElementById("myTotalBox"); const budgetMessage = document.getElementById("budgetMessage"); const budgetStatus = document.getElementById("budgetStatus"); totalBox.classList.remove("over-budget", "budget-ok", "budget-warning"); if(totalBudget > 0 && roomBudget > 0){ const roomRemaining = roomBudget - roomTotal; const ageRemaining = totalBudget - ageTotal; if(roomRemaining < 0 || ageRemaining < 0){ totalBox.classList.add("over-budget"); budgetMessage.textContent = `초과 / 반 한도 ${money(roomBudget)} · ${age} 전체 ${money(totalBudget)}`; budgetStatus.textContent = "초과"; } else if(roomRemaining <= roomBudget * .1 || ageRemaining <= totalBudget * .1){ totalBox.classList.add("budget-warning"); budgetMessage.textContent = `반 남은 금액 ${money(roomRemaining)} / ${age} 전체 남은 금액 ${money(ageRemaining)}`; budgetStatus.textContent = "주의"; } else { totalBox.classList.add("budget-ok"); budgetMessage.textContent = `반 남은 금액 ${money(roomRemaining)} / ${age} 전체 남은 금액 ${money(ageRemaining)}`; budgetStatus.textContent = "정상"; } } else { budgetMessage.textContent = "예산 미입력"; budgetStatus.textContent = "미설정"; } const st = load(STORAGE_KEYS.roomStatus).find(s => s.month === month && s.room === room)?.status || "작성중"; const locked = st === "제출완료"; document.getElementById("myStatus").textContent = st; document.getElementById("inputArea").classList.toggle("locked-area", locked); document.getElementById("lockNotice").style.display = locked ? "block" : "none"; document.getElementById("addBtn").disabled = locked; document.getElementById("copyBtn").disabled = locked; document.getElementById("submitBtn").style.display = locked ? "none" : "inline-block"; document.getElementById("cancelSubmitBtn").style.display = locked ? "inline-block" : "none"; document.getElementById("myTable").innerHTML = makeItemTable(items, locked); }
-function makeItemTable(items, locked=false){ let html = `<tr><th>번호</th><th>반 이름</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`; if(items.length === 0) return html + `<tr><td colspan="14">등록된 품목이 없습니다.</td></tr>`; items.forEach((x, i) => { html += `<tr class="${locked ? "locked-row" : ""}"><td>${i+1}</td><td>${x.room || "-"}</td><td>${x.writer || "-"}</td><td>${x.vendor || "-"}</td><td>${x.productNo || "-"}</td><td class="left">${x.itemName}</td><td>${x.itemSize || "-"}</td><td>${x.itemColor || "-"}</td><td>${money(x.price)}</td><td>${x.unit}</td><td>${x.qty}</td><td>${money(x.price * x.qty)}</td><td class="left">${x.purpose || "-"}</td><td>${locked && !isConsumableManager() ? "잠금" : (canEdit(x) ? `<button class="blue" onclick="editItem('${x.id}')">수정</button> <button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button>` : "-")}</td></tr>`; }); return html; }
+function makeItemTable(items, locked=false){ let html = `<tr><th>번호</th><th>반 이름</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`; if(items.length === 0) return html + `<tr><td colspan="14">등록된 품목이 없습니다.</td></tr>`; items.forEach((x, i) => { if(editingItemId === x.id){ html += makeInlineEditCells(x, i, "normal"); return; } html += `<tr class="${locked ? "locked-row" : ""}"><td>${i+1}</td><td>${escapeHtml(x.room || "-")}</td><td>${escapeHtml(x.writer || "-")}</td><td>${escapeHtml(x.vendor || "-")}</td><td>${escapeHtml(x.productNo || "-")}</td><td class="left">${escapeHtml(x.itemName)}</td><td>${escapeHtml(x.itemSize || "-")}</td><td>${escapeHtml(x.itemColor || "-")}</td><td>${money(x.price)}</td><td>${escapeHtml(x.unit)}</td><td>${escapeHtml(x.qty)}</td><td>${money(x.price * x.qty)}</td><td class="left">${escapeHtml(x.purpose || "-")}</td><td>${locked && !isConsumableManager() ? "잠금" : (canEdit(x) ? `<button class="blue" onclick="editItem('${x.id}')">수정</button> <button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button>` : "-")}</td></tr>`; }); return html; }
 function addCommonItem(){ if(!isConsumableManager()) return; let vendor = document.getElementById("commonVendor").value; const customVendorName = document.getElementById("commonCustomVendorName").value.trim(); const productNo = document.getElementById("commonProductNo").value.trim(); if(vendor === "기타"){ if(!customVendorName){ alert("기타 구매처명을 입력해주세요."); return; } vendor = customVendorName; } const month = document.getElementById("commonMonth").value; const writer = currentUser.name; const itemName = document.getElementById("commonItemName").value.trim(); const price = Number(document.getElementById("commonPrice").value || 0); const qty = Number(document.getElementById("commonQty").value || 1); if(!month || !vendor || !itemName || price <= 0 || qty <= 0){ alert("월, 구매처, 품명, 금액, 수량을 확인해주세요."); return; } if(vendor === "G마켓" && !productNo){ alert("G마켓 구매 품목은 상품번호를 입력해주세요."); return; } const item = { id: uid(), month, age: "공동", room: "공동소모품", writer, vendor, productNo: vendor === "G마켓" ? productNo : "", itemName, itemSize: document.getElementById("commonItemSize").value.trim(), itemColor: document.getElementById("commonItemColor").value.trim(), price, unit: document.getElementById("commonUnit").value, qty, purpose: document.getElementById("commonPurpose").value.trim() || "공동 소모품", createdBy: writer, createdAt: today(), deleted: false, isCommon: true }; const items = load(STORAGE_KEYS.items); items.push(item); save(STORAGE_KEYS.items, items); addHistory("공동 소모품 추가", item.itemName, null, item); clearInputs(["commonProductNo","commonCustomVendorName","commonItemName","commonItemSize","commonItemColor","commonPrice","commonPurpose"]); document.getElementById("commonQty").value = 1; handleVendorChange("commonVendor", "commonProductNoBox", "commonCustomVendorBox"); renderCommon(); renderCollect(); const msg = document.getElementById("commonMessage"); msg.textContent = "✅ 공동 품목이 추가되었습니다."; msg.style.display = "block"; }
 function renderCommon(){ if(!isConsumableManager()) return; const month = document.getElementById("commonMonth").value; let items = load(STORAGE_KEYS.items).filter(x => x.isCommon && !x.deleted); if(month) items = items.filter(x => x.month === month); const total = items.reduce((sum, x) => sum + x.price * x.qty, 0); document.getElementById("commonCount").textContent = items.length; document.getElementById("commonTotal").textContent = money(total); document.getElementById("commonTable").innerHTML = makeCommonTable(items); }
-function makeCommonTable(items){ let html = `<tr><th>번호</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`; if(items.length === 0) return html + `<tr><td colspan="13">등록된 품목이 없습니다.</td></tr>`; items.forEach((x, i) => { html += `<tr><td>${i+1}</td><td>${x.writer || "-"}</td><td>${x.vendor || "-"}</td><td>${x.productNo || "-"}</td><td class="left">${x.itemName}</td><td>${x.itemSize || "-"}</td><td>${x.itemColor || "-"}</td><td>${money(x.price)}</td><td>${x.unit}</td><td>${x.qty}</td><td>${money(x.price * x.qty)}</td><td class="left">${x.purpose || "-"}</td><td><button class="blue" onclick="editItem('${x.id}')">수정</button> <button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button></td></tr>`; }); return html; }
+function makeCommonTable(items){ let html = `<tr><th>번호</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`; if(items.length === 0) return html + `<tr><td colspan="13">등록된 품목이 없습니다.</td></tr>`; items.forEach((x, i) => { if(editingItemId === x.id){ html += makeInlineEditCells(x, i, "common"); return; } html += `<tr><td>${i+1}</td><td>${escapeHtml(x.writer || "-")}</td><td>${escapeHtml(x.vendor || "-")}</td><td>${escapeHtml(x.productNo || "-")}</td><td class="left">${escapeHtml(x.itemName)}</td><td>${escapeHtml(x.itemSize || "-")}</td><td>${escapeHtml(x.itemColor || "-")}</td><td>${money(x.price)}</td><td>${escapeHtml(x.unit)}</td><td>${escapeHtml(x.qty)}</td><td>${money(x.price * x.qty)}</td><td class="left">${escapeHtml(x.purpose || "-")}</td><td><button class="blue" onclick="editItem('${x.id}')">수정</button> <button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button></td></tr>`; }); return html; }
 function setAgeFilter(age){ document.getElementById("filterAge").value = age; renderCollect(); }
 function renderCollect(){ if(!isConsumableManager()) return; const month = document.getElementById("filterMonth").value; const age = document.getElementById("filterAge").value; const items = getFilteredCollectItems(); const total = items.reduce((sum, x) => sum + (Number(x.price || 0) * Number(x.qty || 0)), 0); document.getElementById("collectTitle").textContent = getKoreanMonthTitle(month, age || "전체연령"); document.getElementById("allCount").textContent = items.length; document.getElementById("allTotal").textContent = money(total); if(age === "공동"){ document.getElementById("submittedRooms").textContent = "-"; document.getElementById("draftRooms").textContent = "-"; } else { const targetRooms = age && classMap[age] ? classMap[age] : Object.values(classMap).flat(); const statuses = load(STORAGE_KEYS.roomStatus).filter(s => (!month || s.month === month) && (!age || s.age === age)); const submittedRooms = targetRooms.filter(room => statuses.some(s => s.room === room && s.status === "제출완료")); const draftRooms = targetRooms.filter(room => !submittedRooms.includes(room)); document.getElementById("submittedRooms").textContent = submittedRooms.length ? submittedRooms.join(", ") : "없음"; document.getElementById("draftRooms").textContent = draftRooms.length ? draftRooms.join(", ") : "없음"; } document.getElementById("allTable").innerHTML = makeCollectTable(items); }
-function makeCollectTable(items){ let html = `<tr><th>번호</th><th>반 이름</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`; if(items.length === 0) return html + `<tr><td colspan="14">등록된 품목이 없습니다.</td></tr>`; items.forEach((x, i) => { html += `<tr><td>${i+1}</td><td>${x.room || "-"}</td><td>${x.writer || "-"}</td><td>${x.vendor || "-"}</td><td>${x.productNo || "-"}</td><td class="left">${x.itemName}</td><td>${x.itemSize || "-"}</td><td>${x.itemColor || "-"}</td><td>${money(x.price)}</td><td>${x.unit}</td><td>${x.qty}</td><td>${money(x.price * x.qty)}</td><td class="left">${x.purpose || "-"}</td><td><button class="blue" onclick="editItem('${x.id}')">수정</button> <button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button></td></tr>`; }); return html; }
+function makeCollectTable(items){ let html = `<tr><th>번호</th><th>반 이름</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`; if(items.length === 0) return html + `<tr><td colspan="14">등록된 품목이 없습니다.</td></tr>`; items.forEach((x, i) => { if(editingItemId === x.id){ html += makeInlineEditCells(x, i, "normal"); return; } html += `<tr><td>${i+1}</td><td>${escapeHtml(x.room || "-")}</td><td>${escapeHtml(x.writer || "-")}</td><td>${escapeHtml(x.vendor || "-")}</td><td>${escapeHtml(x.productNo || "-")}</td><td class="left">${escapeHtml(x.itemName)}</td><td>${escapeHtml(x.itemSize || "-")}</td><td>${escapeHtml(x.itemColor || "-")}</td><td>${money(x.price)}</td><td>${escapeHtml(x.unit)}</td><td>${escapeHtml(x.qty)}</td><td>${money(x.price * x.qty)}</td><td class="left">${escapeHtml(x.purpose || "-")}</td><td><button class="blue" onclick="editItem('${x.id}')">수정</button> <button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button></td></tr>`; }); return html; }
 async function renderFixedSites(){ const box = document.getElementById("fixedSites"); const manageBox = document.getElementById("siteManageBox"); if(manageBox) manageBox.classList.toggle("hidden", !isOwner()); box.innerHTML = `<div class="site-card">구매 가능 사이트를 불러오는 중입니다...</div>`; const { data, error } = await supabaseClient.from("purchase_sites").select("*").eq("is_active", true).order("created_at", { ascending: true }); if(error){ box.innerHTML = `<div class="site-card">사이트 목록을 불러오지 못했습니다.</div>`; return; } if(!data || !data.length){ box.innerHTML = `<div class="site-card">등록된 구매 가능 사이트가 없습니다.</div>`; return; } box.innerHTML = data.map(site => `<div class="site-card"><b>${site.site_name}</b><br><span class="small">${site.memo || ""}</span><br><a href="${site.site_url}" target="_blank">사이트 바로가기</a>${isOwner() ? `<br><button class="danger" onclick="deletePurchaseSite('${site.id}')">삭제</button>` : ""}</div>`).join(""); }
 async function loadVendorOptions(){ const selects = [document.getElementById("vendor"), document.getElementById("commonVendor")].filter(Boolean); selects.forEach(select => { select.innerHTML = `<option value="">구매처 선택</option>`; }); const { data, error } = await supabaseClient.from("purchase_sites").select("*").eq("is_active", true).order("created_at", { ascending: true }); if(error){ selects.forEach(select => { select.innerHTML = `<option value="">구매처 불러오기 실패</option><option value="기타">기타</option>`; }); return; } (data || []).forEach(site => { selects.forEach(select => { select.innerHTML += `<option value="${site.site_name}">${site.site_name}</option>`; }); }); selects.forEach(select => { select.innerHTML += `<option value="기타">기타</option>`; }); handleVendorChange("vendor", "productNoBox", "customVendorBox"); handleVendorChange("commonVendor", "commonProductNoBox", "commonCustomVendorBox"); }
 async function addPurchaseSite(){ if(!isOwner()){ alert("구매 가능 사이트 추가는 hyeinkk 계정만 가능합니다."); return; } const siteName = document.getElementById("siteName").value.trim(); const siteUrl = document.getElementById("siteUrl").value.trim(); const memo = document.getElementById("siteMemo").value.trim(); if(!siteName || !siteUrl){ alert("사이트명과 사이트 주소를 입력해주세요."); return; } const { error } = await supabaseClient.from("purchase_sites").insert([{ site_name: siteName, site_url: siteUrl, memo, created_by: currentUser.name, is_active: true }]); if(error){ alert("사이트 추가 실패: " + error.message); return; } clearInputs(["siteName","siteUrl","siteMemo"]); alert("구매 가능 사이트가 추가되었습니다."); renderFixedSites(); loadVendorOptions(); }
