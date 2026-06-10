@@ -61,43 +61,13 @@
     @media print {
       body * { visibility: hidden; }
       #printArea, #printArea * { visibility: visible; }
-      #printArea {
-        display: block !important;
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        background: white;
-        padding: 12px;
-        font-size: 11px;
-      }
-      #printArea h2 {
-        font-size: 18px;
-        margin: 0 0 10px;
-      }
-      #printArea h3 {
-        font-size: 14px;
-        margin: 6px 0 10px;
-      }
-      .print-summary {
-        font-size: 12px;
-        font-weight: 700;
-        margin: 6px 0 10px;
-      }
-      #printArea table {
-        width: 100%;
-        border-collapse: collapse;
-        table-layout: fixed;
-      }
-      #printArea th, #printArea td {
-        border: 1px solid #111;
-        padding: 4px;
-        font-size: 9.5px;
-        word-break: keep-all;
-      }
-      #printArea th {
-        background: #f3f4f6;
-      }
+      #printArea { display: block !important; position: absolute; left: 0; top: 0; width: 100%; background: white; padding: 12px; font-size: 11px; }
+      #printArea h2 { font-size: 18px; margin: 0 0 10px; }
+      #printArea h3 { font-size: 14px; margin: 6px 0 10px; }
+      .print-summary { font-size: 12px; font-weight: 700; margin: 6px 0 10px; }
+      #printArea table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      #printArea th, #printArea td { border: 1px solid #111; padding: 4px; font-size: 9.5px; word-break: keep-all; }
+      #printArea th { background: #f3f4f6; }
     }
   </style>
 </head>
@@ -193,6 +163,7 @@ const supabaseKey = "sb_publishable_Q0cXaglzBaz9Py2oct_NTQ_vMHsUeSQ";
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 const OWNER_USERNAME = "hyeinkk";
 const STORAGE_KEYS = { items: 'consumable_items_v4', history: 'consumable_history_v4', roomStatus: 'consumable_room_status_v4' };
+let storeCache = { consumable_items_v4: [], consumable_history_v4: [], consumable_room_status_v4: [] };
 const AUTO_LOGOUT_SECONDS = 30 * 60;
 let logoutRemain = AUTO_LOGOUT_SECONDS;
 let logoutTimerId = null;
@@ -200,8 +171,36 @@ let currentUser = null;
 let currentMode = "teacher";
 const classMap = { "만1세": ["햇빛반","달빛반","별빛반","풀빛반","온빛반"], "만2세": ["예빛반","봄빛반","물빛반","꿈빛반"], "만3세": ["한빛반","은빛반","새빛반"], "만4세": ["윤빛반","꽃빛반"], "만5세": ["들빛반","솔빛반"] };
 const AGE_BUDGETS = { "만1세": { total: 150000, rooms: 5 }, "만2세": { total: 150000, rooms: 4 }, "만3세": { total: 150000, rooms: 3 }, "만4세": { total: 150000, rooms: 2 }, "만5세": { total: 150000, rooms: 2 } };
-function load(key){ return JSON.parse(localStorage.getItem(key) || '[]'); }
-function save(key, data){ localStorage.setItem(key, JSON.stringify(data)); }
+
+function load(key){ return JSON.parse(JSON.stringify(storeCache[key] || [])); }
+function save(key, data){ storeCache[key] = data; localStorage.setItem(key, JSON.stringify(data)); saveStoreToSupabase(key, data); }
+async function saveStoreToSupabase(key, data){
+  const { error } = await supabaseClient.from("consumables_store").upsert({ store_key: key, data: data, updated_at: new Date().toISOString() }, { onConflict: "store_key" });
+  if(error){ console.error("Supabase 저장 실패:", error.message); alert("공용 저장소 저장 실패: " + error.message); }
+}
+function mergeById(remoteArr, localArr){
+  const map = new Map();
+  (remoteArr || []).forEach(item => { if(item && item.id) map.set(item.id, item); });
+  (localArr || []).forEach(item => { if(item && item.id && !map.has(item.id)) map.set(item.id, item); });
+  return Array.from(map.values());
+}
+async function initializeStoresFromSupabase(){
+  const keys = Object.values(STORAGE_KEYS);
+  const { data, error } = await supabaseClient.from("consumables_store").select("store_key, data").in("store_key", keys);
+  if(error){ alert("소모품 공용 데이터를 불러오지 못했습니다: " + error.message); return; }
+  const remoteMap = {};
+  (data || []).forEach(row => { remoteMap[row.store_key] = Array.isArray(row.data) ? row.data : []; });
+  for(const key of keys){
+    const remoteData = remoteMap[key] || [];
+    let localData = [];
+    try { localData = JSON.parse(localStorage.getItem(key) || "[]"); } catch { localData = []; }
+    const merged = mergeById(remoteData, localData);
+    storeCache[key] = merged;
+    localStorage.setItem(key, JSON.stringify(merged));
+    await saveStoreToSupabase(key, merged);
+  }
+}
+
 function money(n){ return Number(n || 0).toLocaleString("ko-KR") + "원"; }
 function today(){ return new Date().toLocaleString("ko-KR"); }
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2); }
@@ -246,47 +245,7 @@ function addCommonItem(){ if(!isConsumableManager()) return; let vendor = docume
 function renderCommon(){ if(!isConsumableManager()) return; const month = document.getElementById("commonMonth").value; let items = load(STORAGE_KEYS.items).filter(x => x.isCommon && !x.deleted); if(month) items = items.filter(x => x.month === month); const total = items.reduce((sum, x) => sum + x.price * x.qty, 0); document.getElementById("commonCount").textContent = items.length; document.getElementById("commonTotal").textContent = money(total); document.getElementById("commonTable").innerHTML = makeCommonTable(items); }
 function makeCommonTable(items){ let html = `<tr><th>번호</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`; if(items.length === 0) return html + `<tr><td colspan="13">등록된 품목이 없습니다.</td></tr>`; items.forEach((x, i) => { html += `<tr><td>${i+1}</td><td>${x.writer || "-"}</td><td>${x.vendor || "-"}</td><td>${x.productNo || "-"}</td><td class="left">${x.itemName}</td><td>${x.itemSize || "-"}</td><td>${x.itemColor || "-"}</td><td>${money(x.price)}</td><td>${x.unit}</td><td>${x.qty}</td><td>${money(x.price * x.qty)}</td><td class="left">${x.purpose || "-"}</td><td><button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button></td></tr>`; }); return html; }
 function setAgeFilter(age){ document.getElementById("filterAge").value = age; renderCollect(); }
-function renderCollect(){
-  if(!isConsumableManager()) return;
-
-  const month = document.getElementById("filterMonth").value;
-  const age = document.getElementById("filterAge").value;
-  const items = getFilteredCollectItems();
-  const total = items.reduce((sum, x) => sum + (Number(x.price || 0) * Number(x.qty || 0)), 0);
-
-  document.getElementById("collectTitle").textContent = getKoreanMonthTitle(month, age || "전체연령");
-  document.getElementById("allCount").textContent = items.length;
-  document.getElementById("allTotal").textContent = money(total);
-
-  if(age === "공동"){
-    document.getElementById("submittedRooms").textContent = "-";
-    document.getElementById("draftRooms").textContent = "-";
-  } else {
-    const targetRooms = age && classMap[age]
-      ? classMap[age]
-      : Object.values(classMap).flat();
-
-    const statuses = load(STORAGE_KEYS.roomStatus).filter(s =>
-      (!month || s.month === month) &&
-      (!age || s.age === age)
-    );
-
-    const submittedRooms = targetRooms.filter(room =>
-      statuses.some(s => s.room === room && s.status === "제출완료")
-    );
-
-    const draftRooms = targetRooms.filter(room => !submittedRooms.includes(room));
-
-    document.getElementById("submittedRooms").textContent =
-      submittedRooms.length ? submittedRooms.join(", ") : "없음";
-
-    document.getElementById("draftRooms").textContent =
-      draftRooms.length ? draftRooms.join(", ") : "없음";
-  }
-
-  document.getElementById("allTable").innerHTML = makeCollectTable(items);
-}
-
+function renderCollect(){ if(!isConsumableManager()) return; const month = document.getElementById("filterMonth").value; const age = document.getElementById("filterAge").value; const items = getFilteredCollectItems(); const total = items.reduce((sum, x) => sum + (Number(x.price || 0) * Number(x.qty || 0)), 0); document.getElementById("collectTitle").textContent = getKoreanMonthTitle(month, age || "전체연령"); document.getElementById("allCount").textContent = items.length; document.getElementById("allTotal").textContent = money(total); if(age === "공동"){ document.getElementById("submittedRooms").textContent = "-"; document.getElementById("draftRooms").textContent = "-"; } else { const targetRooms = age && classMap[age] ? classMap[age] : Object.values(classMap).flat(); const statuses = load(STORAGE_KEYS.roomStatus).filter(s => (!month || s.month === month) && (!age || s.age === age)); const submittedRooms = targetRooms.filter(room => statuses.some(s => s.room === room && s.status === "제출완료")); const draftRooms = targetRooms.filter(room => !submittedRooms.includes(room)); document.getElementById("submittedRooms").textContent = submittedRooms.length ? submittedRooms.join(", ") : "없음"; document.getElementById("draftRooms").textContent = draftRooms.length ? draftRooms.join(", ") : "없음"; } document.getElementById("allTable").innerHTML = makeCollectTable(items); }
 function makeCollectTable(items){ let html = `<tr><th>번호</th><th>반 이름</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`; if(items.length === 0) return html + `<tr><td colspan="14">등록된 품목이 없습니다.</td></tr>`; items.forEach((x, i) => { html += `<tr><td>${i+1}</td><td>${x.room || "-"}</td><td>${x.writer || "-"}</td><td>${x.vendor || "-"}</td><td>${x.productNo || "-"}</td><td class="left">${x.itemName}</td><td>${x.itemSize || "-"}</td><td>${x.itemColor || "-"}</td><td>${money(x.price)}</td><td>${x.unit}</td><td>${x.qty}</td><td>${money(x.price * x.qty)}</td><td class="left">${x.purpose || "-"}</td><td><button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button></td></tr>`; }); return html; }
 async function renderFixedSites(){ const box = document.getElementById("fixedSites"); const manageBox = document.getElementById("siteManageBox"); if(manageBox) manageBox.classList.toggle("hidden", !isOwner()); box.innerHTML = `<div class="site-card">구매 가능 사이트를 불러오는 중입니다...</div>`; const { data, error } = await supabaseClient.from("purchase_sites").select("*").eq("is_active", true).order("created_at", { ascending: true }); if(error){ box.innerHTML = `<div class="site-card">사이트 목록을 불러오지 못했습니다.</div>`; return; } if(!data || !data.length){ box.innerHTML = `<div class="site-card">등록된 구매 가능 사이트가 없습니다.</div>`; return; } box.innerHTML = data.map(site => `<div class="site-card"><b>${site.site_name}</b><br><span class="small">${site.memo || ""}</span><br><a href="${site.site_url}" target="_blank">사이트 바로가기</a>${isOwner() ? `<br><button class="danger" onclick="deletePurchaseSite('${site.id}')">삭제</button>` : ""}</div>`).join(""); }
 async function loadVendorOptions(){ const selects = [document.getElementById("vendor"), document.getElementById("commonVendor")].filter(Boolean); selects.forEach(select => { select.innerHTML = `<option value="">구매처 선택</option>`; }); const { data, error } = await supabaseClient.from("purchase_sites").select("*").eq("is_active", true).order("created_at", { ascending: true }); if(error){ selects.forEach(select => { select.innerHTML = `<option value="">구매처 불러오기 실패</option><option value="기타">기타</option>`; }); return; } (data || []).forEach(site => { selects.forEach(select => { select.innerHTML += `<option value="${site.site_name}">${site.site_name}</option>`; }); }); selects.forEach(select => { select.innerHTML += `<option value="기타">기타</option>`; }); handleVendorChange("vendor", "productNoBox", "customVendorBox"); handleVendorChange("commonVendor", "commonProductNoBox", "commonCustomVendorBox"); }
@@ -297,126 +256,10 @@ function deleteHistory(historyId){ if(!isOwnerAdmin()){ alert("기록 삭제는 
 function copyLastMonth(){ clearFormMessage(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; if(isSubmitted(month, room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 복사하려면 신청 취소를 먼저 눌러주세요."); return; } if(!month || !room){ alert("월과 반명을 확인해주세요."); return; } const d = new Date(month + "-01"); d.setMonth(d.getMonth() - 1); const lastMonth = d.toISOString().slice(0,7); const items = load(STORAGE_KEYS.items); const targets = items.filter(x => x.month === lastMonth && x.room === room && !x.deleted && !x.isCommon); if(targets.length === 0){ alert("지난달 신청 품목이 없습니다."); return; } const copiedAmount = targets.reduce((sum, x) => sum + x.price * x.qty, 0); const roomBudget = getPerRoomBudget(age); const totalBudget = getAgeTotalBudget(age); const roomCurrentTotal = getRoomCurrentTotal(month, room); const ageCurrentTotal = getAgeCurrentTotal(month, age); if(roomBudget > 0 && roomCurrentTotal + copiedAmount > roomBudget){ alert(`지난달 신청서를 복사하면 반별 한도를 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n반별 한도: ${money(roomBudget)}`); return; } if(totalBudget > 0 && ageCurrentTotal + copiedAmount > totalBudget){ alert(`지난달 신청서를 복사하면 연령 전체 예산을 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n${age} 전체 예산: ${money(totalBudget)}`); return; } const copied = targets.map(x => ({...x, id: uid(), month, writer: currentUser.name, createdBy: currentUser.name, createdAt: today(), deleted: false})); save(STORAGE_KEYS.items, items.concat(copied)); addHistory("지난달 복사", room, {lastMonth}, {month, count: copied.length}); renderMy(); renderCollect(); renderHistory(); }
 function getKoreanMonthTitle(month, age){ if(!month) return `소모품 신청서(${age || "전체연령"})`; const [, mm] = month.split("-"); return `${Number(mm)}월 소모품 신청서(${age || "전체연령"})`; }
 function exportExcel(){ const month = document.getElementById("filterMonth").value; const age = document.getElementById("filterAge").value; let items = load(STORAGE_KEYS.items).filter(x => !x.deleted); if(age === "공동") items = items.filter(x => x.isCommon); else { items = items.filter(x => !x.isCommon); if(age) items = items.filter(x => x.age === age); } if(month) items = items.filter(x => x.month === month); const title = getKoreanMonthTitle(month, age || "전체연령"); const total = items.reduce((sum, x) => sum + x.price * x.qty, 0); const header = ["번호","반 이름","신청자","품명","크기","색상","금액","단위","수량","구매처","사용용도","상품번호"]; const dataRows = items.map((x,i)=>[i+1,x.room || "-",x.writer || "-",x.itemName,x.itemSize || "-",x.itemColor || "-",x.price*x.qty,x.unit,x.qty,x.vendor,x.purpose || "-",x.productNo || ""]); const aoa = [[title, "", "", "", "", "", "", "", "", "담당", "원장", ""],["", "", "", "", "", "", "", "", "", "", "", ""],["", "", "", "", "", "", "", "", "", "", "", ""], header, ...dataRows, ["총계", "", "", "", "", "", money(total), "", "", "", "", ""]]; const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{wch:6},{wch:12},{wch:12},{wch:30},{wch:14},{wch:14},{wch:12},{wch:8},{wch:8},{wch:12},{wch:24},{wch:18}]; const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "소모품신청서"); XLSX.writeFile(wb, `${month || "전체"}_${age || "전체연령"}_소모품신청서.xlsx`); }
-function getFilteredCollectItems(){
-  const month = document.getElementById("filterMonth").value;
-  const age = document.getElementById("filterAge").value;
-  const roomText = document.getElementById("filterRoom").value.trim();
-
-  let items = load(STORAGE_KEYS.items).filter(x => !x.deleted);
-
-  if(age === "공동"){
-    items = items.filter(x => x.isCommon);
-  } else {
-    items = items.filter(x => !x.isCommon);
-    if(age) items = items.filter(x => x.age === age);
-    if(roomText) items = items.filter(x => x.room.includes(roomText));
-  }
-
-  if(month) items = items.filter(x => x.month === month);
-
-  const ageOrder = ["만1세", "만2세", "만3세", "만4세", "만5세", "공동"];
-
-  items.sort((a, b) => {
-    const ageA = a.isCommon ? "공동" : a.age;
-    const ageB = b.isCommon ? "공동" : b.age;
-    const ageDiff = ageOrder.indexOf(ageA) - ageOrder.indexOf(ageB);
-    if(ageDiff !== 0) return ageDiff;
-
-    const roomA = classMap[a.age]?.indexOf(a.room) ?? 999;
-    const roomB = classMap[b.age]?.indexOf(b.room) ?? 999;
-    if(roomA !== roomB) return roomA - roomB;
-
-    return String(a.itemName || "").localeCompare(String(b.itemName || ""), "ko");
-  });
-
-  return items;
-}
-
-function makePrintTable(items){
-  let html = `<table>
-    <thead>
-      <tr>
-        <th style="width:5%">번호</th>
-        <th style="width:9%">반 이름</th>
-        <th style="width:8%">신청자</th>
-        <th style="width:10%">구매처</th>
-        <th style="width:10%">상품번호</th>
-        <th style="width:16%">품명</th>
-        <th style="width:8%">크기</th>
-        <th style="width:7%">색상</th>
-        <th style="width:8%">단가</th>
-        <th style="width:5%">단위</th>
-        <th style="width:5%">수량</th>
-        <th style="width:9%">금액</th>
-        <th style="width:14%">사용용도</th>
-      </tr>
-    </thead>
-    <tbody>`;
-
-  if(items.length === 0){
-    return html + `<tr><td colspan="13">등록된 품목이 없습니다.</td></tr></tbody></table>`;
-  }
-
-  items.forEach((x, i) => {
-    html += `<tr>
-      <td>${i + 1}</td>
-      <td>${x.room || "-"}</td>
-      <td>${x.writer || "-"}</td>
-      <td>${x.vendor || "-"}</td>
-      <td>${x.productNo || "-"}</td>
-      <td>${x.itemName || "-"}</td>
-      <td>${x.itemSize || "-"}</td>
-      <td>${x.itemColor || "-"}</td>
-      <td>${money(x.price)}</td>
-      <td>${x.unit || "-"}</td>
-      <td>${x.qty || 0}</td>
-      <td>${money((x.price || 0) * (x.qty || 0))}</td>
-      <td>${x.purpose || "-"}</td>
-    </tr>`;
-  });
-
-  return html + `</tbody></table>`;
-}
-
-function printCollectOnly(){
-  try {
-    renderCollect();
-
-    const title = document.getElementById("collectTitle")?.textContent || "소모품 신청서";
-    const items = getFilteredCollectItems();
-    const total = items.reduce((sum, x) => sum + (Number(x.price || 0) * Number(x.qty || 0)), 0);
-    const tableHtml = makePrintTable(items);
-    const printArea = document.getElementById("printArea");
-
-    if(!printArea){
-      alert("인쇄 영역을 찾을 수 없습니다.");
-      return;
-    }
-
-    printArea.innerHTML = `
-      <h2>탕정삼성어린이집 소모품 신청서</h2>
-      <h3>${title}</h3>
-      <p class="print-summary">총 품목 수: ${items.length}개&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;총 금액: ${money(total)}</p>
-      ${tableHtml}
-    `;
-
-    printArea.classList.remove("hidden");
-    printArea.style.display = "block";
-
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => {
-        printArea.classList.add("hidden");
-        printArea.style.display = "none";
-      }, 800);
-    }, 100);
-  } catch(error) {
-    console.error(error);
-    alert("인쇄 준비 중 오류가 발생했습니다: " + error.message);
-  }
-}
-
-function init(){ if(!requireLogin()) return; setDefaultMonth(); applyLoginProfile(); setupPermissionUI(); renderFixedSites(); loadVendorOptions(); startAutoLogout(); if(isConsumableManager()) setMode("teacher"); else { currentMode = "teacher"; setupPermissionUI(); openPanel("apply"); } }
+function getFilteredCollectItems(){ const month = document.getElementById("filterMonth").value; const age = document.getElementById("filterAge").value; const roomText = document.getElementById("filterRoom").value.trim(); let items = load(STORAGE_KEYS.items).filter(x => !x.deleted); if(age === "공동"){ items = items.filter(x => x.isCommon); } else { items = items.filter(x => !x.isCommon); if(age) items = items.filter(x => x.age === age); if(roomText) items = items.filter(x => x.room.includes(roomText)); } if(month) items = items.filter(x => x.month === month); const ageOrder = ["만1세", "만2세", "만3세", "만4세", "만5세", "공동"]; items.sort((a, b) => { const ageA = a.isCommon ? "공동" : a.age; const ageB = b.isCommon ? "공동" : b.age; const ageDiff = ageOrder.indexOf(ageA) - ageOrder.indexOf(ageB); if(ageDiff !== 0) return ageDiff; const roomA = classMap[a.age]?.indexOf(a.room) ?? 999; const roomB = classMap[b.age]?.indexOf(b.room) ?? 999; if(roomA !== roomB) return roomA - roomB; return String(a.itemName || "").localeCompare(String(b.itemName || ""), "ko"); }); return items; }
+function makePrintTable(items){ let html = `<table><thead><tr><th style="width:5%">번호</th><th style="width:9%">반 이름</th><th style="width:8%">신청자</th><th style="width:10%">구매처</th><th style="width:10%">상품번호</th><th style="width:16%">품명</th><th style="width:8%">크기</th><th style="width:7%">색상</th><th style="width:8%">단가</th><th style="width:5%">단위</th><th style="width:5%">수량</th><th style="width:9%">금액</th><th style="width:14%">사용용도</th></tr></thead><tbody>`; if(items.length === 0){ return html + `<tr><td colspan="13">등록된 품목이 없습니다.</td></tr></tbody></table>`; } items.forEach((x, i) => { html += `<tr><td>${i + 1}</td><td>${x.room || "-"}</td><td>${x.writer || "-"}</td><td>${x.vendor || "-"}</td><td>${x.productNo || "-"}</td><td>${x.itemName || "-"}</td><td>${x.itemSize || "-"}</td><td>${x.itemColor || "-"}</td><td>${money(x.price)}</td><td>${x.unit || "-"}</td><td>${x.qty || 0}</td><td>${money((x.price || 0) * (x.qty || 0))}</td><td>${x.purpose || "-"}</td></tr>`; }); return html + `</tbody></table>`; }
+function printCollectOnly(){ try { renderCollect(); const title = document.getElementById("collectTitle")?.textContent || "소모품 신청서"; const items = getFilteredCollectItems(); const total = items.reduce((sum, x) => sum + (Number(x.price || 0) * Number(x.qty || 0)), 0); const tableHtml = makePrintTable(items); const printArea = document.getElementById("printArea"); if(!printArea){ alert("인쇄 영역을 찾을 수 없습니다."); return; } printArea.innerHTML = `<h2>탕정삼성어린이집 소모품 신청서</h2><h3>${title}</h3><p class="print-summary">총 품목 수: ${items.length}개&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;총 금액: ${money(total)}</p>${tableHtml}`; printArea.classList.remove("hidden"); printArea.style.display = "block"; setTimeout(() => { window.print(); setTimeout(() => { printArea.classList.add("hidden"); printArea.style.display = "none"; }, 800); }, 100); } catch(error) { console.error(error); alert("인쇄 준비 중 오류가 발생했습니다: " + error.message); } }
+async function init(){ if(!requireLogin()) return; await initializeStoresFromSupabase(); setDefaultMonth(); applyLoginProfile(); setupPermissionUI(); renderFixedSites(); loadVendorOptions(); startAutoLogout(); if(isConsumableManager()) setMode("teacher"); else { currentMode = "teacher"; setupPermissionUI(); openPanel("apply"); } }
 init();
 </script>
 </body>
