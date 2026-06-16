@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>탕정삼성어린이집 소모품관리 시스템</title>
+  <!-- v: hard-delete-items-no-local-merge -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <style>
@@ -197,26 +198,35 @@ async function saveStoreToSupabase(key, data){
   const { error } = await supabaseClient.from("consumables_store").upsert({ store_key: key, data: data, updated_at: new Date().toISOString() }, { onConflict: "store_key" });
   if(error){ console.error("Supabase 저장 실패:", error.message); alert("공용 저장소 저장 실패: " + error.message); }
 }
-function mergeById(remoteArr, localArr){
-  const map = new Map();
-  (remoteArr || []).forEach(item => { if(item && item.id) map.set(item.id, item); });
-  (localArr || []).forEach(item => { if(item && item.id && !map.has(item.id)) map.set(item.id, item); });
-  return Array.from(map.values());
-}
 async function initializeStoresFromSupabase(){
   const keys = Object.values(STORAGE_KEYS);
-  const { data, error } = await supabaseClient.from("consumables_store").select("store_key, data").in("store_key", keys);
-  if(error){ alert("소모품 공용 데이터를 불러오지 못했습니다: " + error.message); return; }
+  const { data, error } = await supabaseClient
+    .from("consumables_store")
+    .select("store_key, data")
+    .in("store_key", keys);
+
+  if(error){
+    alert("소모품 공용 데이터를 불러오지 못했습니다: " + error.message);
+    return;
+  }
+
   const remoteMap = {};
-  (data || []).forEach(row => { remoteMap[row.store_key] = Array.isArray(row.data) ? row.data : []; });
+  (data || []).forEach(row => {
+    remoteMap[row.store_key] = Array.isArray(row.data) ? row.data : [];
+  });
+
   for(const key of keys){
-    const remoteData = remoteMap[key] || [];
-    let localData = [];
-    try { localData = JSON.parse(localStorage.getItem(key) || "[]"); } catch { localData = []; }
-    const merged = mergeById(remoteData, localData);
-    storeCache[key] = merged;
-    localStorage.setItem(key, JSON.stringify(merged));
-    await saveStoreToSupabase(key, merged);
+    let remoteData = remoteMap[key] || [];
+
+    // 신청 품목은 Supabase 공용 저장소만 기준으로 사용합니다.
+    // 예전 기기 localStorage 자료를 다시 합치지 않아 삭제/수정 전 자료가 되살아나는 일을 막습니다.
+    if(key === STORAGE_KEYS.items){
+      remoteData = remoteData.filter(item => item && item.deleted !== true && item.deleted !== "true");
+      await saveStoreToSupabase(key, remoteData);
+    }
+
+    storeCache[key] = remoteData;
+    localStorage.setItem(key, JSON.stringify(remoteData));
   }
 }
 
@@ -460,8 +470,56 @@ function saveInlineEditItem(id){
     showFormMessage("success", "✅ 품목이 수정되었습니다.");
   }
 }
-function softDeleteItem(id){ const items = load(STORAGE_KEYS.items); const item = items.find(x => x.id === id); if(!item) return; if(!item.isCommon && !isConsumableManager() && isSubmitted(item.month, item.room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 삭제하려면 신청 취소를 먼저 눌러주세요."); return; } if(!canEdit(item)){ showFormMessage("error", "⚠️ 본인이 작성한 항목만 삭제할 수 있습니다."); return; } const before = {...item}; item.deleted = true; item.deletedBy = currentUser.name; item.deletedAt = today(); save(STORAGE_KEYS.items, items); addHistory("삭제", item.itemName, before, item); renderMy(); renderCommon(); renderCollect(); renderHistory(); if(document.getElementById("formSuccess")) showFormMessage("success", "✅ 삭제 처리되었습니다."); }
-function restoreItem(id){ if(!isOwnerAdmin()){ alert("최고관리자만 복구할 수 있습니다."); return; } const items = load(STORAGE_KEYS.items); const item = items.find(x => x.id === id); if(!item) return; const before = {...item}; item.deleted = false; item.restoredBy = currentUser.name; item.restoredAt = today(); save(STORAGE_KEYS.items, items); addHistory("복구", item.itemName, before, item); renderMy(); renderCommon(); renderCollect(); renderHistory(); }
+function softDeleteItem(id){
+  const items = load(STORAGE_KEYS.items);
+  const item = items.find(x => x.id === id);
+  if(!item) return;
+
+  if(!item.isCommon && !isConsumableManager() && isSubmitted(item.month, item.room)){
+    showFormMessage("error", "🔒 신청 완료 상태입니다. 삭제하려면 신청 취소를 먼저 눌러주세요.");
+    return;
+  }
+
+  if(!canEdit(item)){
+    showFormMessage("error", "⚠️ 본인이 작성한 항목만 삭제할 수 있습니다.");
+    return;
+  }
+
+  if(!confirm("이 품목을 삭제하시겠습니까? 삭제 후 신청 목록에서는 완전히 제외됩니다.")) return;
+
+  const before = {...item};
+  const updatedItems = items.filter(x => x.id !== id);
+  save(STORAGE_KEYS.items, updatedItems);
+
+  addHistory("삭제", item.itemName, {
+    id: before.id,
+    month: before.month,
+    age: before.age,
+    room: before.room,
+    writer: before.writer,
+    vendor: before.vendor,
+    productNo: before.productNo,
+    itemName: before.itemName,
+    itemSize: before.itemSize,
+    itemColor: before.itemColor,
+    price: before.price,
+    unit: before.unit,
+    qty: before.qty,
+    amount: Number(before.price || 0) * Number(before.qty || 0),
+    purpose: before.purpose
+  }, {
+    deletedBy: currentUser.name,
+    deletedAt: today()
+  });
+
+  editingItemId = null;
+  renderMy();
+  renderCommon();
+  renderCollect();
+  renderHistory();
+
+  if(document.getElementById("formSuccess")) showFormMessage("success", "✅ 삭제되었습니다.");
+}
 function submitRoom(){ clearFormMessage(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; const writer = document.getElementById("writer").value.trim(); const roomItems = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon); if(!month){ showFormMessage("error", "⚠️ 연도/월을 확인해주세요."); return; } if(roomItems.length === 0){ showFormMessage("error", "⚠️ 신청 품목이 없습니다. 품목을 추가한 뒤 신청 완료를 눌러주세요."); return; } const statuses = load(STORAGE_KEYS.roomStatus).filter(s => !(s.month === month && s.room === room)); statuses.push({ id: uid(), month, age, room, writer, status: "제출완료", submittedBy: writer, submittedAt: today() }); save(STORAGE_KEYS.roomStatus, statuses); addHistory("신청 완료", room, null, {month, age, room, writer}); renderMy(); renderCollect(); showFormMessage("success", "✅ 신청 완료 처리되었습니다. 신청 목록이 잠금 상태로 변경되었습니다."); }
 function cancelSubmit(){ clearFormMessage(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const statuses = load(STORAGE_KEYS.roomStatus).filter(s => !(s.month === month && s.room === room)); save(STORAGE_KEYS.roomStatus, statuses); addHistory("신청 취소", room, {month, room, status:"제출완료"}, {month, room, status:"작성중"}); forceUnlockApply(); renderMy(); renderCollect(); showFormMessage("success", "✅ 신청 취소되었습니다. 다시 수정할 수 있습니다."); }
 function renderMy(){ const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; const items = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon); const roomTotal = items.reduce((sum, x) => sum + x.price * x.qty, 0); const ageTotal = getAgeCurrentTotal(month, age); const roomBudget = getPerRoomBudget(age); const totalBudget = getAgeTotalBudget(age); document.getElementById("myCount").textContent = items.length; document.getElementById("myTotal").textContent = money(roomTotal); updateRoomTitle(); const totalBox = document.getElementById("myTotalBox"); const budgetMessage = document.getElementById("budgetMessage"); const budgetStatus = document.getElementById("budgetStatus"); totalBox.classList.remove("over-budget", "budget-ok", "budget-warning"); if(totalBudget > 0 && roomBudget > 0){ const roomRemaining = roomBudget - roomTotal; const ageRemaining = totalBudget - ageTotal; if(roomRemaining < 0 || ageRemaining < 0){ totalBox.classList.add("over-budget"); budgetMessage.textContent = `초과 / 반 한도 ${money(roomBudget)} · ${age} 전체 ${money(totalBudget)}`; budgetStatus.textContent = "초과"; } else if(roomRemaining <= roomBudget * .1 || ageRemaining <= totalBudget * .1){ totalBox.classList.add("budget-warning"); budgetMessage.textContent = `반 남은 금액 ${money(roomRemaining)} / ${age} 전체 남은 금액 ${money(ageRemaining)}`; budgetStatus.textContent = "주의"; } else { totalBox.classList.add("budget-ok"); budgetMessage.textContent = `반 남은 금액 ${money(roomRemaining)} / ${age} 전체 남은 금액 ${money(ageRemaining)}`; budgetStatus.textContent = "정상"; } } else { budgetMessage.textContent = "예산 미입력"; budgetStatus.textContent = "미설정"; } const st = load(STORAGE_KEYS.roomStatus).find(s => s.month === month && s.room === room)?.status || "작성중"; const locked = st === "제출완료"; document.getElementById("myStatus").textContent = st; document.getElementById("inputArea").classList.toggle("locked-area", locked); document.getElementById("lockNotice").style.display = locked ? "block" : "none"; document.getElementById("addBtn").disabled = locked; document.getElementById("copyBtn").disabled = locked; document.getElementById("submitBtn").style.display = locked ? "none" : "inline-block"; document.getElementById("cancelSubmitBtn").style.display = locked ? "inline-block" : "none"; document.getElementById("myTable").innerHTML = makeItemTable(items, locked); }
@@ -548,7 +606,21 @@ async function renderFixedSites(){ const box = document.getElementById("fixedSit
 async function loadVendorOptions(){ const selects = [document.getElementById("vendor"), document.getElementById("commonVendor")].filter(Boolean); selects.forEach(select => { select.innerHTML = `<option value="">구매처 선택</option>`; }); const { data, error } = await supabaseClient.from("purchase_sites").select("*").eq("is_active", true).order("created_at", { ascending: true }); if(error){ selects.forEach(select => { select.innerHTML = `<option value="">구매처 불러오기 실패</option><option value="기타">기타</option>`; }); return; } (data || []).forEach(site => { selects.forEach(select => { select.innerHTML += `<option value="${site.site_name}">${site.site_name}</option>`; }); }); selects.forEach(select => { select.innerHTML += `<option value="기타">기타</option>`; }); handleVendorChange("vendor", "productNoBox", "customVendorBox"); handleVendorChange("commonVendor", "commonProductNoBox", "commonCustomVendorBox"); }
 async function addPurchaseSite(){ if(!isOwner()){ alert("구매 가능 사이트 추가는 hyeinkk 계정만 가능합니다."); return; } const siteName = document.getElementById("siteName").value.trim(); const siteUrl = document.getElementById("siteUrl").value.trim(); const memo = document.getElementById("siteMemo").value.trim(); if(!siteName || !siteUrl){ alert("사이트명과 사이트 주소를 입력해주세요."); return; } const { error } = await supabaseClient.from("purchase_sites").insert([{ site_name: siteName, site_url: siteUrl, memo, created_by: currentUser.name, is_active: true }]); if(error){ alert("사이트 추가 실패: " + error.message); return; } clearInputs(["siteName","siteUrl","siteMemo"]); alert("구매 가능 사이트가 추가되었습니다."); renderFixedSites(); loadVendorOptions(); }
 async function deletePurchaseSite(siteId){ if(!isOwner()){ alert("구매 가능 사이트 삭제는 hyeinkk 계정만 가능합니다."); return; } if(!confirm("이 사이트를 목록에서 삭제하시겠습니까?")) return; const { error } = await supabaseClient.from("purchase_sites").update({ is_active: false }).eq("id", siteId); if(error){ alert("사이트 삭제 실패: " + error.message); return; } alert("구매 가능 사이트가 삭제되었습니다."); renderFixedSites(); loadVendorOptions(); }
-function renderHistory(){ if(!isOwnerAdmin()) return; const history = load(STORAGE_KEYS.history); let html = `<tr><th>번호</th><th>작업</th><th>대상</th><th>처리자</th><th>권한</th><th>일시</th><th>복구</th><th>기록삭제</th></tr>`; if(history.length === 0) html += `<tr><td colspan="8">기록이 없습니다.</td></tr>`; history.forEach((h, i) => { const restoreBtn = h.action === "삭제" && h.afterData?.id ? `<button class="green" onclick="restoreItem('${h.afterData.id}')">복구</button>` : "-"; html += `<tr><td>${i+1}</td><td>${h.action}</td><td class="left">${h.target}</td><td>${h.user}</td><td>${h.role}</td><td>${h.date}</td><td>${restoreBtn}</td><td><button class="danger" onclick="deleteHistory('${h.id}')">삭제</button></td></tr>`; }); document.getElementById("historyTable").innerHTML = html; }
+function renderHistory(){
+  if(!isOwnerAdmin()) return;
+  const history = load(STORAGE_KEYS.history);
+  let html = `<tr><th>번호</th><th>작업</th><th>대상</th><th>처리자</th><th>권한</th><th>일시</th><th>기록삭제</th></tr>`;
+
+  if(history.length === 0) {
+    html += `<tr><td colspan="7">기록이 없습니다.</td></tr>`;
+  }
+
+  history.forEach((h, i) => {
+    html += `<tr><td>${i+1}</td><td>${escapeHtml(h.action)}</td><td class="left">${escapeHtml(h.target)}</td><td>${escapeHtml(h.user)}</td><td>${escapeHtml(h.role)}</td><td>${escapeHtml(h.date)}</td><td><button class="danger" onclick="deleteHistory('${h.id}')">삭제</button></td></tr>`;
+  });
+
+  document.getElementById("historyTable").innerHTML = html;
+}
 function deleteHistory(historyId){ if(!isOwnerAdmin()){ alert("기록 삭제는 최고관리자만 가능합니다."); return; } if(!confirm("이 기록을 삭제하시겠습니까?")) return; const history = load(STORAGE_KEYS.history).filter(h => h.id !== historyId); save(STORAGE_KEYS.history, history); renderHistory(); }
 function copyLastMonth(){ clearFormMessage(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; if(isSubmitted(month, room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 복사하려면 신청 취소를 먼저 눌러주세요."); return; } if(!month || !room){ alert("월과 반명을 확인해주세요."); return; } const d = new Date(month + "-01"); d.setMonth(d.getMonth() - 1); const lastMonth = d.toISOString().slice(0,7); const items = load(STORAGE_KEYS.items); const targets = items.filter(x => x.month === lastMonth && x.room === room && !x.deleted && !x.isCommon); if(targets.length === 0){ alert("지난달 신청 품목이 없습니다."); return; } const copiedAmount = targets.reduce((sum, x) => sum + x.price * x.qty, 0); const roomBudget = getPerRoomBudget(age); const totalBudget = getAgeTotalBudget(age); const roomCurrentTotal = getRoomCurrentTotal(month, room); const ageCurrentTotal = getAgeCurrentTotal(month, age); if(roomBudget > 0 && roomCurrentTotal + copiedAmount > roomBudget){ alert(`지난달 신청서를 복사하면 반별 한도를 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n반별 한도: ${money(roomBudget)}`); return; } if(totalBudget > 0 && ageCurrentTotal + copiedAmount > totalBudget){ alert(`지난달 신청서를 복사하면 연령 전체 예산을 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n${age} 전체 예산: ${money(totalBudget)}`); return; } const copied = targets.map(x => ({...x, id: uid(), month, writer: currentUser.name, createdBy: currentUser.name, createdAt: today(), deleted: false})); save(STORAGE_KEYS.items, items.concat(copied)); addHistory("지난달 복사", room, {lastMonth}, {month, count: copied.length}); renderMy(); renderCollect(); renderHistory(); }
 function getKoreanMonthTitle(month, age){ if(!month) return `소모품 신청서(${age || "전체연령"})`; const [, mm] = month.split("-"); return `${Number(mm)}월 소모품 신청서(${age || "전체연령"})`; }
