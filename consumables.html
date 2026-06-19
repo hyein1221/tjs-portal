@@ -2,9 +2,15 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>탕정삼성어린이집 소모품관리 시스템</title>
-  <!-- v: hard-delete-items-no-local-merge -->
+  <!-- v: final-v5-clean-budget-no-local-merge -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <style>
@@ -111,7 +117,6 @@
     <button class="tab" id="tab-sites" onclick="openPanel('sites')">구매 가능 사이트</button>
     <button class="tab manager-tab hidden" id="tab-common" onclick="openPanel('common')">공동 소모품 신청서</button>
     <button class="tab manager-tab hidden" id="tab-collect" onclick="openPanel('collect')">소모품 취합</button>
-    <button class="tab admin-tab hidden" id="tab-history" onclick="openPanel('history')">수정·삭제 기록</button>
   </div>
 
   <section id="panel-apply" class="panel active">
@@ -170,8 +175,6 @@
     <div class="card"><h2>소모품담당자 페이지 - 소모품 취합</h2><div class="grid-4"><div><label>조회 월</label><input type="month" id="filterMonth" onchange="collectHasSearched=false; renderCollectPlaceholder('조회 버튼을 눌러 선택한 월의 자료를 불러오세요.')"></div><div><label>연령별 조회</label><select id="filterAge" onchange="updateCollectRoomOptions(); collectHasSearched=false; renderCollectPlaceholder('조회 버튼을 눌러 선택한 조건의 자료를 불러오세요.')"><option value="">전체</option><option>만1세</option><option>만2세</option><option>만3세</option><option>만4세</option><option>만5세</option><option value="공동">공동</option></select></div><div><label>반명 선택</label><select id="filterRoom"><option value="">전체 반</option></select></div><div><label>&nbsp;</label><button class="primary" onclick="renderCollect(true)">조회</button></div></div><div class="btns" style="margin-top:12px;"><button onclick="setAgeFilter('만1세')">만1세</button><button onclick="setAgeFilter('만2세')">만2세</button><button onclick="setAgeFilter('만3세')">만3세</button><button onclick="setAgeFilter('만4세')">만4세</button><button onclick="setAgeFilter('만5세')">만5세</button><button onclick="setAgeFilter('공동')">공동</button><button class="green" onclick="exportExcel()">엑셀 다운로드</button><button onclick="printCollectOnly()">인쇄/PDF 저장</button></div><div id="collectLastUpdated" class="small" style="margin-top:10px;">마지막 조회: -</div></div>
     <div class="card"><h2 id="collectTitle">소모품 신청서(전체연령)</h2><div class="summary"><div>품목 수<br><span id="allCount">0</span></div><div>총 금액<br><span id="allTotal">0원</span></div><div>제출완료 반<br><span id="submittedRooms">0</span></div><div>작성중 반<br><span id="draftRooms">0</span></div></div><div class="table-wrap"><table id="allTable"></table></div></div>
   </section>
-
-  <section id="panel-history" class="panel"><div class="card"><h2>수정·삭제 기록</h2><div class="table-wrap"><table id="historyTable"></table></div></div></section>
 </div>
 <div id="printArea" class="hidden"></div>
 
@@ -180,8 +183,9 @@ const supabaseUrl = "https://vohcugxfwxdvkbcpjcgl.supabase.co";
 const supabaseKey = "sb_publishable_Q0cXaglzBaz9Py2oct_NTQ_vMHsUeSQ";
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 const OWNER_USERNAME = "hyeinkk";
-const STORAGE_KEYS = { items: 'consumable_items_v4', history: 'consumable_history_v4', roomStatus: 'consumable_room_status_v4' };
-let storeCache = { consumable_items_v4: [], consumable_history_v4: [], consumable_room_status_v4: [] };
+const STORAGE_KEYS = { items: 'consumable_items_v4', roomStatus: 'consumable_room_status_v4' };
+const LEGACY_STORAGE_KEYS = { items: 'consumable_items_v4', roomStatus: 'consumable_room_status_v4' };
+let storeCache = { consumable_items_v4: [], consumable_room_status_v4: [] };
 const AUTO_LOGOUT_SECONDS = 30 * 60;
 let logoutRemain = AUTO_LOGOUT_SECONDS;
 let logoutTimerId = null;
@@ -192,18 +196,101 @@ let editingItemId = null;
 const classMap = { "만1세": ["햇빛반","달빛반","별빛반","풀빛반","온빛반"], "만2세": ["예빛반","봄빛반","물빛반","꿈빛반"], "만3세": ["한빛반","은빛반","새빛반"], "만4세": ["윤빛반","꽃빛반"], "만5세": ["들빛반","솔빛반"] };
 const AGE_BUDGETS = { "만1세": { total: 150000, rooms: 5 }, "만2세": { total: 150000, rooms: 4 }, "만3세": { total: 150000, rooms: 3 }, "만4세": { total: 150000, rooms: 2 }, "만5세": { total: 150000, rooms: 2 } };
 
-function load(key){ return JSON.parse(JSON.stringify(storeCache[key] || [])); }
-function save(key, data){ storeCache[key] = data; localStorage.setItem(key, JSON.stringify(data)); saveStoreToSupabase(key, data); }
+function load(key){
+  return JSON.parse(JSON.stringify(storeCache[key] || []));
+}
+
+function getTimestampValue(item){
+  const raw = item?.updatedAt || item?.createdAt || item?.deletedAt || "";
+  const parsed = Date.parse(String(raw).replace(/\./g, "-"));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function cleanItems(items){
+  const byId = new Map();
+
+  (items || []).forEach(item => {
+    if(!item || !item.id) return;
+    if(item.deleted === true || item.deleted === "true") return;
+
+    const normalized = {
+      ...item,
+      unit: normalizeUnit(item.unit),
+      price: Number(item.price || 0),
+      qty: Number(item.qty || 0),
+      deleted: false
+    };
+
+    const prev = byId.get(normalized.id);
+    if(!prev || getTimestampValue(normalized) >= getTimestampValue(prev)){
+      byId.set(normalized.id, normalized);
+    }
+  });
+
+  const bySignature = new Map();
+  Array.from(byId.values()).forEach(item => {
+    const signature = [
+      item.month || "",
+      item.age || "",
+      item.room || "",
+      item.writer || "",
+      item.vendor || "",
+      item.productNo || "",
+      item.itemName || "",
+      item.itemSize || "",
+      item.itemColor || "",
+      String(Number(item.price || 0)),
+      normalizeUnit(item.unit),
+      String(Number(item.qty || 0)),
+      item.purpose || "",
+      item.isCommon === true || item.isCommon === "true" ? "true" : "false"
+    ].join("||");
+
+    const prev = bySignature.get(signature);
+    if(!prev || getTimestampValue(item) >= getTimestampValue(prev)){
+      bySignature.set(signature, item);
+    }
+  });
+
+  return Array.from(bySignature.values());
+}
+
+function cleanRoomStatus(statuses){
+  const map = new Map();
+  (statuses || []).forEach(status => {
+    if(!status || !status.month || !status.room) return;
+    map.set(`${status.month}||${status.room}`, status);
+  });
+  return Array.from(map.values());
+}
+
+function save(key, data){
+  if(key === STORAGE_KEYS.items){
+    data = cleanItems(data);
+  }
+  if(key === STORAGE_KEYS.roomStatus){
+    data = cleanRoomStatus(data);
+  }
+
+  storeCache[key] = data;
+  localStorage.setItem(key, JSON.stringify(data));
+  saveStoreToSupabase(key, data);
+}
+
 async function saveStoreToSupabase(key, data){
   const { error } = await supabaseClient.from("consumables_store").upsert({ store_key: key, data: data, updated_at: new Date().toISOString() }, { onConflict: "store_key" });
   if(error){ console.error("Supabase 저장 실패:", error.message); alert("공용 저장소 저장 실패: " + error.message); }
 }
+
 async function initializeStoresFromSupabase(){
-  const keys = Object.values(STORAGE_KEYS);
+  const activeKeys = Object.values(STORAGE_KEYS);
+  const legacyKeys = Object.values(LEGACY_STORAGE_KEYS);
+  const allKeys = activeKeys.concat(legacyKeys);
+
   const { data, error } = await supabaseClient
     .from("consumables_store")
     .select("store_key, data")
-    .in("store_key", keys);
+    .in("store_key", allKeys);
 
   if(error){
     alert("소모품 공용 데이터를 불러오지 못했습니다: " + error.message);
@@ -215,19 +302,34 @@ async function initializeStoresFromSupabase(){
     remoteMap[row.store_key] = Array.isArray(row.data) ? row.data : [];
   });
 
-  for(const key of keys){
-    let remoteData = remoteMap[key] || [];
+  const pairs = [
+    [STORAGE_KEYS.items, LEGACY_STORAGE_KEYS.items],
+    [STORAGE_KEYS.roomStatus, LEGACY_STORAGE_KEYS.roomStatus]
+  ];
 
-    // 신청 품목은 Supabase 공용 저장소만 기준으로 사용합니다.
-    // 예전 기기 localStorage 자료를 다시 합치지 않아 삭제/수정 전 자료가 되살아나는 일을 막습니다.
-    if(key === STORAGE_KEYS.items){
-      remoteData = remoteData.filter(item => item && item.deleted !== true && item.deleted !== "true");
-      await saveStoreToSupabase(key, remoteData);
+  for(const [activeKey, legacyKey] of pairs){
+    let remoteData = remoteMap[activeKey];
+    if(!remoteData || remoteData.length === 0){
+      remoteData = remoteMap[legacyKey] || [];
     }
 
-    storeCache[key] = remoteData;
-    localStorage.setItem(key, JSON.stringify(remoteData));
+    if(activeKey === STORAGE_KEYS.items){
+      remoteData = cleanItems(remoteData);
+    }
+    if(activeKey === STORAGE_KEYS.roomStatus){
+      remoteData = cleanRoomStatus(remoteData);
+    }
+
+    storeCache[activeKey] = remoteData;
+    localStorage.setItem(activeKey, JSON.stringify(remoteData));
+    await saveStoreToSupabase(activeKey, remoteData);
   }
+
+  // 예전 기기 저장자료가 다시 합쳐지는 것을 막기 위해 신청 관련 localStorage만 비웁니다.
+  localStorage.removeItem(LEGACY_STORAGE_KEYS.items);
+  localStorage.removeItem(LEGACY_STORAGE_KEYS.roomStatus);
+  localStorage.removeItem(STORAGE_KEYS.items);
+  localStorage.removeItem(STORAGE_KEYS.roomStatus);
 }
 
 function money(n){ return Number(n || 0).toLocaleString("ko-KR") + "원"; }
@@ -257,24 +359,75 @@ function setDefaultMonth(){ const ym = new Date().toISOString().slice(0,7); docu
 function applyLoginProfile(){ document.getElementById("age").value = currentUser.age || ""; document.getElementById("room").value = currentUser.class_name || ""; document.getElementById("writer").value = currentUser.name || ""; document.getElementById("loginName").textContent = currentUser.name || "-"; document.getElementById("loginClass").textContent = currentUser.class_name || "-"; document.getElementById("loginRole").textContent = currentMode === "manager" ? "소모품담당자 페이지" : "반별 신청 페이지"; updateRoomTitle(); }
 function setupPermissionUI(){ const manager = isConsumableManager(); document.getElementById("managerModeBtn").classList.toggle("hidden", !manager); document.querySelectorAll(".manager-tab").forEach(el => el.classList.toggle("hidden", currentMode !== "manager" || !manager)); document.querySelectorAll(".admin-tab").forEach(el => el.classList.toggle("hidden", currentMode !== "manager" || !isOwnerAdmin())); }
 function setMode(mode){ if(mode === "manager" && !isConsumableManager()){ alert("소모품담당자 권한이 없습니다."); return; } currentMode = mode; applyLoginProfile(); updateAmountPreview(); updateCommonAmountPreview(); setupPermissionUI(); openPanel(mode === "manager" ? "collect" : "apply"); }
-function openPanel(name){ if((name === "common" || name === "collect") && !isConsumableManager()){ alert("소모품담당자만 확인할 수 있습니다."); return; } if(name === "history" && !isOwnerAdmin()){ alert("수정·삭제 기록은 최고관리자만 확인할 수 있습니다."); return; } document.querySelectorAll(".panel").forEach(p => p.classList.remove("active")); document.querySelectorAll(".tab").forEach(t => t.classList.remove("active")); document.getElementById("panel-" + name).classList.add("active"); document.getElementById("tab-" + name).classList.add("active"); renderMy(); renderFixedSites(); renderCommon(); renderCollect(); renderHistory(); }
+function openPanel(name){ if((name === "common" || name === "collect") && !isConsumableManager()){ alert("소모품담당자만 확인할 수 있습니다."); return; } document.querySelectorAll(".panel").forEach(p => p.classList.remove("active")); document.querySelectorAll(".tab").forEach(t => t.classList.remove("active")); document.getElementById("panel-" + name).classList.add("active"); document.getElementById("tab-" + name).classList.add("active"); renderMy(); renderFixedSites(); renderCommon(); renderCollect(); }
 function startAutoLogout(){ if(logoutTimerId) clearInterval(logoutTimerId); logoutRemain = AUTO_LOGOUT_SECONDS; updateLogoutDisplay(); logoutTimerId = setInterval(() => { logoutRemain--; updateLogoutDisplay(); if(logoutRemain <= 0) logout(); }, 1000); ["click","keydown","touchstart"].forEach(evt => { document.addEventListener(evt, () => { logoutRemain = AUTO_LOGOUT_SECONDS; updateLogoutDisplay(); }, { passive: true }); }); }
 function updateLogoutDisplay(){ const m = String(Math.floor(logoutRemain / 60)).padStart(2, "0"); const s = String(logoutRemain % 60).padStart(2, "0"); document.getElementById("autoLogoutTimer").textContent = `${m}:${s}`; }
 function goPortal(){ location.href = "index.html"; }
 function logout(){ localStorage.removeItem("libraryCurrentUser"); localStorage.removeItem("materialsCurrentUser"); localStorage.removeItem("consumablesCurrentUser"); location.href = "index.html"; }
 function getPerRoomBudget(age){ const config = AGE_BUDGETS[age]; if(!config || !config.total) return 0; return Math.floor(config.total / (config.rooms || 1)); }
 function getAgeTotalBudget(age){ return AGE_BUDGETS[age]?.total || 0; }
+function validateBudgetLimit(month, age, room, extraAmount = 0, excludeItemId = null){
+  const roomBudget = getPerRoomBudget(age);
+  const ageBudget = getAgeTotalBudget(age);
+
+  if(!month || !age || !room){
+    return { ok: false, message: "월, 연령, 반 정보를 확인해주세요." };
+  }
+
+  const items = load(STORAGE_KEYS.items).filter(x =>
+    x.month === month &&
+    !x.deleted &&
+    !x.isCommon &&
+    x.id !== excludeItemId
+  );
+
+  const roomTotal = items
+    .filter(x => x.room === room)
+    .reduce((sum, x) => sum + Number(x.price || 0) * Number(x.qty || 0), 0);
+
+  const ageTotal = items
+    .filter(x => x.age === age)
+    .reduce((sum, x) => sum + Number(x.price || 0) * Number(x.qty || 0), 0);
+
+  const nextRoomTotal = roomTotal + Number(extraAmount || 0);
+  const nextAgeTotal = ageTotal + Number(extraAmount || 0);
+
+  if(roomBudget > 0 && nextRoomTotal > roomBudget){
+    return {
+      ok: false,
+      message: `🚨 반별 예산을 초과했습니다.<br><br>반명: ${room}<br>현재 반 사용액: ${money(roomTotal)}<br>추가/수정 금액: ${money(extraAmount)}<br>수정 후 반 사용액: ${money(nextRoomTotal)}<br>반별 한도: ${money(roomBudget)}`
+    };
+  }
+
+  if(ageBudget > 0 && nextAgeTotal > ageBudget){
+    return {
+      ok: false,
+      message: `🚨 연령별 예산을 초과했습니다.<br><br>연령: ${age}<br>현재 연령 사용액: ${money(ageTotal)}<br>추가/수정 금액: ${money(extraAmount)}<br>수정 후 연령 사용액: ${money(nextAgeTotal)}<br>연령별 한도: ${money(ageBudget)}`
+    };
+  }
+
+  return { ok: true, roomTotal: nextRoomTotal, ageTotal: nextAgeTotal };
+}
+
+function alertBudgetResult(result, useFormMessage = true){
+  const message = result.message || "예산을 초과했습니다.";
+  if(useFormMessage && document.getElementById("formError")){
+    showFormMessage("error", message);
+  } else {
+    alert(message.replaceAll("<br>", "\n"));
+  }
+}
 function getAgeCurrentTotal(month, age){ return load(STORAGE_KEYS.items).filter(x => x.month === month && x.age === age && !x.deleted && !x.isCommon).reduce((sum, x) => sum + x.price * x.qty, 0); }
 function getRoomCurrentTotal(month, room){ return load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon).reduce((sum, x) => sum + x.price * x.qty, 0); }
 function updateRoomTitle(){ document.getElementById("myListTitle").textContent = `${currentUser?.class_name || ""} 소모품 신청 목록`; }
 function handleVendorChange(selectId, productNoBoxId, customBoxId){ const vendor = document.getElementById(selectId).value; document.getElementById(productNoBoxId).classList.toggle("hidden", vendor !== "G마켓"); document.getElementById(customBoxId).classList.toggle("hidden", vendor !== "기타"); }
 function showFormMessage(type, message){ const errorBox = document.getElementById("formError"); const successBox = document.getElementById("formSuccess"); errorBox.style.display = "none"; successBox.style.display = "none"; const box = type === "error" ? errorBox : successBox; box.innerHTML = message; box.style.display = "block"; box.scrollIntoView({ behavior: "smooth", block: "center" }); }
 function clearFormMessage(){ document.getElementById("formError").style.display = "none"; document.getElementById("formSuccess").style.display = "none"; }
-function addHistory(action, target, beforeData, afterData){ const history = load(STORAGE_KEYS.history); history.unshift({ id: uid(), action, target, user: currentUser.name, role: getRoleText(), date: today(), beforeData, afterData }); save(STORAGE_KEYS.history, history); }
+function addHistory(action, target, beforeData, afterData){ return; }
 function isSubmitted(month, room){ return load(STORAGE_KEYS.roomStatus).some(s => s.month === month && s.room === room && s.status === "제출완료"); }
 function forceUnlockApply(){ document.getElementById("inputArea").classList.remove("locked-area"); document.getElementById("lockNotice").style.display = "none"; document.getElementById("addBtn").disabled = false; document.getElementById("copyBtn").disabled = false; document.getElementById("submitBtn").style.display = "inline-block"; document.getElementById("cancelSubmitBtn").style.display = "none"; }
 function clearInputs(ids){ ids.forEach(id => { const el = document.getElementById(id); if(el) el.value = ""; }); }
-function addItem(){ clearFormMessage(); const month = document.getElementById("month").value; const age = document.getElementById("age").value; const room = document.getElementById("room").value.trim(); const writer = document.getElementById("writer").value.trim(); let vendor = document.getElementById("vendor").value; const customVendorName = document.getElementById("customVendorName").value.trim(); const productNo = document.getElementById("productNo").value.trim(); if(vendor === "기타"){ if(!customVendorName){ showFormMessage("error", "⚠️ 기타 구매처명을 입력해주세요."); return; } vendor = customVendorName; } const itemName = document.getElementById("itemName").value.trim(); const price = Number(document.getElementById("price").value || 0); const qty = Number(document.getElementById("qty").value || 1); const newAmount = price * qty; if(isSubmitted(month, room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 품목을 추가하려면 신청 취소를 먼저 눌러주세요."); return; } if(!month || !vendor || !itemName){ showFormMessage("error", "⚠️ 연도/월, 구매처, 품명은 필수입니다."); return; } if(price <= 0){ showFormMessage("error", "⚠️ 금액을 입력해주세요."); return; } if(qty <= 0){ showFormMessage("error", "⚠️ 수량을 입력해주세요."); return; } if(vendor === "G마켓" && !productNo){ showFormMessage("error", "⚠️ G마켓 구매 품목은 상품번호를 입력해주세요."); return; } const roomBudget = getPerRoomBudget(age); const totalBudget = getAgeTotalBudget(age); const roomCurrentTotal = getRoomCurrentTotal(month, room); const ageCurrentTotal = getAgeCurrentTotal(month, age); if(roomBudget > 0 && roomCurrentTotal + newAmount > roomBudget){ showFormMessage("error", `🚨 금액이 초과되었습니다.<br>저장할 수 없습니다.<br><br>반명: ${room}<br>현재 반 사용액: ${money(roomCurrentTotal)}<br>추가 금액: ${money(newAmount)}<br>반별 한도: ${money(roomBudget)}`); renderMy(); return; } if(totalBudget > 0 && ageCurrentTotal + newAmount > totalBudget){ showFormMessage("error", `🚨 금액이 초과되었습니다.<br>저장할 수 없습니다.<br><br>연령: ${age}<br>현재 ${age} 전체 사용액: ${money(ageCurrentTotal)}<br>추가 금액: ${money(newAmount)}<br>${age} 전체 예산: ${money(totalBudget)}`); renderMy(); return; } const item = { id: uid(), month, age, room, writer, vendor, productNo: vendor === "G마켓" ? productNo : "", itemName, itemSize: document.getElementById("itemSize").value.trim(), itemColor: document.getElementById("itemColor").value.trim(), price, unit: document.getElementById("unit").value, qty, purpose: document.getElementById("purpose").value.trim(), createdBy: writer, createdAt: today(), deleted: false, isCommon: false }; const items = load(STORAGE_KEYS.items); items.push(item); save(STORAGE_KEYS.items, items); addHistory("추가", item.itemName, null, item); clearInputs(["productNo","customVendorName","itemName","itemSize","itemColor","price","purpose"]); document.getElementById("qty").value = 1; updateAmountPreview(); handleVendorChange("vendor", "productNoBox", "customVendorBox"); renderMy(); renderCollect(); renderHistory(); showFormMessage("success", "✅ 품목이 추가되었습니다."); }
+function addItem(){ clearFormMessage(); const month = document.getElementById("month").value; const age = document.getElementById("age").value; const room = document.getElementById("room").value.trim(); const writer = document.getElementById("writer").value.trim(); let vendor = document.getElementById("vendor").value; const customVendorName = document.getElementById("customVendorName").value.trim(); const productNo = document.getElementById("productNo").value.trim(); if(vendor === "기타"){ if(!customVendorName){ showFormMessage("error", "⚠️ 기타 구매처명을 입력해주세요."); return; } vendor = customVendorName; } const itemName = document.getElementById("itemName").value.trim(); const price = Number(document.getElementById("price").value || 0); const qty = Number(document.getElementById("qty").value || 1); const newAmount = price * qty; if(isSubmitted(month, room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 품목을 추가하려면 신청 취소를 먼저 눌러주세요."); return; } if(!month || !vendor || !itemName){ showFormMessage("error", "⚠️ 연도/월, 구매처, 품명은 필수입니다."); return; } if(price <= 0){ showFormMessage("error", "⚠️ 금액을 입력해주세요."); return; } if(qty <= 0){ showFormMessage("error", "⚠️ 수량을 입력해주세요."); return; } if(vendor === "G마켓" && !productNo){ showFormMessage("error", "⚠️ G마켓 구매 품목은 상품번호를 입력해주세요."); return; } const budgetCheck = validateBudgetLimit(month, age, room, newAmount); if(!budgetCheck.ok){ alertBudgetResult(budgetCheck, true); renderMy(); return; } const item = { id: uid(), month, age, room, writer, vendor, productNo: vendor === "G마켓" ? productNo : "", itemName, itemSize: document.getElementById("itemSize").value.trim(), itemColor: document.getElementById("itemColor").value.trim(), price, unit: document.getElementById("unit").value, qty, purpose: document.getElementById("purpose").value.trim(), createdBy: writer, createdAt: today(), deleted: false, isCommon: false }; const items = load(STORAGE_KEYS.items); items.push(item); save(STORAGE_KEYS.items, items); addHistory("추가", item.itemName, null, item); clearInputs(["productNo","customVendorName","itemName","itemSize","itemColor","price","purpose"]); document.getElementById("qty").value = 1; updateAmountPreview(); handleVendorChange("vendor", "productNoBox", "customVendorBox"); renderMy(); renderCollect(); showFormMessage("success", "✅ 품목이 추가되었습니다."); }
 function canEdit(item){ return item.createdBy === currentUser.name || isConsumableManager(); }
 function escapeHtml(value){
   return String(value ?? "")
@@ -428,20 +581,10 @@ function saveInlineEditItem(id){
   }
 
   if(!item.isCommon){
-    const oldAmount = Number(before.price || 0) * Number(before.qty || 0);
     const newAmount = price * qty;
-    const roomBudget = getPerRoomBudget(item.age);
-    const totalBudget = getAgeTotalBudget(item.age);
-    const roomCurrentTotal = getRoomCurrentTotal(item.month, item.room) - oldAmount;
-    const ageCurrentTotal = getAgeCurrentTotal(item.month, item.age) - oldAmount;
-
-    if(roomBudget > 0 && roomCurrentTotal + newAmount > roomBudget){
-      alert(`🚨 금액이 초과되어 수정할 수 없습니다.\n\n반명: ${item.room}\n현재 반 사용액: ${money(roomCurrentTotal)}\n수정 후 금액: ${money(newAmount)}\n반별 한도: ${money(roomBudget)}`);
-      return;
-    }
-
-    if(totalBudget > 0 && ageCurrentTotal + newAmount > totalBudget){
-      alert(`🚨 금액이 초과되어 수정할 수 없습니다.\n\n연령: ${item.age}\n현재 ${item.age} 전체 사용액: ${money(ageCurrentTotal)}\n수정 후 금액: ${money(newAmount)}\n${item.age} 전체 예산: ${money(totalBudget)}`);
+    const budgetCheck = validateBudgetLimit(item.month, item.age, item.room, newAmount, item.id);
+    if(!budgetCheck.ok){
+      alertBudgetResult(budgetCheck, false);
       return;
     }
   }
@@ -464,7 +607,7 @@ function saveInlineEditItem(id){
   renderMy();
   renderCommon();
   renderCollect();
-  renderHistory();
+ 
 
   if(document.getElementById("panel-apply")?.classList.contains("active")){
     showFormMessage("success", "✅ 품목이 수정되었습니다.");
@@ -516,11 +659,35 @@ function softDeleteItem(id){
   renderMy();
   renderCommon();
   renderCollect();
-  renderHistory();
+ 
 
   if(document.getElementById("formSuccess")) showFormMessage("success", "✅ 삭제되었습니다.");
 }
-function submitRoom(){ clearFormMessage(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; const writer = document.getElementById("writer").value.trim(); const roomItems = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon); if(!month){ showFormMessage("error", "⚠️ 연도/월을 확인해주세요."); return; } if(roomItems.length === 0){ showFormMessage("error", "⚠️ 신청 품목이 없습니다. 품목을 추가한 뒤 신청 완료를 눌러주세요."); return; } const statuses = load(STORAGE_KEYS.roomStatus).filter(s => !(s.month === month && s.room === room)); statuses.push({ id: uid(), month, age, room, writer, status: "제출완료", submittedBy: writer, submittedAt: today() }); save(STORAGE_KEYS.roomStatus, statuses); addHistory("신청 완료", room, null, {month, age, room, writer}); renderMy(); renderCollect(); showFormMessage("success", "✅ 신청 완료 처리되었습니다. 신청 목록이 잠금 상태로 변경되었습니다."); }
+function submitRoom(){
+  clearFormMessage();
+  const month = document.getElementById("month").value;
+  const room = document.getElementById("room").value.trim();
+  const age = document.getElementById("age").value;
+  const writer = document.getElementById("writer").value.trim();
+  const roomItems = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon);
+
+  if(!month){ showFormMessage("error", "⚠️ 연도/월을 확인해주세요."); return; }
+  if(roomItems.length === 0){ showFormMessage("error", "⚠️ 신청 품목이 없습니다. 품목을 추가한 뒤 신청 완료를 눌러주세요."); return; }
+
+  const finalCheck = validateBudgetLimit(month, age, room, 0, null);
+  if(!finalCheck.ok){
+    showFormMessage("error", finalCheck.message + "<br><br>초과 품목을 수정하거나 삭제한 뒤 신청 완료해주세요.");
+    return;
+  }
+
+  const statuses = load(STORAGE_KEYS.roomStatus).filter(s => !(s.month === month && s.room === room));
+  statuses.push({ id: uid(), month, age, room, writer, status: "제출완료", submittedBy: writer, submittedAt: today() });
+  save(STORAGE_KEYS.roomStatus, statuses);
+  addHistory("신청 완료", room, null, {month, age, room, writer});
+  renderMy();
+  renderCollect();
+  showFormMessage("success", "✅ 신청 완료 처리되었습니다. 신청 목록이 잠금 상태로 변경되었습니다.");
+}
 function cancelSubmit(){ clearFormMessage(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const statuses = load(STORAGE_KEYS.roomStatus).filter(s => !(s.month === month && s.room === room)); save(STORAGE_KEYS.roomStatus, statuses); addHistory("신청 취소", room, {month, room, status:"제출완료"}, {month, room, status:"작성중"}); forceUnlockApply(); renderMy(); renderCollect(); showFormMessage("success", "✅ 신청 취소되었습니다. 다시 수정할 수 있습니다."); }
 function renderMy(){ const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; const items = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon); const roomTotal = items.reduce((sum, x) => sum + x.price * x.qty, 0); const ageTotal = getAgeCurrentTotal(month, age); const roomBudget = getPerRoomBudget(age); const totalBudget = getAgeTotalBudget(age); document.getElementById("myCount").textContent = items.length; document.getElementById("myTotal").textContent = money(roomTotal); updateRoomTitle(); const totalBox = document.getElementById("myTotalBox"); const budgetMessage = document.getElementById("budgetMessage"); const budgetStatus = document.getElementById("budgetStatus"); totalBox.classList.remove("over-budget", "budget-ok", "budget-warning"); if(totalBudget > 0 && roomBudget > 0){ const roomRemaining = roomBudget - roomTotal; const ageRemaining = totalBudget - ageTotal; if(roomRemaining < 0 || ageRemaining < 0){ totalBox.classList.add("over-budget"); budgetMessage.textContent = `초과 / 반 한도 ${money(roomBudget)} · ${age} 전체 ${money(totalBudget)}`; budgetStatus.textContent = "초과"; } else if(roomRemaining <= roomBudget * .1 || ageRemaining <= totalBudget * .1){ totalBox.classList.add("budget-warning"); budgetMessage.textContent = `반 남은 금액 ${money(roomRemaining)} / ${age} 전체 남은 금액 ${money(ageRemaining)}`; budgetStatus.textContent = "주의"; } else { totalBox.classList.add("budget-ok"); budgetMessage.textContent = `반 남은 금액 ${money(roomRemaining)} / ${age} 전체 남은 금액 ${money(ageRemaining)}`; budgetStatus.textContent = "정상"; } } else { budgetMessage.textContent = "예산 미입력"; budgetStatus.textContent = "미설정"; } const st = load(STORAGE_KEYS.roomStatus).find(s => s.month === month && s.room === room)?.status || "작성중"; const locked = st === "제출완료"; document.getElementById("myStatus").textContent = st; document.getElementById("inputArea").classList.toggle("locked-area", locked); document.getElementById("lockNotice").style.display = locked ? "block" : "none"; document.getElementById("addBtn").disabled = locked; document.getElementById("copyBtn").disabled = locked; document.getElementById("submitBtn").style.display = locked ? "none" : "inline-block"; document.getElementById("cancelSubmitBtn").style.display = locked ? "inline-block" : "none"; document.getElementById("myTable").innerHTML = makeItemTable(items, locked); }
 function makeItemTable(items, locked=false){ let html = `<tr><th>번호</th><th>반 이름</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`; if(items.length === 0) return html + `<tr><td colspan="14">등록된 품목이 없습니다.</td></tr>`; items.forEach((x, i) => { if(editingItemId === x.id){ html += makeInlineEditCells(x, i, "normal"); return; } html += `<tr class="${locked ? "locked-row" : ""}"><td>${i+1}</td><td>${escapeHtml(x.room || "-")}</td><td>${escapeHtml(x.writer || "-")}</td><td>${escapeHtml(x.vendor || "-")}</td><td>${escapeHtml(x.productNo || "-")}</td><td class="left">${escapeHtml(x.itemName)}</td><td>${escapeHtml(x.itemSize || "-")}</td><td>${escapeHtml(x.itemColor || "-")}</td><td>${money(x.price)}</td><td>${escapeHtml(normalizeUnit(x.unit))}</td><td>${escapeHtml(x.qty)}</td><td>${money(x.price * x.qty)}</td><td class="left">${escapeHtml(x.purpose || "-")}</td><td>${locked && !isConsumableManager() ? "잠금" : (canEdit(x) ? `<button class="blue" onclick="editItem('${x.id}')">수정</button> <button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button>` : "-")}</td></tr>`; }); return html; }
@@ -606,23 +773,9 @@ async function renderFixedSites(){ const box = document.getElementById("fixedSit
 async function loadVendorOptions(){ const selects = [document.getElementById("vendor"), document.getElementById("commonVendor")].filter(Boolean); selects.forEach(select => { select.innerHTML = `<option value="">구매처 선택</option>`; }); const { data, error } = await supabaseClient.from("purchase_sites").select("*").eq("is_active", true).order("created_at", { ascending: true }); if(error){ selects.forEach(select => { select.innerHTML = `<option value="">구매처 불러오기 실패</option><option value="기타">기타</option>`; }); return; } (data || []).forEach(site => { selects.forEach(select => { select.innerHTML += `<option value="${site.site_name}">${site.site_name}</option>`; }); }); selects.forEach(select => { select.innerHTML += `<option value="기타">기타</option>`; }); handleVendorChange("vendor", "productNoBox", "customVendorBox"); handleVendorChange("commonVendor", "commonProductNoBox", "commonCustomVendorBox"); }
 async function addPurchaseSite(){ if(!isOwner()){ alert("구매 가능 사이트 추가는 hyeinkk 계정만 가능합니다."); return; } const siteName = document.getElementById("siteName").value.trim(); const siteUrl = document.getElementById("siteUrl").value.trim(); const memo = document.getElementById("siteMemo").value.trim(); if(!siteName || !siteUrl){ alert("사이트명과 사이트 주소를 입력해주세요."); return; } const { error } = await supabaseClient.from("purchase_sites").insert([{ site_name: siteName, site_url: siteUrl, memo, created_by: currentUser.name, is_active: true }]); if(error){ alert("사이트 추가 실패: " + error.message); return; } clearInputs(["siteName","siteUrl","siteMemo"]); alert("구매 가능 사이트가 추가되었습니다."); renderFixedSites(); loadVendorOptions(); }
 async function deletePurchaseSite(siteId){ if(!isOwner()){ alert("구매 가능 사이트 삭제는 hyeinkk 계정만 가능합니다."); return; } if(!confirm("이 사이트를 목록에서 삭제하시겠습니까?")) return; const { error } = await supabaseClient.from("purchase_sites").update({ is_active: false }).eq("id", siteId); if(error){ alert("사이트 삭제 실패: " + error.message); return; } alert("구매 가능 사이트가 삭제되었습니다."); renderFixedSites(); loadVendorOptions(); }
-function renderHistory(){
-  if(!isOwnerAdmin()) return;
-  const history = load(STORAGE_KEYS.history);
-  let html = `<tr><th>번호</th><th>작업</th><th>대상</th><th>처리자</th><th>권한</th><th>일시</th><th>기록삭제</th></tr>`;
-
-  if(history.length === 0) {
-    html += `<tr><td colspan="7">기록이 없습니다.</td></tr>`;
-  }
-
-  history.forEach((h, i) => {
-    html += `<tr><td>${i+1}</td><td>${escapeHtml(h.action)}</td><td class="left">${escapeHtml(h.target)}</td><td>${escapeHtml(h.user)}</td><td>${escapeHtml(h.role)}</td><td>${escapeHtml(h.date)}</td><td><button class="danger" onclick="deleteHistory('${h.id}')">삭제</button></td></tr>`;
-  });
-
-  document.getElementById("historyTable").innerHTML = html;
-}
-function deleteHistory(historyId){ if(!isOwnerAdmin()){ alert("기록 삭제는 최고관리자만 가능합니다."); return; } if(!confirm("이 기록을 삭제하시겠습니까?")) return; const history = load(STORAGE_KEYS.history).filter(h => h.id !== historyId); save(STORAGE_KEYS.history, history); renderHistory(); }
-function copyLastMonth(){ clearFormMessage(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; if(isSubmitted(month, room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 복사하려면 신청 취소를 먼저 눌러주세요."); return; } if(!month || !room){ alert("월과 반명을 확인해주세요."); return; } const d = new Date(month + "-01"); d.setMonth(d.getMonth() - 1); const lastMonth = d.toISOString().slice(0,7); const items = load(STORAGE_KEYS.items); const targets = items.filter(x => x.month === lastMonth && x.room === room && !x.deleted && !x.isCommon); if(targets.length === 0){ alert("지난달 신청 품목이 없습니다."); return; } const copiedAmount = targets.reduce((sum, x) => sum + x.price * x.qty, 0); const roomBudget = getPerRoomBudget(age); const totalBudget = getAgeTotalBudget(age); const roomCurrentTotal = getRoomCurrentTotal(month, room); const ageCurrentTotal = getAgeCurrentTotal(month, age); if(roomBudget > 0 && roomCurrentTotal + copiedAmount > roomBudget){ alert(`지난달 신청서를 복사하면 반별 한도를 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n반별 한도: ${money(roomBudget)}`); return; } if(totalBudget > 0 && ageCurrentTotal + copiedAmount > totalBudget){ alert(`지난달 신청서를 복사하면 연령 전체 예산을 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n${age} 전체 예산: ${money(totalBudget)}`); return; } const copied = targets.map(x => ({...x, id: uid(), month, writer: currentUser.name, createdBy: currentUser.name, createdAt: today(), deleted: false})); save(STORAGE_KEYS.items, items.concat(copied)); addHistory("지난달 복사", room, {lastMonth}, {month, count: copied.length}); renderMy(); renderCollect(); renderHistory(); }
+function renderHistory(){ return; }
+function deleteHistory(historyId){ return; }
+function copyLastMonth(){ clearFormMessage(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; if(isSubmitted(month, room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 복사하려면 신청 취소를 먼저 눌러주세요."); return; } if(!month || !room){ alert("월과 반명을 확인해주세요."); return; } const d = new Date(month + "-01"); d.setMonth(d.getMonth() - 1); const lastMonth = d.toISOString().slice(0,7); const items = load(STORAGE_KEYS.items); const targets = items.filter(x => x.month === lastMonth && x.room === room && !x.deleted && !x.isCommon); if(targets.length === 0){ alert("지난달 신청 품목이 없습니다."); return; } const copiedAmount = targets.reduce((sum, x) => sum + x.price * x.qty, 0); const roomBudget = getPerRoomBudget(age); const totalBudget = getAgeTotalBudget(age); const roomCurrentTotal = getRoomCurrentTotal(month, room); const ageCurrentTotal = getAgeCurrentTotal(month, age); if(roomBudget > 0 && roomCurrentTotal + copiedAmount > roomBudget){ alert(`지난달 신청서를 복사하면 반별 한도를 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n반별 한도: ${money(roomBudget)}`); return; } if(totalBudget > 0 && ageCurrentTotal + copiedAmount > totalBudget){ alert(`지난달 신청서를 복사하면 연령 전체 예산을 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n${age} 전체 예산: ${money(totalBudget)}`); return; } const copied = targets.map(x => ({...x, id: uid(), month, writer: currentUser.name, createdBy: currentUser.name, createdAt: today(), deleted: false})); save(STORAGE_KEYS.items, items.concat(copied)); addHistory("지난달 복사", room, {lastMonth}, {month, count: copied.length}); renderMy(); renderCollect(); }
 function getKoreanMonthTitle(month, age){ if(!month) return `소모품 신청서(${age || "전체연령"})`; const [, mm] = month.split("-"); return `${Number(mm)}월 소모품 신청서(${age || "전체연령"})`; }
 function exportExcel(){ const month = document.getElementById("filterMonth").value; if(!collectHasSearched || !month){ alert("조회 월을 선택하고 조회 버튼을 먼저 눌러주세요."); return; } const age = document.getElementById("filterAge").value; const selectedRoom = document.getElementById("filterRoom").value; const items = getFilteredCollectItems(); const title = getKoreanMonthTitle(month, selectedRoom && age !== "공동" ? `${age || "전체연령"} / ${selectedRoom}` : (age || "전체연령")); const total = items.reduce((sum, x) => sum + x.price * x.qty, 0); const header = ["번호","반 이름","신청자","품명","크기","색상","금액","단위","수량","구매처","사용용도","상품번호"]; const dataRows = items.map((x,i)=>[i+1,x.room || "-",x.writer || "-",x.itemName,x.itemSize || "-",x.itemColor || "-",x.price*x.qty,normalizeUnit(x.unit),x.qty,x.vendor,x.purpose || "-",x.productNo || ""]); const aoa = [[title, "", "", "", "", "", "", "", "", "담당", "원장", ""],["", "", "", "", "", "", "", "", "", "", "", ""],["", "", "", "", "", "", "", "", "", "", "", ""], header, ...dataRows, ["총계", "", "", "", "", "", money(total), "", "", "", "", ""]]; const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{wch:6},{wch:12},{wch:12},{wch:30},{wch:14},{wch:14},{wch:12},{wch:8},{wch:8},{wch:12},{wch:24},{wch:18}]; const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "소모품신청서"); XLSX.writeFile(wb, `${month || "전체"}_${age || "전체연령"}_소모품신청서.xlsx`); }
 function getFilteredCollectItems(){ const month = document.getElementById("filterMonth").value; const age = document.getElementById("filterAge").value; const selectedRoom = document.getElementById("filterRoom").value; let items = load(STORAGE_KEYS.items).filter(x => !x.deleted); if(age === "공동"){ items = items.filter(x => x.isCommon); } else { items = items.filter(x => !x.isCommon); if(age) items = items.filter(x => x.age === age); if(selectedRoom) items = items.filter(x => x.room === selectedRoom); } if(month) items = items.filter(x => x.month === month); const ageOrder = ["만1세", "만2세", "만3세", "만4세", "만5세", "공동"]; items.sort((a, b) => { const ageA = a.isCommon ? "공동" : a.age; const ageB = b.isCommon ? "공동" : b.age; const ageDiff = ageOrder.indexOf(ageA) - ageOrder.indexOf(ageB); if(ageDiff !== 0) return ageDiff; const roomA = classMap[a.age]?.indexOf(a.room) ?? 999; const roomB = classMap[b.age]?.indexOf(b.room) ?? 999; if(roomA !== roomB) return roomA - roomB; return String(a.itemName || "").localeCompare(String(b.itemName || ""), "ko"); }); return items; }
