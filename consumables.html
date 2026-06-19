@@ -6,11 +6,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
   <title>탕정삼성어린이집 소모품관리 시스템</title>
-  <!-- v: final-v5-clean-budget-no-local-merge -->
+  <!-- v: final-v8-hard-delete-direct-sync -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <style>
@@ -55,7 +52,6 @@
     .small { font-size: 12px; color: #6b7280; font-weight: 500; }
     td input, td select { min-width: 90px; padding: 7px; font-size: 12px; }
     td .green, td .gray, td .blue, td .danger { padding: 7px 9px; font-size: 12px; }
-
     .site-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; line-height: 1.6; }
     .hidden { display: none !important; }
     .error-box, .success-box, .lock-notice { display: none; margin-top: 12px; padding: 12px 14px; border-radius: 12px; font-weight: 800; line-height: 1.5; }
@@ -122,7 +118,7 @@
   <section id="panel-apply" class="panel active">
     <div class="card">
       <h2>반별 소모품 신청서</h2>
-      <div class="grid"><div><label>연도/월</label><input type="month" id="month" onchange="renderMy()"></div></div>
+      <div class="grid"><div><label>연도/월</label><input type="month" id="month" onchange="renderMy(true)"></div></div>
       <input type="hidden" id="age"><input type="hidden" id="room"><input type="hidden" id="writer"><input type="hidden" id="budget">
       <h3>품목 입력</h3>
       <div id="lockNotice" class="lock-notice">🔒 신청 완료 상태입니다. 수정하려면 신청 취소를 먼저 눌러주세요.</div>
@@ -136,7 +132,8 @@
         <div><label>금액</label><input id="price" type="number" placeholder="단가" oninput="updateAmountPreview()"></div>
         <div><label>단위</label><select id="unit"><option>EA</option><option>SET</option><option>BOX</option><option>권</option><option>봉</option></select></div>
         <div><label>수량</label><input id="qty" type="number" value="1" oninput="updateAmountPreview()"></div>
-        <div><label>사용용도</label><input id="purpose" placeholder="예: 미술영역 비치용"></div><div><label>최종금액</label><input id="amountPreview" value="0원" readonly style="font-weight:900; background:#f9fafb;"></div>
+        <div><label>사용용도</label><input id="purpose" placeholder="예: 미술영역 비치용"></div>
+        <div><label>최종금액</label><input id="amountPreview" value="0원" readonly style="font-weight:900; background:#f9fafb;"></div>
       </div>
       <div class="btns" style="margin-top:12px;">
         <button class="primary" id="addBtn" onclick="addItem()">품목 추가</button>
@@ -161,7 +158,7 @@
   <section id="panel-common" class="panel">
     <div class="card"><h2>공동 소모품 신청서</h2>
       <div class="grid">
-        <div><label>연도/월</label><input type="month" id="commonMonth" onchange="renderCommon()"></div>
+        <div><label>연도/월</label><input type="month" id="commonMonth" onchange="renderCommon(true)"></div>
         <div><label>구매처</label><select id="commonVendor" onchange="handleVendorChange('commonVendor','commonProductNoBox','commonCustomVendorBox')"></select></div>
         <div id="commonProductNoBox" class="hidden"><label>G마켓 상품번호</label><input id="commonProductNo" placeholder="G마켓일 때만 입력"></div>
         <div id="commonCustomVendorBox" class="hidden"><label>기타 구매처명</label><input id="commonCustomVendorName" placeholder="구매처 이름을 입력해주세요"></div>
@@ -193,6 +190,7 @@ let currentUser = null;
 let currentMode = "teacher";
 let collectHasSearched = false;
 let editingItemId = null;
+let isRefreshingStore = false;
 const classMap = { "만1세": ["햇빛반","달빛반","별빛반","풀빛반","온빛반"], "만2세": ["예빛반","봄빛반","물빛반","꿈빛반"], "만3세": ["한빛반","은빛반","새빛반"], "만4세": ["윤빛반","꽃빛반"], "만5세": ["들빛반","솔빛반"] };
 const AGE_BUDGETS = { "만1세": { total: 150000, rooms: 5 }, "만2세": { total: 150000, rooms: 4 }, "만3세": { total: 150000, rooms: 3 }, "만4세": { total: 150000, rooms: 2 }, "만5세": { total: 150000, rooms: 2 } };
 
@@ -200,9 +198,11 @@ function load(key){
   return JSON.parse(JSON.stringify(storeCache[key] || []));
 }
 
+function today(){ return new Date().toISOString(); }
+
 function getTimestampValue(item){
   const raw = item?.updatedAt || item?.createdAt || item?.deletedAt || "";
-  const parsed = Date.parse(String(raw).replace(/\./g, "-"));
+  const parsed = Date.parse(raw);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
@@ -211,14 +211,13 @@ function cleanItems(items){
 
   (items || []).forEach(item => {
     if(!item || !item.id) return;
-    if(item.deleted === true || item.deleted === "true") return;
 
     const normalized = {
       ...item,
       unit: normalizeUnit(item.unit),
       price: Number(item.price || 0),
       qty: Number(item.qty || 0),
-      deleted: false
+      deleted: item.deleted === true || item.deleted === "true"
     };
 
     const prev = byId.get(normalized.id);
@@ -227,8 +226,12 @@ function cleanItems(items){
     }
   });
 
-  const bySignature = new Map();
+  const aliveBySignature = new Map();
+
   Array.from(byId.values()).forEach(item => {
+    // 완전 삭제 방식: deleted 항목은 최종 데이터에서 아예 제거합니다.
+    if(item.deleted) return;
+
     const signature = [
       item.month || "",
       item.age || "",
@@ -246,106 +249,92 @@ function cleanItems(items){
       item.isCommon === true || item.isCommon === "true" ? "true" : "false"
     ].join("||");
 
-    const prev = bySignature.get(signature);
+    const prev = aliveBySignature.get(signature);
     if(!prev || getTimestampValue(item) >= getTimestampValue(prev)){
-      bySignature.set(signature, item);
+      aliveBySignature.set(signature, item);
     }
   });
 
-  return Array.from(bySignature.values());
+  return Array.from(aliveBySignature.values());
 }
 
 function cleanRoomStatus(statuses){
   const map = new Map();
   (statuses || []).forEach(status => {
     if(!status || !status.month || !status.room) return;
-    map.set(`${status.month}||${status.room}`, status);
+    const prev = map.get(`${status.month}||${status.room}`);
+    if(!prev || getTimestampValue(status) >= getTimestampValue(prev)) map.set(`${status.month}||${status.room}`, status);
   });
   return Array.from(map.values());
 }
 
-function save(key, data){
-  if(key === STORAGE_KEYS.items){
-    data = cleanItems(data);
-  }
-  if(key === STORAGE_KEYS.roomStatus){
-    data = cleanRoomStatus(data);
-  }
-
+async function save(key, data){
+  if(key === STORAGE_KEYS.items) data = cleanItems(data);
+  if(key === STORAGE_KEYS.roomStatus) data = cleanRoomStatus(data);
   storeCache[key] = data;
-  localStorage.setItem(key, JSON.stringify(data));
-  saveStoreToSupabase(key, data);
+  return await saveStoreToSupabase(key, data);
 }
 
 async function saveStoreToSupabase(key, data){
-  const { error } = await supabaseClient.from("consumables_store").upsert({ store_key: key, data: data, updated_at: new Date().toISOString() }, { onConflict: "store_key" });
-  if(error){ console.error("Supabase 저장 실패:", error.message); alert("공용 저장소 저장 실패: " + error.message); }
+  // 최종 저장 방식: 현재 storeCache 기준 데이터를 Supabase에 직접 저장합니다.
+  // 추가/수정/삭제 함수에서 먼저 refreshStoresFromSupabase()를 실행한 뒤 저장하므로,
+  // 삭제된 항목을 다시 병합해서 살리지 않습니다.
+  if(key === STORAGE_KEYS.items) data = cleanItems(data);
+  if(key === STORAGE_KEYS.roomStatus) data = cleanRoomStatus(data);
+
+  storeCache[key] = data;
+
+  const { error } = await supabaseClient
+    .from("consumables_store")
+    .upsert({ store_key: key, data: data, updated_at: new Date().toISOString() }, { onConflict: "store_key" });
+
+  if(error){
+    console.error("Supabase 저장 실패:", error.message);
+    alert("공용 저장소 저장 실패: " + error.message);
+    return false;
+  }
+
+  return true;
 }
 
 async function initializeStoresFromSupabase(){
   const activeKeys = Object.values(STORAGE_KEYS);
   const legacyKeys = Object.values(LEGACY_STORAGE_KEYS);
   const allKeys = activeKeys.concat(legacyKeys);
-
-  const { data, error } = await supabaseClient
-    .from("consumables_store")
-    .select("store_key, data")
-    .in("store_key", allKeys);
-
-  if(error){
-    alert("소모품 공용 데이터를 불러오지 못했습니다: " + error.message);
-    return;
-  }
-
+  const { data, error } = await supabaseClient.from("consumables_store").select("store_key, data").in("store_key", allKeys);
+  if(error){ alert("소모품 공용 데이터를 불러오지 못했습니다: " + error.message); return; }
   const remoteMap = {};
-  (data || []).forEach(row => {
-    remoteMap[row.store_key] = Array.isArray(row.data) ? row.data : [];
-  });
-
-  const pairs = [
-    [STORAGE_KEYS.items, LEGACY_STORAGE_KEYS.items],
-    [STORAGE_KEYS.roomStatus, LEGACY_STORAGE_KEYS.roomStatus]
-  ];
-
+  (data || []).forEach(row => { remoteMap[row.store_key] = Array.isArray(row.data) ? row.data : []; });
+  const pairs = [[STORAGE_KEYS.items, LEGACY_STORAGE_KEYS.items], [STORAGE_KEYS.roomStatus, LEGACY_STORAGE_KEYS.roomStatus]];
   for(const [activeKey, legacyKey] of pairs){
     let remoteData = remoteMap[activeKey];
-    if(!remoteData || remoteData.length === 0){
-      remoteData = remoteMap[legacyKey] || [];
-    }
-
-    if(activeKey === STORAGE_KEYS.items){
-      remoteData = cleanItems(remoteData);
-    }
-    if(activeKey === STORAGE_KEYS.roomStatus){
-      remoteData = cleanRoomStatus(remoteData);
-    }
-
+    if(!remoteData || remoteData.length === 0) remoteData = remoteMap[legacyKey] || [];
+    if(activeKey === STORAGE_KEYS.items) remoteData = cleanItems(remoteData);
+    if(activeKey === STORAGE_KEYS.roomStatus) remoteData = cleanRoomStatus(remoteData);
     storeCache[activeKey] = remoteData;
-    localStorage.setItem(activeKey, JSON.stringify(remoteData));
     await saveStoreToSupabase(activeKey, remoteData);
   }
+}
 
-  // 예전 기기 저장자료가 다시 합쳐지는 것을 막기 위해 신청 관련 localStorage만 비웁니다.
-  localStorage.removeItem(LEGACY_STORAGE_KEYS.items);
-  localStorage.removeItem(LEGACY_STORAGE_KEYS.roomStatus);
-  localStorage.removeItem(STORAGE_KEYS.items);
-  localStorage.removeItem(STORAGE_KEYS.roomStatus);
+async function refreshStoresFromSupabase(){
+  if(isRefreshingStore) return true;
+  isRefreshingStore = true;
+  const activeKeys = Object.values(STORAGE_KEYS);
+  const { data, error } = await supabaseClient.from("consumables_store").select("store_key, data").in("store_key", activeKeys);
+  isRefreshingStore = false;
+  if(error){ alert("최신 소모품 데이터를 불러오지 못했습니다: " + error.message); return false; }
+  (data || []).forEach(row => {
+    let rowData = Array.isArray(row.data) ? row.data : [];
+    if(row.store_key === STORAGE_KEYS.items) rowData = cleanItems(rowData);
+    if(row.store_key === STORAGE_KEYS.roomStatus) rowData = cleanRoomStatus(rowData);
+    storeCache[row.store_key] = rowData;
+  });
+  return true;
 }
 
 function money(n){ return Number(n || 0).toLocaleString("ko-KR") + "원"; }
-function updateAmountPreview(){
-  const price = Number(document.getElementById("price")?.value || 0);
-  const qty = Number(document.getElementById("qty")?.value || 0);
-  const el = document.getElementById("amountPreview");
-  if(el) el.value = money(price * qty);
-}
-function updateCommonAmountPreview(){
-  const price = Number(document.getElementById("commonPrice")?.value || 0);
-  const qty = Number(document.getElementById("commonQty")?.value || 0);
-  const el = document.getElementById("commonAmountPreview");
-  if(el) el.value = money(price * qty);
-}
-function today(){ return new Date().toLocaleString("ko-KR"); }
+function updateAmountPreview(){ const price = Number(document.getElementById("price")?.value || 0); const qty = Number(document.getElementById("qty")?.value || 0); const el = document.getElementById("amountPreview"); if(el) el.value = money(price * qty); }
+function updateCommonAmountPreview(){ const price = Number(document.getElementById("commonPrice")?.value || 0); const qty = Number(document.getElementById("commonQty")?.value || 0); const el = document.getElementById("commonAmountPreview"); if(el) el.value = money(price * qty); }
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 function getSavedUser(){ try { return JSON.parse(localStorage.getItem("consumablesCurrentUser") || localStorage.getItem("libraryCurrentUser") || localStorage.getItem("materialsCurrentUser") || "null"); } catch { return null; } }
 function getAgeByClass(className){ for(const [age, classes] of Object.entries(classMap)){ if(classes.includes(className)) return age; } return ""; }
@@ -353,70 +342,34 @@ function isAdmin(){ return currentUser?.role === "admin"; }
 function isOwner(){ return currentUser?.username === OWNER_USERNAME; }
 function isOwnerAdmin(){ return currentUser?.username === OWNER_USERNAME || currentUser?.class_name === "관리자"; }
 function isConsumableManager(){ return isAdmin() || currentUser?.consumable_role === "manager" || currentUser?.consumables_role === "manager" || currentUser?.supply_role === "manager" || currentUser?.supplies_role === "manager"; }
-function getRoleText(){ if(isAdmin()) return "관리자"; if(isConsumableManager()) return "소모품담당자"; return "선생님"; }
 function requireLogin(){ currentUser = getSavedUser(); if(!currentUser){ alert("로그인이 필요합니다."); location.href = "index.html"; return false; } if(!currentUser.class_name) currentUser.class_name = currentUser.room || ""; if(!currentUser.age) currentUser.age = getAgeByClass(currentUser.class_name); return true; }
 function setDefaultMonth(){ const ym = new Date().toISOString().slice(0,7); document.getElementById("month").value = ym; document.getElementById("filterMonth").value = ""; document.getElementById("commonMonth").value = ym; }
 function applyLoginProfile(){ document.getElementById("age").value = currentUser.age || ""; document.getElementById("room").value = currentUser.class_name || ""; document.getElementById("writer").value = currentUser.name || ""; document.getElementById("loginName").textContent = currentUser.name || "-"; document.getElementById("loginClass").textContent = currentUser.class_name || "-"; document.getElementById("loginRole").textContent = currentMode === "manager" ? "소모품담당자 페이지" : "반별 신청 페이지"; updateRoomTitle(); }
 function setupPermissionUI(){ const manager = isConsumableManager(); document.getElementById("managerModeBtn").classList.toggle("hidden", !manager); document.querySelectorAll(".manager-tab").forEach(el => el.classList.toggle("hidden", currentMode !== "manager" || !manager)); document.querySelectorAll(".admin-tab").forEach(el => el.classList.toggle("hidden", currentMode !== "manager" || !isOwnerAdmin())); }
 function setMode(mode){ if(mode === "manager" && !isConsumableManager()){ alert("소모품담당자 권한이 없습니다."); return; } currentMode = mode; applyLoginProfile(); updateAmountPreview(); updateCommonAmountPreview(); setupPermissionUI(); openPanel(mode === "manager" ? "collect" : "apply"); }
-function openPanel(name){ if((name === "common" || name === "collect") && !isConsumableManager()){ alert("소모품담당자만 확인할 수 있습니다."); return; } document.querySelectorAll(".panel").forEach(p => p.classList.remove("active")); document.querySelectorAll(".tab").forEach(t => t.classList.remove("active")); document.getElementById("panel-" + name).classList.add("active"); document.getElementById("tab-" + name).classList.add("active"); renderMy(); renderFixedSites(); renderCommon(); renderCollect(); }
+async function openPanel(name){ if((name === "common" || name === "collect") && !isConsumableManager()){ alert("소모품담당자만 확인할 수 있습니다."); return; } document.querySelectorAll(".panel").forEach(p => p.classList.remove("active")); document.querySelectorAll(".tab").forEach(t => t.classList.remove("active")); document.getElementById("panel-" + name).classList.add("active"); document.getElementById("tab-" + name).classList.add("active"); if(name === "apply") await renderMy(true); renderFixedSites(); if(name === "common") await renderCommon(true); if(name === "collect") renderCollect(); }
 function startAutoLogout(){ if(logoutTimerId) clearInterval(logoutTimerId); logoutRemain = AUTO_LOGOUT_SECONDS; updateLogoutDisplay(); logoutTimerId = setInterval(() => { logoutRemain--; updateLogoutDisplay(); if(logoutRemain <= 0) logout(); }, 1000); ["click","keydown","touchstart"].forEach(evt => { document.addEventListener(evt, () => { logoutRemain = AUTO_LOGOUT_SECONDS; updateLogoutDisplay(); }, { passive: true }); }); }
 function updateLogoutDisplay(){ const m = String(Math.floor(logoutRemain / 60)).padStart(2, "0"); const s = String(logoutRemain % 60).padStart(2, "0"); document.getElementById("autoLogoutTimer").textContent = `${m}:${s}`; }
 function goPortal(){ location.href = "index.html"; }
 function logout(){ localStorage.removeItem("libraryCurrentUser"); localStorage.removeItem("materialsCurrentUser"); localStorage.removeItem("consumablesCurrentUser"); location.href = "index.html"; }
 function getPerRoomBudget(age){ const config = AGE_BUDGETS[age]; if(!config || !config.total) return 0; return Math.floor(config.total / (config.rooms || 1)); }
 function getAgeTotalBudget(age){ return AGE_BUDGETS[age]?.total || 0; }
+
 function validateBudgetLimit(month, age, room, extraAmount = 0, excludeItemId = null){
   const roomBudget = getPerRoomBudget(age);
   const ageBudget = getAgeTotalBudget(age);
-
-  if(!month || !age || !room){
-    return { ok: false, message: "월, 연령, 반 정보를 확인해주세요." };
-  }
-
-  const items = load(STORAGE_KEYS.items).filter(x =>
-    x.month === month &&
-    !x.deleted &&
-    !x.isCommon &&
-    x.id !== excludeItemId
-  );
-
-  const roomTotal = items
-    .filter(x => x.room === room)
-    .reduce((sum, x) => sum + Number(x.price || 0) * Number(x.qty || 0), 0);
-
-  const ageTotal = items
-    .filter(x => x.age === age)
-    .reduce((sum, x) => sum + Number(x.price || 0) * Number(x.qty || 0), 0);
-
+  if(!month || !age || !room) return { ok: false, message: "월, 연령, 반 정보를 확인해주세요." };
+  const items = load(STORAGE_KEYS.items).filter(x => x.month === month && !x.deleted && !x.isCommon && x.id !== excludeItemId);
+  const roomTotal = items.filter(x => x.room === room).reduce((sum, x) => sum + Number(x.price || 0) * Number(x.qty || 0), 0);
+  const ageTotal = items.filter(x => x.age === age).reduce((sum, x) => sum + Number(x.price || 0) * Number(x.qty || 0), 0);
   const nextRoomTotal = roomTotal + Number(extraAmount || 0);
   const nextAgeTotal = ageTotal + Number(extraAmount || 0);
-
-  if(roomBudget > 0 && nextRoomTotal > roomBudget){
-    return {
-      ok: false,
-      message: `🚨 반별 예산을 초과했습니다.<br><br>반명: ${room}<br>현재 반 사용액: ${money(roomTotal)}<br>추가/수정 금액: ${money(extraAmount)}<br>수정 후 반 사용액: ${money(nextRoomTotal)}<br>반별 한도: ${money(roomBudget)}`
-    };
-  }
-
-  if(ageBudget > 0 && nextAgeTotal > ageBudget){
-    return {
-      ok: false,
-      message: `🚨 연령별 예산을 초과했습니다.<br><br>연령: ${age}<br>현재 연령 사용액: ${money(ageTotal)}<br>추가/수정 금액: ${money(extraAmount)}<br>수정 후 연령 사용액: ${money(nextAgeTotal)}<br>연령별 한도: ${money(ageBudget)}`
-    };
-  }
-
+  if(roomBudget > 0 && nextRoomTotal > roomBudget) return { ok: false, message: `🚨 반별 예산을 초과했습니다.<br><br>반명: ${room}<br>현재 반 사용액: ${money(roomTotal)}<br>추가/수정 금액: ${money(extraAmount)}<br>수정 후 반 사용액: ${money(nextRoomTotal)}<br>반별 한도: ${money(roomBudget)}` };
+  if(ageBudget > 0 && nextAgeTotal > ageBudget) return { ok: false, message: `🚨 연령별 예산을 초과했습니다.<br><br>연령: ${age}<br>현재 연령 사용액: ${money(ageTotal)}<br>추가/수정 금액: ${money(extraAmount)}<br>수정 후 연령 사용액: ${money(nextAgeTotal)}<br>연령별 한도: ${money(ageBudget)}` };
   return { ok: true, roomTotal: nextRoomTotal, ageTotal: nextAgeTotal };
 }
 
-function alertBudgetResult(result, useFormMessage = true){
-  const message = result.message || "예산을 초과했습니다.";
-  if(useFormMessage && document.getElementById("formError")){
-    showFormMessage("error", message);
-  } else {
-    alert(message.replaceAll("<br>", "\n"));
-  }
-}
+function alertBudgetResult(result, useFormMessage = true){ const message = result.message || "예산을 초과했습니다."; if(useFormMessage && document.getElementById("formError")) showFormMessage("error", message); else alert(message.replaceAll("<br>", "\n")); }
 function getAgeCurrentTotal(month, age){ return load(STORAGE_KEYS.items).filter(x => x.month === month && x.age === age && !x.deleted && !x.isCommon).reduce((sum, x) => sum + x.price * x.qty, 0); }
 function getRoomCurrentTotal(month, room){ return load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon).reduce((sum, x) => sum + x.price * x.qty, 0); }
 function updateRoomTitle(){ document.getElementById("myListTitle").textContent = `${currentUser?.class_name || ""} 소모품 신청 목록`; }
@@ -427,63 +380,44 @@ function addHistory(action, target, beforeData, afterData){ return; }
 function isSubmitted(month, room){ return load(STORAGE_KEYS.roomStatus).some(s => s.month === month && s.room === room && s.status === "제출완료"); }
 function forceUnlockApply(){ document.getElementById("inputArea").classList.remove("locked-area"); document.getElementById("lockNotice").style.display = "none"; document.getElementById("addBtn").disabled = false; document.getElementById("copyBtn").disabled = false; document.getElementById("submitBtn").style.display = "inline-block"; document.getElementById("cancelSubmitBtn").style.display = "none"; }
 function clearInputs(ids){ ids.forEach(id => { const el = document.getElementById(id); if(el) el.value = ""; }); }
-function addItem(){ clearFormMessage(); const month = document.getElementById("month").value; const age = document.getElementById("age").value; const room = document.getElementById("room").value.trim(); const writer = document.getElementById("writer").value.trim(); let vendor = document.getElementById("vendor").value; const customVendorName = document.getElementById("customVendorName").value.trim(); const productNo = document.getElementById("productNo").value.trim(); if(vendor === "기타"){ if(!customVendorName){ showFormMessage("error", "⚠️ 기타 구매처명을 입력해주세요."); return; } vendor = customVendorName; } const itemName = document.getElementById("itemName").value.trim(); const price = Number(document.getElementById("price").value || 0); const qty = Number(document.getElementById("qty").value || 1); const newAmount = price * qty; if(isSubmitted(month, room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 품목을 추가하려면 신청 취소를 먼저 눌러주세요."); return; } if(!month || !vendor || !itemName){ showFormMessage("error", "⚠️ 연도/월, 구매처, 품명은 필수입니다."); return; } if(price <= 0){ showFormMessage("error", "⚠️ 금액을 입력해주세요."); return; } if(qty <= 0){ showFormMessage("error", "⚠️ 수량을 입력해주세요."); return; } if(vendor === "G마켓" && !productNo){ showFormMessage("error", "⚠️ G마켓 구매 품목은 상품번호를 입력해주세요."); return; } const budgetCheck = validateBudgetLimit(month, age, room, newAmount); if(!budgetCheck.ok){ alertBudgetResult(budgetCheck, true); renderMy(); return; } const item = { id: uid(), month, age, room, writer, vendor, productNo: vendor === "G마켓" ? productNo : "", itemName, itemSize: document.getElementById("itemSize").value.trim(), itemColor: document.getElementById("itemColor").value.trim(), price, unit: document.getElementById("unit").value, qty, purpose: document.getElementById("purpose").value.trim(), createdBy: writer, createdAt: today(), deleted: false, isCommon: false }; const items = load(STORAGE_KEYS.items); items.push(item); save(STORAGE_KEYS.items, items); addHistory("추가", item.itemName, null, item); clearInputs(["productNo","customVendorName","itemName","itemSize","itemColor","price","purpose"]); document.getElementById("qty").value = 1; updateAmountPreview(); handleVendorChange("vendor", "productNoBox", "customVendorBox"); renderMy(); renderCollect(); showFormMessage("success", "✅ 품목이 추가되었습니다."); }
-function canEdit(item){ return item.createdBy === currentUser.name || isConsumableManager(); }
-function escapeHtml(value){
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+
+async function addItem(){
+  clearFormMessage();
+  await refreshStoresFromSupabase();
+  const month = document.getElementById("month").value;
+  const age = document.getElementById("age").value;
+  const room = document.getElementById("room").value.trim();
+  const writer = document.getElementById("writer").value.trim();
+  let vendor = document.getElementById("vendor").value;
+  const customVendorName = document.getElementById("customVendorName").value.trim();
+  const productNo = document.getElementById("productNo").value.trim();
+  if(vendor === "기타"){ if(!customVendorName){ showFormMessage("error", "⚠️ 기타 구매처명을 입력해주세요."); return; } vendor = customVendorName; }
+  const itemName = document.getElementById("itemName").value.trim();
+  const price = Number(document.getElementById("price").value || 0);
+  const qty = Number(document.getElementById("qty").value || 1);
+  const newAmount = price * qty;
+  if(isSubmitted(month, room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 품목을 추가하려면 신청 취소를 먼저 눌러주세요."); return; }
+  if(!month || !vendor || !itemName){ showFormMessage("error", "⚠️ 연도/월, 구매처, 품명은 필수입니다."); return; }
+  if(price <= 0){ showFormMessage("error", "⚠️ 금액을 입력해주세요."); return; }
+  if(qty <= 0){ showFormMessage("error", "⚠️ 수량을 입력해주세요."); return; }
+  if(vendor === "G마켓" && !productNo){ showFormMessage("error", "⚠️ G마켓 구매 품목은 상품번호를 입력해주세요."); return; }
+  const budgetCheck = validateBudgetLimit(month, age, room, newAmount);
+  if(!budgetCheck.ok){ alertBudgetResult(budgetCheck, true); await renderMy(false); return; }
+  const item = { id: uid(), month, age, room, writer, vendor, productNo: vendor === "G마켓" ? productNo : "", itemName, itemSize: document.getElementById("itemSize").value.trim(), itemColor: document.getElementById("itemColor").value.trim(), price, unit: document.getElementById("unit").value, qty, purpose: document.getElementById("purpose").value.trim(), createdBy: writer, createdAt: today(), updatedAt: today(), deleted: false, isCommon: false };
+  const items = load(STORAGE_KEYS.items); items.push(item); await save(STORAGE_KEYS.items, items);
+  clearInputs(["productNo","customVendorName","itemName","itemSize","itemColor","price","purpose"]); document.getElementById("qty").value = 1; updateAmountPreview(); handleVendorChange("vendor", "productNoBox", "customVendorBox");
+  await renderMy(false); renderCollect(); showFormMessage("success", "✅ 품목이 추가되었습니다.");
 }
 
-function normalizeUnit(unit){
-  return unit === "개" ? "EA" : (unit || "EA");
-}
-
-function makeUnitOptions(selected){
-  selected = normalizeUnit(selected);
-  const units = ["EA", "SET", "BOX", "권", "봉"];
-  if(selected && !units.includes(selected)) units.push(selected);
-  return units.map(unit => `<option value="${escapeHtml(unit)}" ${unit === selected ? "selected" : ""}>${escapeHtml(unit)}</option>`).join("");
-}
-
-function editItem(id){
-  const items = load(STORAGE_KEYS.items);
-  const item = items.find(x => x.id === id);
-  if(!item) return;
-
-  if(!item.isCommon && !isConsumableManager() && isSubmitted(item.month, item.room)){
-    alert("🔒 신청 완료 상태입니다. 수정하려면 신청 취소를 먼저 눌러주세요.");
-    return;
-  }
-
-  if(!canEdit(item)){
-    alert("⚠️ 본인이 작성한 항목만 수정할 수 있습니다.");
-    return;
-  }
-
-  editingItemId = id;
-  renderMy();
-  renderCommon();
-  renderCollect();
-}
-
-function cancelEditItem(){
-  editingItemId = null;
-  renderMy();
-  renderCommon();
-  renderCollect();
-}
-
-function editInputId(id, field){
-  return `edit-${id}-${field}`;
-}
-
-function getEditValue(id, field){
-  return document.getElementById(editInputId(id, field))?.value?.trim() || "";
-}
+function canEdit(item){ return item.createdBy === currentUser.name || item.writer === currentUser.name || isConsumableManager(); }
+function escapeHtml(value){ return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;"); }
+function normalizeUnit(unit){ return unit === "개" ? "EA" : (unit || "EA"); }
+function makeUnitOptions(selected){ selected = normalizeUnit(selected); const units = ["EA", "SET", "BOX", "권", "봉"]; if(selected && !units.includes(selected)) units.push(selected); return units.map(unit => `<option value="${escapeHtml(unit)}" ${unit === selected ? "selected" : ""}>${escapeHtml(unit)}</option>`).join(""); }
+function editItem(id){ const items = load(STORAGE_KEYS.items); const item = items.find(x => x.id === id); if(!item) return; if(!item.isCommon && !isConsumableManager() && isSubmitted(item.month, item.room)){ alert("🔒 신청 완료 상태입니다. 수정하려면 신청 취소를 먼저 눌러주세요."); return; } if(!canEdit(item)){ alert("⚠️ 본인이 작성한 항목만 수정할 수 있습니다."); return; } editingItemId = id; renderMy(false); renderCommon(false); renderCollect(); }
+function cancelEditItem(){ editingItemId = null; renderMy(false); renderCommon(false); renderCollect(); }
+function editInputId(id, field){ return `edit-${id}-${field}`; }
+function getEditValue(id, field){ return document.getElementById(editInputId(id, field))?.value?.trim() || ""; }
+function updateInlineEditAmount(id){ const price = Number(document.getElementById(editInputId(id, "price"))?.value || 0); const qty = Number(document.getElementById(editInputId(id, "qty"))?.value || 0); const amountEl = document.getElementById(editInputId(id, "amount")); if(amountEl) amountEl.textContent = money(price * qty); }
 
 function makeInlineEditCells(x, i, type="normal"){
   const id = x.id;
@@ -495,60 +429,21 @@ function makeInlineEditCells(x, i, type="normal"){
   const price = escapeHtml(x.price || 0);
   const qty = escapeHtml(x.qty || 1);
   const purpose = escapeHtml(x.purpose || "");
-  const unitOptions = makeUnitOptions(x.unit || "개");
+  const unitOptions = makeUnitOptions(x.unit || "EA");
   const saveCancel = `<button class="green" onclick="saveInlineEditItem('${id}')">저장</button> <button class="gray" onclick="cancelEditItem()">취소</button>`;
-
   if(type === "common"){
-    return `<tr class="budget-warning">
-      <td>${i+1}</td>
-      <td>${escapeHtml(x.writer || "-")}</td>
-      <td><input id="${editInputId(id, 'vendor')}" value="${vendor}" placeholder="구매처"></td>
-      <td><input id="${editInputId(id, 'productNo')}" value="${productNo}" placeholder="상품번호"></td>
-      <td><input id="${editInputId(id, 'itemName')}" value="${itemName}" placeholder="품명"></td>
-      <td><input id="${editInputId(id, 'itemSize')}" value="${itemSize}" placeholder="크기"></td>
-      <td><input id="${editInputId(id, 'itemColor')}" value="${itemColor}" placeholder="색상"></td>
-      <td><input id="${editInputId(id, 'price')}" type="number" value="${price}" placeholder="단가"></td>
-      <td><select id="${editInputId(id, 'unit')}">${unitOptions}</select></td>
-      <td><input id="${editInputId(id, 'qty')}" type="number" value="${qty}" placeholder="수량"></td>
-      <td>${money(Number(x.price || 0) * Number(x.qty || 0))}</td>
-      <td><input id="${editInputId(id, 'purpose')}" value="${purpose}" placeholder="사용용도"></td>
-      <td>${saveCancel}</td>
-    </tr>`;
+    return `<tr class="budget-warning"><td>${i+1}</td><td>${escapeHtml(x.writer || "-")}</td><td><input id="${editInputId(id, 'vendor')}" value="${vendor}" placeholder="구매처"></td><td><input id="${editInputId(id, 'productNo')}" value="${productNo}" placeholder="상품번호"></td><td><input id="${editInputId(id, 'itemName')}" value="${itemName}" placeholder="품명"></td><td><input id="${editInputId(id, 'itemSize')}" value="${itemSize}" placeholder="크기"></td><td><input id="${editInputId(id, 'itemColor')}" value="${itemColor}" placeholder="색상"></td><td><input id="${editInputId(id, 'price')}" type="number" value="${price}" placeholder="단가" oninput="updateInlineEditAmount('${id}')"></td><td><select id="${editInputId(id, 'unit')}">${unitOptions}</select></td><td><input id="${editInputId(id, 'qty')}" type="number" value="${qty}" placeholder="수량" oninput="updateInlineEditAmount('${id}')"></td><td id="${editInputId(id, 'amount')}">${money(Number(x.price || 0) * Number(x.qty || 0))}</td><td><input id="${editInputId(id, 'purpose')}" value="${purpose}" placeholder="사용용도"></td><td>${saveCancel}</td></tr>`;
   }
-
-  return `<tr class="budget-warning">
-    <td>${i+1}</td>
-    <td>${escapeHtml(x.room || "-")}</td>
-    <td>${escapeHtml(x.writer || "-")}</td>
-    <td><input id="${editInputId(id, 'vendor')}" value="${vendor}" placeholder="구매처"></td>
-    <td><input id="${editInputId(id, 'productNo')}" value="${productNo}" placeholder="상품번호"></td>
-    <td><input id="${editInputId(id, 'itemName')}" value="${itemName}" placeholder="품명"></td>
-    <td><input id="${editInputId(id, 'itemSize')}" value="${itemSize}" placeholder="크기"></td>
-    <td><input id="${editInputId(id, 'itemColor')}" value="${itemColor}" placeholder="색상"></td>
-    <td><input id="${editInputId(id, 'price')}" type="number" value="${price}" placeholder="단가"></td>
-    <td><select id="${editInputId(id, 'unit')}">${unitOptions}</select></td>
-    <td><input id="${editInputId(id, 'qty')}" type="number" value="${qty}" placeholder="수량"></td>
-    <td>${money(Number(x.price || 0) * Number(x.qty || 0))}</td>
-    <td><input id="${editInputId(id, 'purpose')}" value="${purpose}" placeholder="사용용도"></td>
-    <td>${saveCancel}</td>
-  </tr>`;
+  return `<tr class="budget-warning"><td>${i+1}</td><td>${escapeHtml(x.room || "-")}</td><td>${escapeHtml(x.writer || "-")}</td><td><input id="${editInputId(id, 'vendor')}" value="${vendor}" placeholder="구매처"></td><td><input id="${editInputId(id, 'productNo')}" value="${productNo}" placeholder="상품번호"></td><td><input id="${editInputId(id, 'itemName')}" value="${itemName}" placeholder="품명"></td><td><input id="${editInputId(id, 'itemSize')}" value="${itemSize}" placeholder="크기"></td><td><input id="${editInputId(id, 'itemColor')}" value="${itemColor}" placeholder="색상"></td><td><input id="${editInputId(id, 'price')}" type="number" value="${price}" placeholder="단가" oninput="updateInlineEditAmount('${id}')"></td><td><select id="${editInputId(id, 'unit')}">${unitOptions}</select></td><td><input id="${editInputId(id, 'qty')}" type="number" value="${qty}" placeholder="수량" oninput="updateInlineEditAmount('${id}')"></td><td id="${editInputId(id, 'amount')}">${money(Number(x.price || 0) * Number(x.qty || 0))}</td><td><input id="${editInputId(id, 'purpose')}" value="${purpose}" placeholder="사용용도"></td><td>${saveCancel}</td></tr>`;
 }
 
-function saveInlineEditItem(id){
+async function saveInlineEditItem(id){
+  await refreshStoresFromSupabase();
   const items = load(STORAGE_KEYS.items);
   const item = items.find(x => x.id === id);
   if(!item) return;
-
-  if(!item.isCommon && !isConsumableManager() && isSubmitted(item.month, item.room)){
-    alert("🔒 신청 완료 상태입니다. 수정하려면 신청 취소를 먼저 눌러주세요.");
-    return;
-  }
-
-  if(!canEdit(item)){
-    alert("⚠️ 본인이 작성한 항목만 수정할 수 있습니다.");
-    return;
-  }
-
+  if(!item.isCommon && !isConsumableManager() && isSubmitted(item.month, item.room)){ alert("🔒 신청 완료 상태입니다. 수정하려면 신청 취소를 먼저 눌러주세요."); return; }
+  if(!canEdit(item)){ alert("⚠️ 본인이 작성한 항목만 수정할 수 있습니다."); return; }
   const before = {...item};
   const vendor = getEditValue(id, "vendor");
   const productNo = getEditValue(id, "productNo");
@@ -559,61 +454,22 @@ function saveInlineEditItem(id){
   const unit = normalizeUnit(getEditValue(id, "unit") || "EA");
   const qty = Number(getEditValue(id, "qty") || 0);
   const purpose = getEditValue(id, "purpose");
-
-  if(!vendor || !itemName){
-    alert("구매처와 품명은 비워둘 수 없습니다.");
-    return;
-  }
-
-  if(price <= 0){
-    alert("금액을 1원 이상으로 입력해주세요.");
-    return;
-  }
-
-  if(qty <= 0){
-    alert("수량을 1개 이상으로 입력해주세요.");
-    return;
-  }
-
-  if(vendor === "G마켓" && !productNo){
-    alert("G마켓 구매 품목은 상품번호를 입력해주세요.");
-    return;
-  }
-
-  if(!item.isCommon){
-    const newAmount = price * qty;
-    const budgetCheck = validateBudgetLimit(item.month, item.age, item.room, newAmount, item.id);
-    if(!budgetCheck.ok){
-      alertBudgetResult(budgetCheck, false);
-      return;
-    }
-  }
-
-  item.vendor = vendor;
-  item.productNo = productNo;
-  item.itemName = itemName;
-  item.itemSize = itemSize;
-  item.itemColor = itemColor;
-  item.price = price;
-  item.unit = unit;
-  item.qty = qty;
-  item.purpose = purpose;
-  item.updatedBy = currentUser.name;
-  item.updatedAt = today();
-
-  save(STORAGE_KEYS.items, items);
+  if(!vendor || !itemName){ alert("구매처와 품명은 비워둘 수 없습니다."); return; }
+  if(price <= 0){ alert("금액을 1원 이상으로 입력해주세요."); return; }
+  if(qty <= 0){ alert("수량을 1개 이상으로 입력해주세요."); return; }
+  if(vendor === "G마켓" && !productNo){ alert("G마켓 구매 품목은 상품번호를 입력해주세요."); return; }
+  if(!item.isCommon){ const newAmount = price * qty; const budgetCheck = validateBudgetLimit(item.month, item.age, item.room, newAmount, item.id); if(!budgetCheck.ok){ alertBudgetResult(budgetCheck, false); return; } }
+  item.vendor = vendor; item.productNo = productNo; item.itemName = itemName; item.itemSize = itemSize; item.itemColor = itemColor; item.price = price; item.unit = unit; item.qty = qty; item.purpose = purpose; item.updatedBy = currentUser.name; item.updatedAt = today(); item.deleted = false;
+  await save(STORAGE_KEYS.items, items);
   addHistory("수정", before.itemName, before, {...item});
   editingItemId = null;
-  renderMy();
-  renderCommon();
-  renderCollect();
- 
-
-  if(document.getElementById("panel-apply")?.classList.contains("active")){
-    showFormMessage("success", "✅ 품목이 수정되었습니다.");
-  }
+  await renderMy(false); await renderCommon(false); renderCollect();
+  if(document.getElementById("panel-apply")?.classList.contains("active")) showFormMessage("success", "✅ 품목이 수정되었습니다.");
 }
-function softDeleteItem(id){
+
+async function softDeleteItem(id){
+  await refreshStoresFromSupabase();
+
   const items = load(STORAGE_KEYS.items);
   const item = items.find(x => x.id === id);
   if(!item) return;
@@ -628,160 +484,79 @@ function softDeleteItem(id){
     return;
   }
 
-  if(!confirm("이 품목을 삭제하시겠습니까? 삭제 후 신청 목록에서는 완전히 제외됩니다.")) return;
+  if(!confirm("이 품목을 삭제하시겠습니까? 삭제 후 최종 신청 목록과 금액에서 완전히 제외됩니다.")) return;
 
-  const before = {...item};
+  // 완전 삭제: 삭제 기록을 남기지 않고 최신 데이터에서 해당 id를 제거합니다.
   const updatedItems = items.filter(x => x.id !== id);
-  save(STORAGE_KEYS.items, updatedItems);
-
-  addHistory("삭제", item.itemName, {
-    id: before.id,
-    month: before.month,
-    age: before.age,
-    room: before.room,
-    writer: before.writer,
-    vendor: before.vendor,
-    productNo: before.productNo,
-    itemName: before.itemName,
-    itemSize: before.itemSize,
-    itemColor: before.itemColor,
-    price: before.price,
-    unit: before.unit,
-    qty: before.qty,
-    amount: Number(before.price || 0) * Number(before.qty || 0),
-    purpose: before.purpose
-  }, {
-    deletedBy: currentUser.name,
-    deletedAt: today()
-  });
+  await save(STORAGE_KEYS.items, updatedItems);
 
   editingItemId = null;
-  renderMy();
-  renderCommon();
+  await renderMy(false);
+  await renderCommon(false);
   renderCollect();
- 
 
-  if(document.getElementById("formSuccess")) showFormMessage("success", "✅ 삭제되었습니다.");
+  if(document.getElementById("formSuccess")){
+    showFormMessage("success", "✅ 삭제되었습니다.");
+  }
 }
-function submitRoom(){
-  clearFormMessage();
+
+async function submitRoom(){ clearFormMessage(); await refreshStoresFromSupabase(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; const writer = document.getElementById("writer").value.trim(); const roomItems = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon); if(!month){ showFormMessage("error", "⚠️ 연도/월을 확인해주세요."); return; } if(roomItems.length === 0){ showFormMessage("error", "⚠️ 신청 품목이 없습니다. 품목을 추가한 뒤 신청 완료를 눌러주세요."); return; } const finalCheck = validateBudgetLimit(month, age, room, 0, null); if(!finalCheck.ok){ showFormMessage("error", finalCheck.message + "<br><br>초과 품목을 수정하거나 삭제한 뒤 신청 완료해주세요."); return; } const statuses = load(STORAGE_KEYS.roomStatus).filter(s => !(s.month === month && s.room === room)); statuses.push({ id: uid(), month, age, room, writer, status: "제출완료", submittedBy: writer, submittedAt: today(), updatedAt: today() }); await save(STORAGE_KEYS.roomStatus, statuses); await renderMy(false); renderCollect(); showFormMessage("success", "✅ 신청 완료 처리되었습니다. 신청 목록이 잠금 상태로 변경되었습니다."); }
+async function cancelSubmit(){ clearFormMessage(); await refreshStoresFromSupabase(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const statuses = load(STORAGE_KEYS.roomStatus).filter(s => !(s.month === month && s.room === room)); await save(STORAGE_KEYS.roomStatus, statuses); forceUnlockApply(); await renderMy(false); renderCollect(); showFormMessage("success", "✅ 신청 취소되었습니다. 다시 수정할 수 있습니다."); }
+
+async function renderMy(shouldRefresh = false){
+  if(shouldRefresh) await refreshStoresFromSupabase();
   const month = document.getElementById("month").value;
   const room = document.getElementById("room").value.trim();
   const age = document.getElementById("age").value;
-  const writer = document.getElementById("writer").value.trim();
-  const roomItems = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon);
-
-  if(!month){ showFormMessage("error", "⚠️ 연도/월을 확인해주세요."); return; }
-  if(roomItems.length === 0){ showFormMessage("error", "⚠️ 신청 품목이 없습니다. 품목을 추가한 뒤 신청 완료를 눌러주세요."); return; }
-
-  const finalCheck = validateBudgetLimit(month, age, room, 0, null);
-  if(!finalCheck.ok){
-    showFormMessage("error", finalCheck.message + "<br><br>초과 품목을 수정하거나 삭제한 뒤 신청 완료해주세요.");
-    return;
-  }
-
-  const statuses = load(STORAGE_KEYS.roomStatus).filter(s => !(s.month === month && s.room === room));
-  statuses.push({ id: uid(), month, age, room, writer, status: "제출완료", submittedBy: writer, submittedAt: today() });
-  save(STORAGE_KEYS.roomStatus, statuses);
-  addHistory("신청 완료", room, null, {month, age, room, writer});
-  renderMy();
-  renderCollect();
-  showFormMessage("success", "✅ 신청 완료 처리되었습니다. 신청 목록이 잠금 상태로 변경되었습니다.");
+  const items = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon);
+  const roomTotal = items.reduce((sum, x) => sum + x.price * x.qty, 0);
+  const ageTotal = getAgeCurrentTotal(month, age);
+  const roomBudget = getPerRoomBudget(age);
+  const totalBudget = getAgeTotalBudget(age);
+  document.getElementById("myCount").textContent = items.length;
+  document.getElementById("myTotal").textContent = money(roomTotal);
+  updateRoomTitle();
+  const totalBox = document.getElementById("myTotalBox"); const budgetMessage = document.getElementById("budgetMessage"); const budgetStatus = document.getElementById("budgetStatus");
+  totalBox.classList.remove("over-budget", "budget-ok", "budget-warning");
+  if(totalBudget > 0 && roomBudget > 0){ const roomRemaining = roomBudget - roomTotal; const ageRemaining = totalBudget - ageTotal; if(roomRemaining < 0 || ageRemaining < 0){ totalBox.classList.add("over-budget"); budgetMessage.textContent = `초과 / 반 한도 ${money(roomBudget)} · ${age} 전체 ${money(totalBudget)}`; budgetStatus.textContent = "초과"; } else if(roomRemaining <= roomBudget * .1 || ageRemaining <= totalBudget * .1){ totalBox.classList.add("budget-warning"); budgetMessage.textContent = `반 남은 금액 ${money(roomRemaining)} / ${age} 전체 남은 금액 ${money(ageRemaining)}`; budgetStatus.textContent = "주의"; } else { totalBox.classList.add("budget-ok"); budgetMessage.textContent = `반 남은 금액 ${money(roomRemaining)} / ${age} 전체 남은 금액 ${money(ageRemaining)}`; budgetStatus.textContent = "정상"; } } else { budgetMessage.textContent = "예산 미입력"; budgetStatus.textContent = "미설정"; }
+  const st = load(STORAGE_KEYS.roomStatus).find(s => s.month === month && s.room === room)?.status || "작성중";
+  const locked = st === "제출완료";
+  document.getElementById("myStatus").textContent = st;
+  document.getElementById("inputArea").classList.toggle("locked-area", locked);
+  document.getElementById("lockNotice").style.display = locked ? "block" : "none";
+  document.getElementById("addBtn").disabled = locked;
+  document.getElementById("copyBtn").disabled = locked;
+  document.getElementById("submitBtn").style.display = locked ? "none" : "inline-block";
+  document.getElementById("cancelSubmitBtn").style.display = locked ? "inline-block" : "none";
+  document.getElementById("myTable").innerHTML = makeItemTable(items, locked);
 }
-function cancelSubmit(){ clearFormMessage(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const statuses = load(STORAGE_KEYS.roomStatus).filter(s => !(s.month === month && s.room === room)); save(STORAGE_KEYS.roomStatus, statuses); addHistory("신청 취소", room, {month, room, status:"제출완료"}, {month, room, status:"작성중"}); forceUnlockApply(); renderMy(); renderCollect(); showFormMessage("success", "✅ 신청 취소되었습니다. 다시 수정할 수 있습니다."); }
-function renderMy(){ const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; const items = load(STORAGE_KEYS.items).filter(x => x.month === month && x.room === room && !x.deleted && !x.isCommon); const roomTotal = items.reduce((sum, x) => sum + x.price * x.qty, 0); const ageTotal = getAgeCurrentTotal(month, age); const roomBudget = getPerRoomBudget(age); const totalBudget = getAgeTotalBudget(age); document.getElementById("myCount").textContent = items.length; document.getElementById("myTotal").textContent = money(roomTotal); updateRoomTitle(); const totalBox = document.getElementById("myTotalBox"); const budgetMessage = document.getElementById("budgetMessage"); const budgetStatus = document.getElementById("budgetStatus"); totalBox.classList.remove("over-budget", "budget-ok", "budget-warning"); if(totalBudget > 0 && roomBudget > 0){ const roomRemaining = roomBudget - roomTotal; const ageRemaining = totalBudget - ageTotal; if(roomRemaining < 0 || ageRemaining < 0){ totalBox.classList.add("over-budget"); budgetMessage.textContent = `초과 / 반 한도 ${money(roomBudget)} · ${age} 전체 ${money(totalBudget)}`; budgetStatus.textContent = "초과"; } else if(roomRemaining <= roomBudget * .1 || ageRemaining <= totalBudget * .1){ totalBox.classList.add("budget-warning"); budgetMessage.textContent = `반 남은 금액 ${money(roomRemaining)} / ${age} 전체 남은 금액 ${money(ageRemaining)}`; budgetStatus.textContent = "주의"; } else { totalBox.classList.add("budget-ok"); budgetMessage.textContent = `반 남은 금액 ${money(roomRemaining)} / ${age} 전체 남은 금액 ${money(ageRemaining)}`; budgetStatus.textContent = "정상"; } } else { budgetMessage.textContent = "예산 미입력"; budgetStatus.textContent = "미설정"; } const st = load(STORAGE_KEYS.roomStatus).find(s => s.month === month && s.room === room)?.status || "작성중"; const locked = st === "제출완료"; document.getElementById("myStatus").textContent = st; document.getElementById("inputArea").classList.toggle("locked-area", locked); document.getElementById("lockNotice").style.display = locked ? "block" : "none"; document.getElementById("addBtn").disabled = locked; document.getElementById("copyBtn").disabled = locked; document.getElementById("submitBtn").style.display = locked ? "none" : "inline-block"; document.getElementById("cancelSubmitBtn").style.display = locked ? "inline-block" : "none"; document.getElementById("myTable").innerHTML = makeItemTable(items, locked); }
+
 function makeItemTable(items, locked=false){ let html = `<tr><th>번호</th><th>반 이름</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`; if(items.length === 0) return html + `<tr><td colspan="14">등록된 품목이 없습니다.</td></tr>`; items.forEach((x, i) => { if(editingItemId === x.id){ html += makeInlineEditCells(x, i, "normal"); return; } html += `<tr class="${locked ? "locked-row" : ""}"><td>${i+1}</td><td>${escapeHtml(x.room || "-")}</td><td>${escapeHtml(x.writer || "-")}</td><td>${escapeHtml(x.vendor || "-")}</td><td>${escapeHtml(x.productNo || "-")}</td><td class="left">${escapeHtml(x.itemName)}</td><td>${escapeHtml(x.itemSize || "-")}</td><td>${escapeHtml(x.itemColor || "-")}</td><td>${money(x.price)}</td><td>${escapeHtml(normalizeUnit(x.unit))}</td><td>${escapeHtml(x.qty)}</td><td>${money(x.price * x.qty)}</td><td class="left">${escapeHtml(x.purpose || "-")}</td><td>${locked && !isConsumableManager() ? "잠금" : (canEdit(x) ? `<button class="blue" onclick="editItem('${x.id}')">수정</button> <button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button>` : "-")}</td></tr>`; }); return html; }
-function addCommonItem(){ if(!isConsumableManager()) return; let vendor = document.getElementById("commonVendor").value; const customVendorName = document.getElementById("commonCustomVendorName").value.trim(); const productNo = document.getElementById("commonProductNo").value.trim(); if(vendor === "기타"){ if(!customVendorName){ alert("기타 구매처명을 입력해주세요."); return; } vendor = customVendorName; } const month = document.getElementById("commonMonth").value; const writer = currentUser.name; const itemName = document.getElementById("commonItemName").value.trim(); const price = Number(document.getElementById("commonPrice").value || 0); const qty = Number(document.getElementById("commonQty").value || 1); if(!month || !vendor || !itemName || price <= 0 || qty <= 0){ alert("월, 구매처, 품명, 금액, 수량을 확인해주세요."); return; } if(vendor === "G마켓" && !productNo){ alert("G마켓 구매 품목은 상품번호를 입력해주세요."); return; } const item = { id: uid(), month, age: "공동", room: "공동소모품", writer, vendor, productNo: vendor === "G마켓" ? productNo : "", itemName, itemSize: document.getElementById("commonItemSize").value.trim(), itemColor: document.getElementById("commonItemColor").value.trim(), price, unit: document.getElementById("commonUnit").value, qty, purpose: document.getElementById("commonPurpose").value.trim() || "공동 소모품", createdBy: writer, createdAt: today(), deleted: false, isCommon: true }; const items = load(STORAGE_KEYS.items); items.push(item); save(STORAGE_KEYS.items, items); addHistory("공동 소모품 추가", item.itemName, null, item); clearInputs(["commonProductNo","commonCustomVendorName","commonItemName","commonItemSize","commonItemColor","commonPrice","commonPurpose"]); document.getElementById("commonQty").value = 1; updateCommonAmountPreview(); handleVendorChange("commonVendor", "commonProductNoBox", "commonCustomVendorBox"); renderCommon(); renderCollect(); const msg = document.getElementById("commonMessage"); msg.textContent = "✅ 공동 품목이 추가되었습니다."; msg.style.display = "block"; }
-function renderCommon(){ if(!isConsumableManager()) return; const month = document.getElementById("commonMonth").value; let items = load(STORAGE_KEYS.items).filter(x => x.isCommon && !x.deleted); if(month) items = items.filter(x => x.month === month); const total = items.reduce((sum, x) => sum + x.price * x.qty, 0); document.getElementById("commonCount").textContent = items.length; document.getElementById("commonTotal").textContent = money(total); document.getElementById("commonTable").innerHTML = makeCommonTable(items); }
+
+async function addCommonItem(){ if(!isConsumableManager()) return; await refreshStoresFromSupabase(); let vendor = document.getElementById("commonVendor").value; const customVendorName = document.getElementById("commonCustomVendorName").value.trim(); const productNo = document.getElementById("commonProductNo").value.trim(); if(vendor === "기타"){ if(!customVendorName){ alert("기타 구매처명을 입력해주세요."); return; } vendor = customVendorName; } const month = document.getElementById("commonMonth").value; const writer = currentUser.name; const itemName = document.getElementById("commonItemName").value.trim(); const price = Number(document.getElementById("commonPrice").value || 0); const qty = Number(document.getElementById("commonQty").value || 1); if(!month || !vendor || !itemName || price <= 0 || qty <= 0){ alert("월, 구매처, 품명, 금액, 수량을 확인해주세요."); return; } if(vendor === "G마켓" && !productNo){ alert("G마켓 구매 품목은 상품번호를 입력해주세요."); return; } const item = { id: uid(), month, age: "공동", room: "공동소모품", writer, vendor, productNo: vendor === "G마켓" ? productNo : "", itemName, itemSize: document.getElementById("commonItemSize").value.trim(), itemColor: document.getElementById("commonItemColor").value.trim(), price, unit: document.getElementById("commonUnit").value, qty, purpose: document.getElementById("commonPurpose").value.trim() || "공동 소모품", createdBy: writer, createdAt: today(), updatedAt: today(), deleted: false, isCommon: true }; const items = load(STORAGE_KEYS.items); items.push(item); await save(STORAGE_KEYS.items, items); clearInputs(["commonProductNo","commonCustomVendorName","commonItemName","commonItemSize","commonItemColor","commonPrice","commonPurpose"]); document.getElementById("commonQty").value = 1; updateCommonAmountPreview(); handleVendorChange("commonVendor", "commonProductNoBox", "commonCustomVendorBox"); await renderCommon(false); renderCollect(); const msg = document.getElementById("commonMessage"); msg.textContent = "✅ 공동 품목이 추가되었습니다."; msg.style.display = "block"; }
+async function renderCommon(shouldRefresh = false){ if(!isConsumableManager()) return; if(shouldRefresh) await refreshStoresFromSupabase(); const month = document.getElementById("commonMonth").value; let items = load(STORAGE_KEYS.items).filter(x => x.isCommon && !x.deleted); if(month) items = items.filter(x => x.month === month); const total = items.reduce((sum, x) => sum + x.price * x.qty, 0); document.getElementById("commonCount").textContent = items.length; document.getElementById("commonTotal").textContent = money(total); document.getElementById("commonTable").innerHTML = makeCommonTable(items); }
 function makeCommonTable(items){ let html = `<tr><th>번호</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`; if(items.length === 0) return html + `<tr><td colspan="13">등록된 품목이 없습니다.</td></tr>`; items.forEach((x, i) => { if(editingItemId === x.id){ html += makeInlineEditCells(x, i, "common"); return; } html += `<tr><td>${i+1}</td><td>${escapeHtml(x.writer || "-")}</td><td>${escapeHtml(x.vendor || "-")}</td><td>${escapeHtml(x.productNo || "-")}</td><td class="left">${escapeHtml(x.itemName)}</td><td>${escapeHtml(x.itemSize || "-")}</td><td>${escapeHtml(x.itemColor || "-")}</td><td>${money(x.price)}</td><td>${escapeHtml(normalizeUnit(x.unit))}</td><td>${escapeHtml(x.qty)}</td><td>${money(x.price * x.qty)}</td><td class="left">${escapeHtml(x.purpose || "-")}</td><td><button class="blue" onclick="editItem('${x.id}')">수정</button> <button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button></td></tr>`; }); return html; }
 function getCollectTargetRooms(age){ if(age === "공동") return []; if(age && classMap[age]) return classMap[age]; return Object.values(classMap).flat(); }
 function updateCollectRoomOptions(){ const age = document.getElementById("filterAge").value; const roomSelect = document.getElementById("filterRoom"); if(!roomSelect) return; const previous = roomSelect.value; roomSelect.innerHTML = `<option value="">전체 반</option>`; if(age === "공동"){ roomSelect.innerHTML = `<option value="">공동소모품</option>`; roomSelect.disabled = true; return; } roomSelect.disabled = false; getCollectTargetRooms(age).forEach(room => { roomSelect.innerHTML += `<option value="${room}">${room}</option>`; }); if([...roomSelect.options].some(opt => opt.value === previous)) roomSelect.value = previous; }
 function setAgeFilter(age){ document.getElementById("filterAge").value = age; updateCollectRoomOptions(); collectHasSearched = false; renderCollectPlaceholder("조회 월을 선택한 뒤 조회 버튼을 눌러주세요."); }
-function renderCollectPlaceholder(message = "조회 월을 선택한 뒤 조회 버튼을 눌러주세요."){
-  const titleEl = document.getElementById("collectTitle");
-  if(titleEl) titleEl.textContent = "소모품 신청서 조회 대기";
-  document.getElementById("allCount").textContent = "-";
-  document.getElementById("allTotal").textContent = "-";
-  document.getElementById("submittedRooms").textContent = "-";
-  document.getElementById("draftRooms").textContent = "-";
-  document.getElementById("allTable").innerHTML = `<tr><td style="padding:18px; text-align:center; color:#6b7280;">${message}</td></tr>`;
-  const last = document.getElementById("collectLastUpdated");
-  if(last) last.textContent = "마지막 조회: -";
-}
-
-function renderCollect(isManual = false){
-  if(!isConsumableManager()) return;
-  updateCollectRoomOptions();
-
-  const month = document.getElementById("filterMonth").value;
-
-  if(isManual && !month){
-    alert("조회 월을 먼저 선택해주세요.\n예: 6월에 7월 소모품을 신청하는 경우 조회 월은 2026년 7월로 선택하면 됩니다.");
-    renderCollectPlaceholder("조회 월을 선택한 뒤 조회 버튼을 눌러주세요.");
-    return;
-  }
-
-  if(!isManual && !collectHasSearched){
-    renderCollectPlaceholder("조회 월을 선택한 뒤 조회 버튼을 눌러주세요.");
-    return;
-  }
-
-  if(isManual) collectHasSearched = true;
-
-  const age = document.getElementById("filterAge").value;
-  const selectedRoom = document.getElementById("filterRoom").value;
-  const items = getFilteredCollectItems();
-  const total = items.reduce((sum, x) => sum + (Number(x.price || 0) * Number(x.qty || 0)), 0);
-
-  let titleAge = age || "전체연령";
-  if(selectedRoom && age !== "공동") titleAge = `${titleAge} / ${selectedRoom}`;
-
-  document.getElementById("collectTitle").textContent = getKoreanMonthTitle(month, titleAge);
-  document.getElementById("allCount").textContent = items.length;
-  document.getElementById("allTotal").textContent = money(total);
-
-  if(age === "공동"){
-    document.getElementById("submittedRooms").textContent = "-";
-    document.getElementById("draftRooms").textContent = "-";
-  } else {
-    let targetRooms = getCollectTargetRooms(age);
-    if(selectedRoom) targetRooms = [selectedRoom];
-
-    const statuses = load(STORAGE_KEYS.roomStatus).filter(s =>
-      s.month === month &&
-      (!age || s.age === age) &&
-      (!selectedRoom || s.room === selectedRoom)
-    );
-
-    const submittedRooms = targetRooms.filter(room =>
-      statuses.some(s => s.room === room && s.status === "제출완료")
-    );
-
-    const draftRooms = targetRooms.filter(room => !submittedRooms.includes(room));
-
-    document.getElementById("submittedRooms").textContent = submittedRooms.length ? submittedRooms.join(", ") : "없음";
-    document.getElementById("draftRooms").textContent = draftRooms.length ? draftRooms.join(", ") : "없음";
-  }
-
-  document.getElementById("allTable").innerHTML = makeCollectTable(items);
-
-  const last = document.getElementById("collectLastUpdated");
-  if(last) last.textContent = `마지막 조회: ${new Date().toLocaleString("ko-KR")}`;
-}
+function renderCollectPlaceholder(message = "조회 월을 선택한 뒤 조회 버튼을 눌러주세요."){ const titleEl = document.getElementById("collectTitle"); if(titleEl) titleEl.textContent = "소모품 신청서 조회 대기"; document.getElementById("allCount").textContent = "-"; document.getElementById("allTotal").textContent = "-"; document.getElementById("submittedRooms").textContent = "-"; document.getElementById("draftRooms").textContent = "-"; document.getElementById("allTable").innerHTML = `<tr><td style="padding:18px; text-align:center; color:#6b7280;">${message}</td></tr>`; const last = document.getElementById("collectLastUpdated"); if(last) last.textContent = "마지막 조회: -"; }
+async function renderCollect(isManual = false){ if(!isConsumableManager()) return; updateCollectRoomOptions(); const month = document.getElementById("filterMonth").value; if(isManual && !month){ alert("조회 월을 먼저 선택해주세요.\n예: 6월에 7월 소모품을 신청하는 경우 조회 월은 2026년 7월로 선택하면 됩니다."); renderCollectPlaceholder("조회 월을 선택한 뒤 조회 버튼을 눌러주세요."); return; } if(!isManual && !collectHasSearched){ renderCollectPlaceholder("조회 월을 선택한 뒤 조회 버튼을 눌러주세요."); return; } if(isManual) collectHasSearched = true; if(isManual){ const refreshed = await refreshStoresFromSupabase(); if(!refreshed) return; } const age = document.getElementById("filterAge").value; const selectedRoom = document.getElementById("filterRoom").value; const items = getFilteredCollectItems(); const total = items.reduce((sum, x) => sum + (Number(x.price || 0) * Number(x.qty || 0)), 0); let titleAge = age || "전체연령"; if(selectedRoom && age !== "공동") titleAge = `${titleAge} / ${selectedRoom}`; document.getElementById("collectTitle").textContent = getKoreanMonthTitle(month, titleAge); document.getElementById("allCount").textContent = items.length; document.getElementById("allTotal").textContent = money(total); if(age === "공동"){ document.getElementById("submittedRooms").textContent = "-"; document.getElementById("draftRooms").textContent = "-"; } else { let targetRooms = getCollectTargetRooms(age); if(selectedRoom) targetRooms = [selectedRoom]; const statuses = load(STORAGE_KEYS.roomStatus).filter(s => s.month === month && (!age || s.age === age) && (!selectedRoom || s.room === selectedRoom)); const submittedRooms = targetRooms.filter(room => statuses.some(s => s.room === room && s.status === "제출완료")); const draftRooms = targetRooms.filter(room => !submittedRooms.includes(room)); document.getElementById("submittedRooms").textContent = submittedRooms.length ? submittedRooms.join(", ") : "없음"; document.getElementById("draftRooms").textContent = draftRooms.length ? draftRooms.join(", ") : "없음"; } document.getElementById("allTable").innerHTML = makeCollectTable(items); const last = document.getElementById("collectLastUpdated"); if(last) last.textContent = `마지막 조회: ${new Date().toLocaleString("ko-KR")}`; }
 function makeCollectTable(items){ let html = `<tr><th>번호</th><th>반 이름</th><th>신청자</th><th>구매처</th><th>상품번호</th><th>품명</th><th>크기</th><th>색상</th><th>단가</th><th>단위</th><th>수량</th><th>금액</th><th>사용용도</th><th>관리</th></tr>`; if(items.length === 0) return html + `<tr><td colspan="14">등록된 품목이 없습니다.</td></tr>`; items.forEach((x, i) => { if(editingItemId === x.id){ html += makeInlineEditCells(x, i, "normal"); return; } html += `<tr><td>${i+1}</td><td>${escapeHtml(x.room || "-")}</td><td>${escapeHtml(x.writer || "-")}</td><td>${escapeHtml(x.vendor || "-")}</td><td>${escapeHtml(x.productNo || "-")}</td><td class="left">${escapeHtml(x.itemName)}</td><td>${escapeHtml(x.itemSize || "-")}</td><td>${escapeHtml(x.itemColor || "-")}</td><td>${money(x.price)}</td><td>${escapeHtml(normalizeUnit(x.unit))}</td><td>${escapeHtml(x.qty)}</td><td>${money(x.price * x.qty)}</td><td class="left">${escapeHtml(x.purpose || "-")}</td><td><button class="blue" onclick="editItem('${x.id}')">수정</button> <button class="danger" onclick="softDeleteItem('${x.id}')">삭제</button></td></tr>`; }); return html; }
-async function renderFixedSites(){ const box = document.getElementById("fixedSites"); const manageBox = document.getElementById("siteManageBox"); if(manageBox) manageBox.classList.toggle("hidden", !isOwner()); box.innerHTML = `<div class="site-card">구매 가능 사이트를 불러오는 중입니다...</div>`; const { data, error } = await supabaseClient.from("purchase_sites").select("*").eq("is_active", true).order("created_at", { ascending: true }); if(error){ box.innerHTML = `<div class="site-card">사이트 목록을 불러오지 못했습니다.</div>`; return; } if(!data || !data.length){ box.innerHTML = `<div class="site-card">등록된 구매 가능 사이트가 없습니다.</div>`; return; } box.innerHTML = data.map(site => `<div class="site-card"><b>${site.site_name}</b><br><span class="small">${site.memo || ""}</span><br><a href="${site.site_url}" target="_blank">사이트 바로가기</a>${isOwner() ? `<br><button class="danger" onclick="deletePurchaseSite('${site.id}')">삭제</button>` : ""}</div>`).join(""); }
-async function loadVendorOptions(){ const selects = [document.getElementById("vendor"), document.getElementById("commonVendor")].filter(Boolean); selects.forEach(select => { select.innerHTML = `<option value="">구매처 선택</option>`; }); const { data, error } = await supabaseClient.from("purchase_sites").select("*").eq("is_active", true).order("created_at", { ascending: true }); if(error){ selects.forEach(select => { select.innerHTML = `<option value="">구매처 불러오기 실패</option><option value="기타">기타</option>`; }); return; } (data || []).forEach(site => { selects.forEach(select => { select.innerHTML += `<option value="${site.site_name}">${site.site_name}</option>`; }); }); selects.forEach(select => { select.innerHTML += `<option value="기타">기타</option>`; }); handleVendorChange("vendor", "productNoBox", "customVendorBox"); handleVendorChange("commonVendor", "commonProductNoBox", "commonCustomVendorBox"); }
+
+async function renderFixedSites(){ const box = document.getElementById("fixedSites"); const manageBox = document.getElementById("siteManageBox"); if(manageBox) manageBox.classList.toggle("hidden", !isOwner()); box.innerHTML = `<div class="site-card">구매 가능 사이트를 불러오는 중입니다...</div>`; const { data, error } = await supabaseClient.from("purchase_sites").select("*").eq("is_active", true).order("created_at", { ascending: true }); if(error){ box.innerHTML = `<div class="site-card">사이트 목록을 불러오지 못했습니다.</div>`; return; } if(!data || !data.length){ box.innerHTML = `<div class="site-card">등록된 구매 가능 사이트가 없습니다.</div>`; return; } box.innerHTML = data.map(site => `<div class="site-card"><b>${escapeHtml(site.site_name)}</b><br><span class="small">${escapeHtml(site.memo || "")}</span><br><a href="${escapeHtml(site.site_url)}" target="_blank">사이트 바로가기</a>${isOwner() ? `<br><button class="danger" onclick="deletePurchaseSite('${site.id}')">삭제</button>` : ""}</div>`).join(""); }
+async function loadVendorOptions(){ const selects = [document.getElementById("vendor"), document.getElementById("commonVendor")].filter(Boolean); selects.forEach(select => { select.innerHTML = `<option value="">구매처 선택</option>`; }); const { data, error } = await supabaseClient.from("purchase_sites").select("*").eq("is_active", true).order("created_at", { ascending: true }); if(error){ selects.forEach(select => { select.innerHTML = `<option value="">구매처 불러오기 실패</option><option value="기타">기타</option>`; }); return; } (data || []).forEach(site => { selects.forEach(select => { select.innerHTML += `<option value="${escapeHtml(site.site_name)}">${escapeHtml(site.site_name)}</option>`; }); }); selects.forEach(select => { select.innerHTML += `<option value="기타">기타</option>`; }); handleVendorChange("vendor", "productNoBox", "customVendorBox"); handleVendorChange("commonVendor", "commonProductNoBox", "commonCustomVendorBox"); }
 async function addPurchaseSite(){ if(!isOwner()){ alert("구매 가능 사이트 추가는 hyeinkk 계정만 가능합니다."); return; } const siteName = document.getElementById("siteName").value.trim(); const siteUrl = document.getElementById("siteUrl").value.trim(); const memo = document.getElementById("siteMemo").value.trim(); if(!siteName || !siteUrl){ alert("사이트명과 사이트 주소를 입력해주세요."); return; } const { error } = await supabaseClient.from("purchase_sites").insert([{ site_name: siteName, site_url: siteUrl, memo, created_by: currentUser.name, is_active: true }]); if(error){ alert("사이트 추가 실패: " + error.message); return; } clearInputs(["siteName","siteUrl","siteMemo"]); alert("구매 가능 사이트가 추가되었습니다."); renderFixedSites(); loadVendorOptions(); }
 async function deletePurchaseSite(siteId){ if(!isOwner()){ alert("구매 가능 사이트 삭제는 hyeinkk 계정만 가능합니다."); return; } if(!confirm("이 사이트를 목록에서 삭제하시겠습니까?")) return; const { error } = await supabaseClient.from("purchase_sites").update({ is_active: false }).eq("id", siteId); if(error){ alert("사이트 삭제 실패: " + error.message); return; } alert("구매 가능 사이트가 삭제되었습니다."); renderFixedSites(); loadVendorOptions(); }
 function renderHistory(){ return; }
 function deleteHistory(historyId){ return; }
-function copyLastMonth(){ clearFormMessage(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; if(isSubmitted(month, room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 복사하려면 신청 취소를 먼저 눌러주세요."); return; } if(!month || !room){ alert("월과 반명을 확인해주세요."); return; } const d = new Date(month + "-01"); d.setMonth(d.getMonth() - 1); const lastMonth = d.toISOString().slice(0,7); const items = load(STORAGE_KEYS.items); const targets = items.filter(x => x.month === lastMonth && x.room === room && !x.deleted && !x.isCommon); if(targets.length === 0){ alert("지난달 신청 품목이 없습니다."); return; } const copiedAmount = targets.reduce((sum, x) => sum + x.price * x.qty, 0); const roomBudget = getPerRoomBudget(age); const totalBudget = getAgeTotalBudget(age); const roomCurrentTotal = getRoomCurrentTotal(month, room); const ageCurrentTotal = getAgeCurrentTotal(month, age); if(roomBudget > 0 && roomCurrentTotal + copiedAmount > roomBudget){ alert(`지난달 신청서를 복사하면 반별 한도를 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n반별 한도: ${money(roomBudget)}`); return; } if(totalBudget > 0 && ageCurrentTotal + copiedAmount > totalBudget){ alert(`지난달 신청서를 복사하면 연령 전체 예산을 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n${age} 전체 예산: ${money(totalBudget)}`); return; } const copied = targets.map(x => ({...x, id: uid(), month, writer: currentUser.name, createdBy: currentUser.name, createdAt: today(), deleted: false})); save(STORAGE_KEYS.items, items.concat(copied)); addHistory("지난달 복사", room, {lastMonth}, {month, count: copied.length}); renderMy(); renderCollect(); }
+async function copyLastMonth(){ clearFormMessage(); await refreshStoresFromSupabase(); const month = document.getElementById("month").value; const room = document.getElementById("room").value.trim(); const age = document.getElementById("age").value; if(isSubmitted(month, room)){ showFormMessage("error", "🔒 신청 완료 상태입니다. 복사하려면 신청 취소를 먼저 눌러주세요."); return; } if(!month || !room){ alert("월과 반명을 확인해주세요."); return; } const d = new Date(month + "-01"); d.setMonth(d.getMonth() - 1); const lastMonth = d.toISOString().slice(0,7); const items = load(STORAGE_KEYS.items); const targets = items.filter(x => x.month === lastMonth && x.room === room && !x.deleted && !x.isCommon); if(targets.length === 0){ alert("지난달 신청 품목이 없습니다."); return; } const copiedAmount = targets.reduce((sum, x) => sum + x.price * x.qty, 0); const roomBudget = getPerRoomBudget(age); const totalBudget = getAgeTotalBudget(age); const roomCurrentTotal = getRoomCurrentTotal(month, room); const ageCurrentTotal = getAgeCurrentTotal(month, age); if(roomBudget > 0 && roomCurrentTotal + copiedAmount > roomBudget){ alert(`지난달 신청서를 복사하면 반별 한도를 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n반별 한도: ${money(roomBudget)}`); return; } if(totalBudget > 0 && ageCurrentTotal + copiedAmount > totalBudget){ alert(`지난달 신청서를 복사하면 연령 전체 예산을 초과합니다.\n\n복사 금액: ${money(copiedAmount)}\n${age} 전체 예산: ${money(totalBudget)}`); return; } const copied = targets.map(x => ({...x, id: uid(), month, writer: currentUser.name, createdBy: currentUser.name, createdAt: today(), updatedAt: today(), deleted: false})); await save(STORAGE_KEYS.items, items.concat(copied)); await renderMy(false); renderCollect(); }
 function getKoreanMonthTitle(month, age){ if(!month) return `소모품 신청서(${age || "전체연령"})`; const [, mm] = month.split("-"); return `${Number(mm)}월 소모품 신청서(${age || "전체연령"})`; }
 function exportExcel(){ const month = document.getElementById("filterMonth").value; if(!collectHasSearched || !month){ alert("조회 월을 선택하고 조회 버튼을 먼저 눌러주세요."); return; } const age = document.getElementById("filterAge").value; const selectedRoom = document.getElementById("filterRoom").value; const items = getFilteredCollectItems(); const title = getKoreanMonthTitle(month, selectedRoom && age !== "공동" ? `${age || "전체연령"} / ${selectedRoom}` : (age || "전체연령")); const total = items.reduce((sum, x) => sum + x.price * x.qty, 0); const header = ["번호","반 이름","신청자","품명","크기","색상","금액","단위","수량","구매처","사용용도","상품번호"]; const dataRows = items.map((x,i)=>[i+1,x.room || "-",x.writer || "-",x.itemName,x.itemSize || "-",x.itemColor || "-",x.price*x.qty,normalizeUnit(x.unit),x.qty,x.vendor,x.purpose || "-",x.productNo || ""]); const aoa = [[title, "", "", "", "", "", "", "", "", "담당", "원장", ""],["", "", "", "", "", "", "", "", "", "", "", ""],["", "", "", "", "", "", "", "", "", "", "", ""], header, ...dataRows, ["총계", "", "", "", "", "", money(total), "", "", "", "", ""]]; const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{wch:6},{wch:12},{wch:12},{wch:30},{wch:14},{wch:14},{wch:12},{wch:8},{wch:8},{wch:12},{wch:24},{wch:18}]; const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "소모품신청서"); XLSX.writeFile(wb, `${month || "전체"}_${age || "전체연령"}_소모품신청서.xlsx`); }
-function getFilteredCollectItems(){ const month = document.getElementById("filterMonth").value; const age = document.getElementById("filterAge").value; const selectedRoom = document.getElementById("filterRoom").value; let items = load(STORAGE_KEYS.items).filter(x => !x.deleted); if(age === "공동"){ items = items.filter(x => x.isCommon); } else { items = items.filter(x => !x.isCommon); if(age) items = items.filter(x => x.age === age); if(selectedRoom) items = items.filter(x => x.room === selectedRoom); } if(month) items = items.filter(x => x.month === month); const ageOrder = ["만1세", "만2세", "만3세", "만4세", "만5세", "공동"]; items.sort((a, b) => { const ageA = a.isCommon ? "공동" : a.age; const ageB = b.isCommon ? "공동" : b.age; const ageDiff = ageOrder.indexOf(ageA) - ageOrder.indexOf(ageB); if(ageDiff !== 0) return ageDiff; const roomA = classMap[a.age]?.indexOf(a.room) ?? 999; const roomB = classMap[b.age]?.indexOf(b.room) ?? 999; if(roomA !== roomB) return roomA - roomB; return String(a.itemName || "").localeCompare(String(b.itemName || ""), "ko"); }); return items; }
-function makePrintTable(items){ let html = `<table><thead><tr><th style="width:5%">번호</th><th style="width:9%">반 이름</th><th style="width:8%">신청자</th><th style="width:10%">구매처</th><th style="width:10%">상품번호</th><th style="width:16%">품명</th><th style="width:8%">크기</th><th style="width:7%">색상</th><th style="width:8%">단가</th><th style="width:5%">단위</th><th style="width:5%">수량</th><th style="width:9%">금액</th><th style="width:14%">사용용도</th></tr></thead><tbody>`; if(items.length === 0){ return html + `<tr><td colspan="13">등록된 품목이 없습니다.</td></tr></tbody></table>`; } items.forEach((x, i) => { html += `<tr><td>${i + 1}</td><td>${x.room || "-"}</td><td>${x.writer || "-"}</td><td>${x.vendor || "-"}</td><td>${x.productNo || "-"}</td><td>${x.itemName || "-"}</td><td>${x.itemSize || "-"}</td><td>${x.itemColor || "-"}</td><td>${money(x.price)}</td><td>${normalizeUnit(x.unit)}</td><td>${x.qty || 0}</td><td>${money((x.price || 0) * (x.qty || 0))}</td><td>${x.purpose || "-"}</td></tr>`; }); return html + `</tbody></table>`; }
-function printCollectOnly(){ try { if(!collectHasSearched || !document.getElementById("filterMonth").value){ alert("조회 월을 선택하고 조회 버튼을 먼저 눌러주세요."); return; } renderCollect(); const title = document.getElementById("collectTitle")?.textContent || "소모품 신청서"; const items = getFilteredCollectItems(); const total = items.reduce((sum, x) => sum + (Number(x.price || 0) * Number(x.qty || 0)), 0); const tableHtml = makePrintTable(items); const printArea = document.getElementById("printArea"); if(!printArea){ alert("인쇄 영역을 찾을 수 없습니다."); return; } printArea.innerHTML = `<div class="print-top-row"><div class="print-title-box"><h2>탕정삼성어린이집 소모품 신청서</h2><h3>${title}</h3></div><table class="approval-table"><thead><tr><th>담당</th><th>원장</th></tr></thead><tbody><tr><td></td><td></td></tr></tbody></table></div><p class="print-summary">총 품목 수: ${items.length}개&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;총 금액: ${money(total)}</p>${tableHtml}`; printArea.classList.remove("hidden"); printArea.style.display = "block"; setTimeout(() => { window.print(); setTimeout(() => { printArea.classList.add("hidden"); printArea.style.display = "none"; }, 800); }, 100); } catch(error) { console.error(error); alert("인쇄 준비 중 오류가 발생했습니다: " + error.message); } }
-async function init(){ if(!requireLogin()) return; await initializeStoresFromSupabase(); setDefaultMonth(); applyLoginProfile(); updateAmountPreview(); updateCommonAmountPreview(); setupPermissionUI(); renderFixedSites(); loadVendorOptions(); startAutoLogout(); if(isConsumableManager()) setMode("teacher"); else { currentMode = "teacher"; setupPermissionUI(); openPanel("apply"); } }
+function getFilteredCollectItems(){ const month = document.getElementById("filterMonth").value; const age = document.getElementById("filterAge").value; const selectedRoom = document.getElementById("filterRoom").value; let items = load(STORAGE_KEYS.items).filter(x => !x.deleted); if(age === "공동") items = items.filter(x => x.isCommon); else { items = items.filter(x => !x.isCommon); if(age) items = items.filter(x => x.age === age); if(selectedRoom) items = items.filter(x => x.room === selectedRoom); } if(month) items = items.filter(x => x.month === month); const ageOrder = ["만1세", "만2세", "만3세", "만4세", "만5세", "공동"]; items.sort((a, b) => { const ageA = a.isCommon ? "공동" : a.age; const ageB = b.isCommon ? "공동" : b.age; const ageDiff = ageOrder.indexOf(ageA) - ageOrder.indexOf(ageB); if(ageDiff !== 0) return ageDiff; const roomA = classMap[a.age]?.indexOf(a.room) ?? 999; const roomB = classMap[b.age]?.indexOf(b.room) ?? 999; if(roomA !== roomB) return roomA - roomB; return String(a.itemName || "").localeCompare(String(b.itemName || ""), "ko"); }); return items; }
+function makePrintTable(items){ let html = `<table><thead><tr><th style="width:5%">번호</th><th style="width:9%">반 이름</th><th style="width:8%">신청자</th><th style="width:10%">구매처</th><th style="width:10%">상품번호</th><th style="width:16%">품명</th><th style="width:8%">크기</th><th style="width:7%">색상</th><th style="width:8%">단가</th><th style="width:5%">단위</th><th style="width:5%">수량</th><th style="width:9%">금액</th><th style="width:14%">사용용도</th></tr></thead><tbody>`; if(items.length === 0) return html + `<tr><td colspan="13">등록된 품목이 없습니다.</td></tr></tbody></table>`; items.forEach((x, i) => { html += `<tr><td>${i + 1}</td><td>${escapeHtml(x.room || "-")}</td><td>${escapeHtml(x.writer || "-")}</td><td>${escapeHtml(x.vendor || "-")}</td><td>${escapeHtml(x.productNo || "-")}</td><td>${escapeHtml(x.itemName || "-")}</td><td>${escapeHtml(x.itemSize || "-")}</td><td>${escapeHtml(x.itemColor || "-")}</td><td>${money(x.price)}</td><td>${normalizeUnit(x.unit)}</td><td>${x.qty || 0}</td><td>${money((x.price || 0) * (x.qty || 0))}</td><td>${escapeHtml(x.purpose || "-")}</td></tr>`; }); return html + `</tbody></table>`; }
+async function printCollectOnly(){ try { if(!collectHasSearched || !document.getElementById("filterMonth").value){ alert("조회 월을 선택하고 조회 버튼을 먼저 눌러주세요."); return; } await renderCollect(); const title = document.getElementById("collectTitle")?.textContent || "소모품 신청서"; const items = getFilteredCollectItems(); const total = items.reduce((sum, x) => sum + (Number(x.price || 0) * Number(x.qty || 0)), 0); const tableHtml = makePrintTable(items); const printArea = document.getElementById("printArea"); if(!printArea){ alert("인쇄 영역을 찾을 수 없습니다."); return; } printArea.innerHTML = `<div class="print-top-row"><div class="print-title-box"><h2>탕정삼성어린이집 소모품 신청서</h2><h3>${escapeHtml(title)}</h3></div><table class="approval-table"><thead><tr><th>담당</th><th>원장</th></tr></thead><tbody><tr><td></td><td></td></tr></tbody></table></div><p class="print-summary">총 품목 수: ${items.length}개&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;총 금액: ${money(total)}</p>${tableHtml}`; printArea.classList.remove("hidden"); printArea.style.display = "block"; setTimeout(() => { window.print(); setTimeout(() => { printArea.classList.add("hidden"); printArea.style.display = "none"; }, 800); }, 100); } catch(error) { console.error(error); alert("인쇄 준비 중 오류가 발생했습니다: " + error.message); } }
+
+async function init(){ if(!requireLogin()) return; await initializeStoresFromSupabase(); setDefaultMonth(); applyLoginProfile(); updateAmountPreview(); updateCommonAmountPreview(); setupPermissionUI(); renderFixedSites(); loadVendorOptions(); startAutoLogout(); currentMode = "teacher"; setupPermissionUI(); await openPanel("apply"); }
 init();
 </script>
 </body>
