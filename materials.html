@@ -1216,16 +1216,18 @@ async function requestReturn(materialId) {
     return;
   }
 
-  await supabaseClient
-    .from("material_records")
-    .update({
-      status: "return_requested",
-      returned_by: currentUser.id,
-      return_requested_at: new Date().toISOString()
-    })
-    .eq("material_id", materialId)
-    .eq("class_name", currentUser.class_name)
-    .eq("status", "borrowed");
+  const recordError = await markRecordAsReturnRequested(materialId);
+
+  if (recordError) {
+    await supabaseClient
+      .from("materials")
+      .update({ status: "borrowed" })
+      .eq("id", materialId)
+      .eq("current_class", currentUser.class_name);
+
+    alert("반납신청 기록 처리 실패: " + recordError.message);
+    return;
+  }
 
   alert("반납신청이 완료되었습니다.");
   loadMaterials();
@@ -1241,26 +1243,37 @@ async function bulkRequestReturn() {
 
   if (!confirm(`선택한 ${selected.length}개의 교재교구를 일괄 반납신청하시겠습니까?`)) return;
 
+  let success = 0;
+  let fail = 0;
+
   for (const materialId of selected) {
-    await supabaseClient
+    const { error } = await supabaseClient
       .from("materials")
       .update({ status: "return_requested" })
       .eq("id", materialId)
       .eq("current_class", currentUser.class_name);
 
-    await supabaseClient
-      .from("material_records")
-      .update({
-        status: "return_requested",
-        returned_by: currentUser.id,
-        return_requested_at: new Date().toISOString()
-      })
-      .eq("material_id", materialId)
-      .eq("class_name", currentUser.class_name)
-      .eq("status", "borrowed");
+    if (error) {
+      fail++;
+      continue;
+    }
+
+    const recordError = await markRecordAsReturnRequested(materialId);
+
+    if (recordError) {
+      await supabaseClient
+        .from("materials")
+        .update({ status: "borrowed" })
+        .eq("id", materialId)
+        .eq("current_class", currentUser.class_name);
+
+      fail++;
+    } else {
+      success++;
+    }
   }
 
-  alert("일괄 반납신청이 완료되었습니다.");
+  alert(`일괄 반납신청 완료\n성공: ${success}개\n실패: ${fail}개`);
   loadMaterials();
   loadMyMaterials();
 }
@@ -1315,7 +1328,7 @@ async function loadMyMaterials() {
     list.innerHTML = `<tr><td colspan="9">현재 ${escapeHtml(currentUser.class_name)}에서 대여 또는 반납요청 중인 교재교구가 없습니다.</td></tr>`;
   } else {
     for (const item of data) {
-      const record = await getActiveRecord(item.id, ["borrowed", "return_requested"]);
+      const record = await getActiveRecord(item.id, ["borrowed", "return_requested", "return_rejected"]);
       let returnBtn = "-";
       let checkBox = "-";
 
@@ -1418,6 +1431,55 @@ async function getActiveRecord(materialId, statuses) {
     .select("*")
     .eq("material_id", materialId)
     .in("status", statuses)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return data;
+}
+
+async function getLatestReturnableRecord(materialId) {
+  const { data } = await supabaseClient
+    .from("material_records")
+    .select("*")
+    .eq("material_id", materialId)
+    .eq("class_name", currentUser.class_name)
+    .in("status", ["borrowed", "return_rejected"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return data;
+}
+
+async function markRecordAsReturnRequested(materialId) {
+  const record = await getLatestReturnableRecord(materialId);
+
+  if (!record) {
+    return new Error("대여중이거나 반려된 대여기록을 찾을 수 없습니다.");
+  }
+
+  const { error } = await supabaseClient
+    .from("material_records")
+    .update({
+      status: "return_requested",
+      returned_by: currentUser.id,
+      return_requested_at: new Date().toISOString(),
+      return_reject_reason: null,
+      return_rejected_at: null,
+      return_rejected_by: null
+    })
+    .eq("id", record.id);
+
+  return error || null;
+}
+
+async function getManagerActiveRecord(materialId) {
+  const { data } = await supabaseClient
+    .from("material_records")
+    .select("*")
+    .eq("material_id", materialId)
+    .in("status", ["borrowed", "return_requested", "return_rejected"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -1561,7 +1623,7 @@ async function loadReturnApproveList() {
   let rowCount = 0;
 
   for (const item of data) {
-    const record = await getActiveRecord(item.id, ["borrowed", "return_requested"]);
+    const record = await getManagerActiveRecord(item.id);
 
     if (monthRange) {
       const approvedAt = record?.approved_at;
@@ -1623,15 +1685,18 @@ async function approveReturn(materialId) {
     })
     .eq("id", materialId);
 
-  await supabaseClient
-    .from("material_records")
-    .update({
-      status: "returned",
-      returned_at: new Date().toISOString(),
-      return_approved_by: currentUser.id
-    })
-    .eq("material_id", materialId)
-    .eq("status", "return_requested");
+  const record = await getManagerActiveRecord(materialId);
+
+  if (record) {
+    await supabaseClient
+      .from("material_records")
+      .update({
+        status: "returned",
+        returned_at: new Date().toISOString(),
+        return_approved_by: currentUser.id
+      })
+      .eq("id", record.id);
+  }
 
   loadReturnApproveList();
   loadMonthlyRecordList();
@@ -1648,8 +1713,11 @@ async function bulkApproveReturn() {
 
   if (!confirm(`선택한 ${selected.length}개의 교재교구를 일괄 반납확인하시겠습니까?`)) return;
 
+  let success = 0;
+  let fail = 0;
+
   for (const materialId of selected) {
-    await supabaseClient
+    const materialUpdate = await supabaseClient
       .from("materials")
       .update({
         status: "available",
@@ -1658,18 +1726,31 @@ async function bulkApproveReturn() {
       })
       .eq("id", materialId);
 
-    await supabaseClient
-      .from("material_records")
-      .update({
-        status: "returned",
-        returned_at: new Date().toISOString(),
-        return_approved_by: currentUser.id
-      })
-      .eq("material_id", materialId)
-      .eq("status", "return_requested");
+    if (materialUpdate.error) {
+      fail++;
+      continue;
+    }
+
+    const record = await getManagerActiveRecord(materialId);
+
+    if (record) {
+      const recordUpdate = await supabaseClient
+        .from("material_records")
+        .update({
+          status: "returned",
+          returned_at: new Date().toISOString(),
+          return_approved_by: currentUser.id
+        })
+        .eq("id", record.id);
+
+      if (recordUpdate.error) fail++;
+      else success++;
+    } else {
+      success++;
+    }
   }
 
-  alert("일괄 반납확인이 완료되었습니다.");
+  alert(`일괄 반납확인 완료\n성공: ${success}개\n실패: ${fail}개`);
   loadReturnApproveList();
   loadMonthlyRecordList();
   loadMaterials();
@@ -1688,6 +1769,15 @@ async function rejectReturn(materialId) {
     .update({ status: "borrowed" })
     .eq("id", materialId);
 
+  const record = await getManagerActiveRecord(materialId);
+
+  if (!record) {
+    alert("반려 처리할 대여기록을 찾지 못했습니다.");
+    loadReturnApproveList();
+    loadMaterials();
+    return;
+  }
+
   const { error } = await supabaseClient
     .from("material_records")
     .update({
@@ -1696,8 +1786,7 @@ async function rejectReturn(materialId) {
       return_rejected_at: new Date().toISOString(),
       return_rejected_by: currentUser.id
     })
-    .eq("material_id", materialId)
-    .eq("status", "return_requested");
+    .eq("id", record.id);
 
   if (error) {
     alert("반려 처리 실패: " + error.message);
