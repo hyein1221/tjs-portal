@@ -151,6 +151,60 @@
 
     .material-search-row input { margin-bottom: 0; }
 
+    .section-card {
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      padding:16px;
+      margin:16px 0 24px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.03);
+    }
+
+    .section-card h3 {
+      margin-top:0;
+      padding-bottom:8px;
+      border-bottom:1px solid #f1f5f9;
+    }
+
+    .manage-filter-box {
+      background:#f9fafb;
+      border:1px solid #e5e7eb;
+      padding:12px;
+      margin:10px 0 14px;
+    }
+
+    .manage-filter-title {
+      font-weight:700;
+      margin:4px 0 8px;
+      font-size:14px;
+    }
+
+    .manage-action-row {
+      display:grid;
+      grid-template-columns:1fr auto auto;
+      gap:8px;
+      align-items:center;
+      margin-bottom:8px;
+    }
+
+    .manage-action-row input { margin-bottom:0; }
+
+    .manage-date-row {
+      display:grid;
+      grid-template-columns:1fr 1fr auto auto;
+      gap:8px;
+      align-items:center;
+    }
+
+    .manage-date-row input { margin-bottom:0; }
+
+    .compact-notice {
+      margin:8px 0 0;
+      font-size:13px;
+      color:#666;
+      line-height:1.5;
+    }
+
     .home-action-bar {
       display:flex;
       justify-content:flex-end;
@@ -247,7 +301,7 @@
 
     @media (max-width: 700px) {
       body { padding: 12px; }
-      .grid-row, .material-search-row { grid-template-columns: 1fr; }
+      .grid-row, .material-search-row, .manage-action-row, .manage-date-row { grid-template-columns: 1fr; }
       .top { align-items: flex-start; }
       .session-box { flex-wrap: wrap; }
       table { table-layout: auto; }
@@ -514,39 +568,27 @@
   </div>
 
   <div id="material-tab" class="manager-tab-content">
-    <h3>엑셀로 교재교구 등록</h3>
-    <div class="panel">
-      <button id="excel-upload-btn" class="btn-approve">엑셀 파일 선택 및 교재교구 등록</button>
-      <input
-        id="excel-upload"
-        type="file"
-        accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-        hidden
-        onclick="this.value=null;"
-        capture="none"
-      />
-
+    <div class="section-card">
+      <h3>교재교구 조회 / 수정 / 삭제</h3>
       <p class="notice">
-        엑셀 파일에 <strong>구입일자, 관리번호, 구분, 분류명, 물품명, 규격, 구입처, 수량, 금, 사용처, 전표(증빙번호), 사진, 비고</strong> 열이 포함될 수 있습니다.
+        관리번호, 분류명, 물품명으로 검색하거나 등록일 기준으로 조회한 뒤 수정·삭제할 수 있습니다.
       </p>
 
-      <div id="excel-upload-result" class="message"></div>
-    </div>
+      <div class="manage-filter-box">
+        <div class="manage-filter-title">검색어로 조회</div>
+        <div class="manage-action-row">
+          <input id="manage-material-search" autocomplete="off" placeholder="관리번호 / 분류명 / 물품명 검색" />
+          <button id="manage-material-search-btn" class="btn-basic">검색</button>
+          <button id="manage-material-reset-btn" class="btn-cancel">초기화</button>
+        </div>
 
-    <h3>등록일 기준 교재교구 조회</h3>
-    <div class="panel">
-      <div class="grid-row">
-        <input id="material-start-date" type="date" />
-        <input id="material-end-date" type="date" />
-        <button id="search-material-date-btn" class="btn-basic">기간 조회</button>
-      </div>
-    </div>
-
-    <h3>교재교구 검색 / 수정 / 삭제</h3>
-    <div class="panel">
-      <div class="material-search-row">
-        <input id="manage-material-search" autocomplete="off" placeholder="관리번호 / 분류명 / 물품명 검색" />
-        <button id="manage-material-search-btn" class="btn-basic">교재교구 검색</button>
+        <div class="manage-filter-title">등록일 기준 조회</div>
+        <div class="manage-date-row">
+          <input id="material-start-date" type="date" />
+          <input id="material-end-date" type="date" />
+          <button id="search-material-date-btn" class="btn-basic">기간 조회</button>
+          <button id="material-this-month-btn" class="btn-basic">이번 달</button>
+        </div>
       </div>
 
       <table>
@@ -562,11 +604,33 @@
             <th>삭제</th>
           </tr>
         </thead>
-        <tbody id="manage-material-list"></tbody>
+        <tbody id="manage-material-list">
+          <tr><td colspan="8">검색어 또는 기간을 입력한 뒤 조회해주세요.</td></tr>
+        </tbody>
       </table>
     </div>
-  </div>
 
+    <div class="section-card">
+      <h3>엑셀 일괄 등록</h3>
+      <div class="panel">
+        <button id="excel-upload-btn" class="btn-approve">엑셀 파일 선택</button>
+        <input
+          id="excel-upload"
+          type="file"
+          accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+          hidden
+          onclick="this.value=null;"
+          capture="none"
+        />
+
+        <p class="compact-notice">
+          필수 열: <strong>관리번호, 물품명</strong> / 선택 열: 구입일자, 구분, 분류명, 규격, 구입처, 수량, 금, 사용처, 전표(증빙번호), 사진, 비고
+        </p>
+
+        <div id="excel-upload-result" class="message"></div>
+      </div>
+    </div>
+  </div>
   <button id="manager-back-btn" class="btn-basic">메인으로 돌아가기</button>
 </div>
 
@@ -2305,6 +2369,35 @@ async function searchMaterialsByDate() {
   renderManageMaterials(data, error);
 }
 
+function resetManageMaterialSearch() {
+  const searchEl = document.getElementById("manage-material-search");
+  const startEl = document.getElementById("material-start-date");
+  const endEl = document.getElementById("material-end-date");
+  const list = document.getElementById("manage-material-list");
+
+  if (searchEl) searchEl.value = "";
+  if (startEl) startEl.value = "";
+  if (endEl) endEl.value = "";
+  if (list) list.innerHTML = `<tr><td colspan="8">검색어 또는 기간을 입력한 뒤 조회해주세요.</td></tr>`;
+}
+
+function setThisMonthForMaterialSearch() {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+  const toDateValue = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  document.getElementById("material-start-date").value = toDateValue(first);
+  document.getElementById("material-end-date").value = toDateValue(last);
+  searchMaterialsByDate();
+}
+
 function safePromptText(value) {
   return String(value || "").replaceAll("\\", "\\\\").replaceAll("'", "\\'");
 }
@@ -2539,6 +2632,8 @@ function bindEvents() {
 
   on("manage-material-search-btn", "click", searchManageMaterials);
   on("search-material-date-btn", "click", searchMaterialsByDate);
+  on("manage-material-reset-btn", "click", resetManageMaterialSearch);
+  on("material-this-month-btn", "click", setThisMonthForMaterialSearch);
 
   document.querySelectorAll(".manager-tab-btn").forEach(btn => {
     btn.addEventListener("click", () => switchManagerTab(btn.dataset.tab));
@@ -2555,6 +2650,13 @@ function bindEvents() {
     currentPage = 1;
     loadMaterials();
   };
+
+  const manageSearch = document.getElementById("manage-material-search");
+  if (manageSearch) {
+    manageSearch.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") searchManageMaterials();
+    });
+  }
 }
 
 bindEvents();
