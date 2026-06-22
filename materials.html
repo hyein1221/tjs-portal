@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>탕정삼성어린이집 교재교구관리 시스템</title>
+  <!-- v: materials-extra-rental-label-less -->
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
@@ -150,6 +151,72 @@
 
     .material-search-row input { margin-bottom: 0; }
 
+    .home-action-bar {
+      display:flex;
+      justify-content:flex-end;
+      align-items:center;
+      gap:8px;
+      margin:10px 0;
+      flex-wrap:wrap;
+    }
+
+    .modal-overlay {
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.35);
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      z-index:9999;
+      padding:16px;
+    }
+
+    #extra-rental-modal.hidden { display:none !important; }
+    #extra-rental-modal { display:none; }
+    #extra-rental-modal:not(.hidden) { display:flex; }
+
+    .modal-box {
+      width:100%;
+      max-width:440px;
+      background:#fff;
+      border-radius:12px;
+      padding:20px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.18);
+    }
+
+    .modal-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+      margin-bottom:8px;
+    }
+
+    .modal-header h3 { margin:0; }
+
+    .modal-close-btn {
+      width:32px;
+      height:32px;
+      padding:0;
+      border:none;
+      background:#f3f4f6;
+      color:#374151;
+      border-radius:50%;
+      font-size:20px;
+      line-height:1;
+      cursor:pointer;
+    }
+
+    .modal-close-btn:hover { background:#e5e7eb; }
+
+    .modal-actions {
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      margin-top:10px;
+      flex-wrap:wrap;
+    }
+
     .btn-basic { background: white; color: #111; }
     .btn-reserve { background: #ecfdf5; color: #047857; border-color: #bbf7d0; }
     .btn-cancel { background: #f3f4f6; color: #4b5563; border-color: #d1d5db; }
@@ -158,13 +225,11 @@
     .btn-danger { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
     .btn-wait { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; cursor: default; }
 
-
     .manager-tabs { display:flex; gap:8px; margin:20px 0; border-bottom:1px solid #ddd; padding-bottom:10px; }
     .manager-tab-btn { padding:10px 16px; border:1px solid #ccc; background:#f9fafb; cursor:pointer; border-radius:8px; font-weight:700; }
     .manager-tab-btn.active { background:#dcfce7; color:#047857; border-color:#bbf7d0; }
     .manager-tab-content { display:none; }
     .manager-tab-content.active { display:block; }
-
 
     .bulk-bar {
       display:flex;
@@ -230,6 +295,10 @@
   </div>
 
   <input id="search" autocomplete="off" value="" placeholder="관리번호 / 분류명 / 물품명 검색" />
+
+  <div class="home-action-bar">
+    <button id="extra-rental-open-btn" class="btn-reserve">기타대여 추가</button>
+  </div>
 
   <div class="page-size-box">
     <select id="page-size">
@@ -354,10 +423,7 @@
       </thead>
       <tbody id="return-approve-list"></tbody>
     </table>
-
-
   </div>
-
 
   <div id="record-tab" class="manager-tab-content">
     <h3>대여기록 출력</h3>
@@ -424,64 +490,87 @@
   </div>
 
   <div id="material-tab" class="manager-tab-content">
+    <h3>엑셀로 교재교구 등록</h3>
+    <div class="panel">
+      <button id="excel-upload-btn" class="btn-approve">엑셀 파일 선택 및 교재교구 등록</button>
+      <input
+        id="excel-upload"
+        type="file"
+        accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+        hidden
+        onclick="this.value=null;"
+        capture="none"
+      />
 
+      <p class="notice">
+        엑셀 파일에 <strong>구입일자, 관리번호, 구분, 분류명, 물품명, 규격, 구입처, 수량, 금, 사용처, 전표(증빙번호), 사진, 비고</strong> 열이 포함될 수 있습니다.
+      </p>
 
-  <h3>엑셀로 교재교구 등록</h3>
-  <div class="panel">
-    <button id="excel-upload-btn" class="btn-approve">엑셀 파일 선택 및 교재교구 등록</button>
-    <input
-      id="excel-upload"
-      type="file"
-      accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-      hidden
-      onclick="this.value=null;"
-      capture="none"
-    />
-
-    <p class="notice">
-      엑셀 파일에 <strong>구입일자, 관리번호, 구분, 분류명, 물품명, 규격, 구입처, 수량, 금, 사용처, 전표(증빙번호), 사진, 비고</strong> 열이 포함될 수 있습니다.
-    </p>
-
-    <div id="excel-upload-result" class="message"></div>
-  </div>
-
-  <h3>등록일 기준 교재교구 조회</h3>
-  <div class="panel">
-    <div class="grid-row">
-      <input id="material-start-date" type="date" />
-      <input id="material-end-date" type="date" />
-      <button id="search-material-date-btn" class="btn-basic">기간 조회</button>
-    </div>
-  </div>
-
-  <h3>교재교구 검색 / 수정 / 삭제</h3>
-  <div class="panel">
-    <div class="material-search-row">
-      <input id="manage-material-search" autocomplete="off" placeholder="관리번호 / 분류명 / 물품명 검색" />
-      <button id="manage-material-search-btn" class="btn-basic">교재교구 검색</button>
+      <div id="excel-upload-result" class="message"></div>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>구입일자</th>
-          <th>관리번호</th>
-          <th>분류명</th>
-          <th>교재교구명</th>
-          <th>수량</th>
-          <th>상태</th>
-          <th>수정</th>
-          <th>삭제</th>
-        </tr>
-      </thead>
-      <tbody id="manage-material-list"></tbody>
-    </table>
-  </div>
+    <h3>등록일 기준 교재교구 조회</h3>
+    <div class="panel">
+      <div class="grid-row">
+        <input id="material-start-date" type="date" />
+        <input id="material-end-date" type="date" />
+        <button id="search-material-date-btn" class="btn-basic">기간 조회</button>
+      </div>
+    </div>
 
+    <h3>교재교구 검색 / 수정 / 삭제</h3>
+    <div class="panel">
+      <div class="material-search-row">
+        <input id="manage-material-search" autocomplete="off" placeholder="관리번호 / 분류명 / 물품명 검색" />
+        <button id="manage-material-search-btn" class="btn-basic">교재교구 검색</button>
+      </div>
 
+      <table>
+        <thead>
+          <tr>
+            <th>구입일자</th>
+            <th>관리번호</th>
+            <th>분류명</th>
+            <th>교재교구명</th>
+            <th>수량</th>
+            <th>상태</th>
+            <th>수정</th>
+            <th>삭제</th>
+          </tr>
+        </thead>
+        <tbody id="manage-material-list"></tbody>
+      </table>
+    </div>
   </div>
 
   <button id="manager-back-btn" class="btn-basic">메인으로 돌아가기</button>
+</div>
+
+<div id="extra-rental-modal" class="modal-overlay hidden" style="display:none;">
+  <div class="modal-box" onclick="event.stopPropagation();">
+    <div class="modal-header">
+      <h3>기타대여 추가</h3>
+      <button id="extra-rental-close-btn" class="modal-close-btn" type="button" aria-label="닫기">×</button>
+    </div>
+
+    <p class="notice">
+      ※ 교재교구 목록에서 검색되지 않는 물품을 임시로 등록하고, 현재 반의 사용중 교재교구로 바로 등록합니다.<br>
+      라벨이 없는 경우에는 체크 후 교재교구명만 입력해주세요.
+    </p>
+
+    <label>
+      <input type="checkbox" id="extra-label-less-check" style="width:auto; margin-right:6px;">
+      라벨 없는 교재교구
+    </label>
+
+    <input id="extra-material-number" autocomplete="off" placeholder="관리번호 입력 예시: 10-ㄱ-7" />
+    <input id="extra-material-name" autocomplete="off" placeholder="교재교구명 입력" />
+
+    <div class="modal-actions">
+      <button id="extra-rental-save-btn" class="btn-reserve">기타대여 등록</button>
+      <button id="extra-rental-cancel-btn" class="btn-cancel">취소</button>
+    </div>
+  </div>
 </div>
 
 <div id="print-area" class="hidden"></div>
@@ -530,6 +619,18 @@ function getStatusName(status) {
   return map[status] || status || "-";
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function regexEscape(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function formatExcelOrTextDate(value) {
   if (value === null || value === undefined || value === "") return "";
@@ -540,7 +641,6 @@ function formatExcelOrTextDate(value) {
   }
   return String(value);
 }
-
 
 function formatDate(value) {
   if (!value) return "-";
@@ -708,9 +808,6 @@ function extendSession() {
   alert("로그인 시간이 30분 연장되었습니다.");
 }
 
-
-
-
 async function loadMaterials() {
   const list = document.getElementById("material-list");
   list.innerHTML = `<tr><td colspan="9">교재교구 목록을 불러오는 중입니다...</td></tr>`;
@@ -721,6 +818,7 @@ async function loadMaterials() {
   let query = supabaseClient
     .from("materials")
     .select('id,"구입일자","관리번호","분류명","물품명","수량",status,current_class,current_user_id,is_deleted', { count: "exact" })
+    .or("is_deleted.is.false,is_deleted.is.null")
     .order("관리번호", { ascending: true })
     .range(start, end);
 
@@ -735,9 +833,8 @@ async function loadMaterials() {
     return;
   }
 
-  const visibleData = (data || []).filter(item => item.is_deleted !== true);
   totalMaterials = count || 0;
-  renderMaterials(visibleData);
+  renderMaterials(data || []);
   renderPagination();
 }
 
@@ -773,13 +870,13 @@ function renderMaterials(materials) {
 
     list.innerHTML += `
       <tr>
-        <td>${formatExcelOrTextDate(item["구입일자"])}</td>
-        <td>${item["관리번호"] || ""}</td>
-        <td>${item["분류명"] || ""}</td>
-        <td>${item["물품명"] || ""}</td>
-        <td class="status">${item["수량"] ?? ""}</td>
-        <td class="status">${getStatusName(item.status || "available")}</td>
-        <td class="status">${item.current_class || "-"}</td>
+        <td>${escapeHtml(formatExcelOrTextDate(item["구입일자"]))}</td>
+        <td>${escapeHtml(item["관리번호"] || "")}</td>
+        <td>${escapeHtml(item["분류명"] || "")}</td>
+        <td>${escapeHtml(item["물품명"] || "")}</td>
+        <td class="status">${escapeHtml(item["수량"] ?? "")}</td>
+        <td class="status">${escapeHtml(getStatusName(item.status || "available"))}</td>
+        <td class="status">${escapeHtml(item.current_class || "-")}</td>
         <td class="btn-cell">${reserveBtn}</td>
         <td class="btn-cell">${returnBtn}</td>
       </tr>
@@ -826,6 +923,190 @@ function nextPage() {
   }
 }
 
+function toggleLabelLessInput(checkId, numberId) {
+  const checked = document.getElementById(checkId)?.checked;
+  const input = document.getElementById(numberId);
+  if (!input) return;
+
+  input.disabled = !!checked;
+  input.placeholder = checked
+    ? "라벨 없는 교재교구 번호가 자동 생성됩니다"
+    : input.dataset.originalPlaceholder || input.placeholder;
+
+  if (checked) input.value = "";
+}
+
+async function generateNextMaterialNumber(prefix) {
+  const { data, error } = await supabaseClient
+    .from("materials")
+    .select('"관리번호"')
+    .ilike("관리번호", `${prefix}%`)
+    .limit(1000);
+
+  if (error) throw error;
+
+  let max = 0;
+  const pattern = new RegExp(`^${regexEscape(prefix)}(\\d+)$`);
+
+  (data || []).forEach(row => {
+    const number = row["관리번호"] || "";
+    const match = number.match(pattern);
+    if (match) max = Math.max(max, Number(match[1]));
+  });
+
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
+}
+
+function openExtraRentalModal() {
+  const modal = document.getElementById("extra-rental-modal");
+  const numberInput = document.getElementById("extra-material-number");
+  const nameInput = document.getElementById("extra-material-name");
+  const labelLessCheck = document.getElementById("extra-label-less-check");
+
+  if (numberInput) numberInput.value = "";
+  if (nameInput) nameInput.value = "";
+  if (labelLessCheck) labelLessCheck.checked = false;
+
+  toggleLabelLessInput("extra-label-less-check", "extra-material-number");
+
+  modal.classList.remove("hidden");
+  modal.style.display = "flex";
+
+  setTimeout(() => {
+    if (numberInput) numberInput.focus();
+  }, 0);
+}
+
+function closeExtraRentalModal() {
+  const modal = document.getElementById("extra-rental-modal");
+  if (!modal) return;
+
+  modal.classList.add("hidden");
+  modal.style.display = "none";
+
+  const numberInput = document.getElementById("extra-material-number");
+  const nameInput = document.getElementById("extra-material-name");
+  const labelLessCheck = document.getElementById("extra-label-less-check");
+
+  if (numberInput) numberInput.value = "";
+  if (nameInput) nameInput.value = "";
+  if (labelLessCheck) labelLessCheck.checked = false;
+
+  toggleLabelLessInput("extra-label-less-check", "extra-material-number");
+}
+
+async function createExtraMaterialRental() {
+  const labelLess = document.getElementById("extra-label-less-check")?.checked;
+  let materialNumber = document.getElementById("extra-material-number").value.trim();
+  const materialName = document.getElementById("extra-material-name").value.trim();
+
+  if (labelLess) {
+    try {
+      materialNumber = await generateNextMaterialNumber("기타-라벨없음-");
+    } catch (error) {
+      alert("라벨 없는 교재교구 번호 생성 실패: " + error.message);
+      return;
+    }
+  }
+
+  if (!materialNumber || !materialName) {
+    alert("관리번호와 교재교구명을 모두 입력해주세요.");
+    return;
+  }
+
+  const { data: existingMaterials, error: checkError } = await supabaseClient
+    .from("materials")
+    .select('id,"관리번호","물품명",status,current_class,is_deleted')
+    .eq("관리번호", materialNumber)
+    .limit(1);
+
+  if (checkError) {
+    alert("교재교구 중복 확인 실패: " + checkError.message);
+    return;
+  }
+
+  if (existingMaterials && existingMaterials.length) {
+    const existing = existingMaterials[0];
+
+    if (existing.is_deleted === true) {
+      alert(
+        `삭제 처리된 동일 관리번호가 있습니다.\n` +
+        `교재교구명: ${existing["물품명"] || "-"}\n` +
+        `관리자 화면에서 복구하거나 다른 관리번호를 입력해주세요.`
+      );
+      return;
+    }
+
+    alert(
+      `이미 등록된 관리번호입니다.\n` +
+      `교재교구명: ${existing["물품명"] || "-"}\n` +
+      `상태: ${getStatusName(existing.status)}\n` +
+      `홈 화면에서 검색 후 대여해주세요.`
+    );
+    return;
+  }
+
+  const { data: newMaterial, error: insertError } = await supabaseClient
+    .from("materials")
+    .insert([{
+      "구입일자": null,
+      "관리번호": materialNumber,
+      "구분": "기타대여",
+      "분류명": labelLess ? "기타대여 > 라벨없는교재교구" : "기타대여",
+      "물품명": materialName,
+      "규격": null,
+      "구입처": null,
+      "수량": 1,
+      "금": null,
+      "사용처": null,
+      "전표증빙번호": null,
+      "사진": null,
+      "비고": labelLess ? "라벨 없는 교재교구 기타대여 등록" : "기타대여 등록",
+      status: "borrowed",
+      current_class: currentUser.class_name,
+      current_user_id: currentUser.id,
+      is_deleted: false
+    }])
+    .select("id")
+    .single();
+
+  if (insertError) {
+    alert("기타대여 등록 실패: " + insertError.message);
+    return;
+  }
+
+  const { error: recordError } = await supabaseClient
+    .from("material_records")
+    .insert([{
+      material_id: newMaterial.id,
+      user_id: currentUser.id,
+      class_name: currentUser.class_name,
+      borrower_name: currentUser.name,
+      approved_at: new Date().toISOString(),
+      status: "borrowed"
+    }]);
+
+  if (recordError) {
+    await supabaseClient
+      .from("materials")
+      .delete()
+      .eq("id", newMaterial.id);
+
+    alert("대여기록 생성 실패: " + recordError.message);
+    return;
+  }
+
+  alert(`기타대여가 등록되었습니다.\n관리번호: ${materialNumber}`);
+
+  closeExtraRentalModal();
+
+  currentPage = 1;
+  currentKeyword = materialNumber;
+  document.getElementById("search").value = materialNumber;
+
+  await loadMaterials();
+}
+
 async function reserveMaterial(materialId) {
   const { error } = await supabaseClient
     .from("materials")
@@ -841,7 +1122,7 @@ async function reserveMaterial(materialId) {
     return;
   }
 
-  await supabaseClient.from("material_records").insert([{
+  const { error: recordError } = await supabaseClient.from("material_records").insert([{
     material_id: materialId,
     user_id: currentUser.id,
     class_name: currentUser.class_name,
@@ -849,6 +1130,20 @@ async function reserveMaterial(materialId) {
     approved_at: new Date().toISOString(),
     status: "borrowed"
   }]);
+
+  if (recordError) {
+    await supabaseClient
+      .from("materials")
+      .update({
+        status: "available",
+        current_class: null,
+        current_user_id: null
+      })
+      .eq("id", materialId);
+
+    alert("대여기록 생성 실패: " + recordError.message);
+    return;
+  }
 
   alert("교재교구 대여가 완료되었습니다.");
   loadMaterials();
@@ -980,7 +1275,6 @@ async function cancelReturnRequestAndReloadMyMaterials(materialId) {
   await loadMyMaterials();
 }
 
-
 async function loadMyMaterials() {
   showScreen("my-materials-screen");
 
@@ -994,7 +1288,7 @@ async function loadMyMaterials() {
   list.innerHTML = "";
 
   if (error || !data || !data.length) {
-    list.innerHTML = `<tr><td colspan="9">현재 ${currentUser.class_name}에서 대여 또는 반납요청 중인 교재교구가 없습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="9">현재 ${escapeHtml(currentUser.class_name)}에서 대여 또는 반납요청 중인 교재교구가 없습니다.</td></tr>`;
   } else {
     for (const item of data) {
       const record = await getActiveRecord(item.id, ["borrowed", "return_requested"]);
@@ -1013,13 +1307,13 @@ async function loadMyMaterials() {
       list.innerHTML += `
         <tr>
           <td class="check-cell">${checkBox}</td>
-          <td>${item["관리번호"] || ""}</td>
-          <td>${item["분류명"] || ""}</td>
-          <td>${item["물품명"] || ""}</td>
-          <td>${item["수량"] ?? ""}</td>
-          <td>${formatDate(record?.approved_at)}</td>
-          <td>${getStatusName(item.status)}</td>
-          <td>${item.current_class || "-"}</td>
+          <td>${escapeHtml(item["관리번호"] || "")}</td>
+          <td>${escapeHtml(item["분류명"] || "")}</td>
+          <td>${escapeHtml(item["물품명"] || "")}</td>
+          <td>${escapeHtml(item["수량"] ?? "")}</td>
+          <td>${escapeHtml(formatDate(record?.approved_at))}</td>
+          <td>${escapeHtml(getStatusName(item.status))}</td>
+          <td>${escapeHtml(item.current_class || "-")}</td>
           <td>${returnBtn}</td>
         </tr>
       `;
@@ -1076,11 +1370,11 @@ async function loadMyRejections() {
 
     list.innerHTML += `
       <tr>
-        <td>${type}</td>
-        <td>${item?.["관리번호"] || ""}</td>
-        <td>${item?.["물품명"] || ""}</td>
-        <td>${formatDateTime(rejectedAt)}</td>
-        <td>${reason || "-"}</td>
+        <td>${escapeHtml(type)}</td>
+        <td>${escapeHtml(item?.["관리번호"] || "")}</td>
+        <td>${escapeHtml(item?.["물품명"] || "")}</td>
+        <td>${escapeHtml(formatDateTime(rejectedAt))}</td>
+        <td>${escapeHtml(reason || "-")}</td>
       </tr>
     `;
   }
@@ -1131,6 +1425,7 @@ async function loadRentalApproveList() {
   const { data } = await query;
 
   const list = document.getElementById("rental-approve-list");
+  if (!list) return;
   list.innerHTML = "";
 
   if (!data || !data.length) {
@@ -1144,11 +1439,11 @@ async function loadRentalApproveList() {
 
     list.innerHTML += `
       <tr>
-        <td>${item["관리번호"] || ""}</td>
-        <td>${item["분류명"] || ""}</td>
-        <td>${item["물품명"] || ""}</td>
-        <td>${item.current_class || "-"}</td>
-        <td>${borrowerName}</td>
+        <td>${escapeHtml(item["관리번호"] || "")}</td>
+        <td>${escapeHtml(item["분류명"] || "")}</td>
+        <td>${escapeHtml(item["물품명"] || "")}</td>
+        <td>${escapeHtml(item.current_class || "-")}</td>
+        <td>${escapeHtml(borrowerName)}</td>
         <td>
           <button class="btn-approve" onclick="approveRental('${item.id}')">승인</button>
           <button class="btn-danger" onclick="rejectRental('${item.id}')">반려</button>
@@ -1249,13 +1544,13 @@ async function loadReturnApproveList() {
     list.innerHTML += `
       <tr>
         <td class="check-cell">${checkBox}</td>
-        <td>${item["관리번호"] || ""}</td>
-        <td>${item["분류명"] || ""}</td>
-        <td>${item["물품명"] || ""}</td>
-        <td>${item.current_class || "-"}</td>
-        <td>${formatDate(record?.approved_at)}</td>
-        <td>${getStatusName(item.status)}</td>
-        <td>${returnUserName}</td>
+        <td>${escapeHtml(item["관리번호"] || "")}</td>
+        <td>${escapeHtml(item["분류명"] || "")}</td>
+        <td>${escapeHtml(item["물품명"] || "")}</td>
+        <td>${escapeHtml(item.current_class || "-")}</td>
+        <td>${escapeHtml(formatDate(record?.approved_at))}</td>
+        <td>${escapeHtml(getStatusName(item.status))}</td>
+        <td>${escapeHtml(returnUserName)}</td>
         <td>${actionBtn}</td>
       </tr>
     `;
@@ -1445,14 +1740,14 @@ async function loadMonthlyRecordList() {
 
     list.innerHTML += `
       <tr>
-        <td>${record.class_name || ""}</td>
-        <td>${formatDate(record.approved_at)}</td>
-        <td>${record.materialNumber}</td>
-        <td>${record.materialName}</td>
-        <td>${record.borrowerName}</td>
-        <td>${formatDate(record.returned_at)}</td>
-        <td>${record.returnedByName}</td>
-        <td>${record.returnApprovedByName}</td>
+        <td>${escapeHtml(record.class_name || "")}</td>
+        <td>${escapeHtml(formatDate(record.approved_at))}</td>
+        <td>${escapeHtml(record.materialNumber)}</td>
+        <td>${escapeHtml(record.materialName)}</td>
+        <td>${escapeHtml(record.borrowerName)}</td>
+        <td>${escapeHtml(formatDate(record.returned_at))}</td>
+        <td>${escapeHtml(record.returnedByName)}</td>
+        <td>${escapeHtml(record.returnApprovedByName)}</td>
         <td>${resetCell}</td>
       </tr>
     `;
@@ -1514,14 +1809,14 @@ async function printMonthlyRecords(className = null) {
     records.forEach(record => {
       rows += `
         <tr>
-          <td>${record.class_name || ""}</td>
-          <td>${formatDate(record.approved_at)}</td>
-          <td>${record.materialNumber}</td>
-          <td>${record.materialName}</td>
-          <td>${record.borrowerName}</td>
-          <td>${formatDate(record.returned_at)}</td>
-          <td>${record.returnedByName}</td>
-          <td>${record.returnApprovedByName}</td>
+          <td>${escapeHtml(record.class_name || "")}</td>
+          <td>${escapeHtml(formatDate(record.approved_at))}</td>
+          <td>${escapeHtml(record.materialNumber)}</td>
+          <td>${escapeHtml(record.materialName)}</td>
+          <td>${escapeHtml(record.borrowerName)}</td>
+          <td>${escapeHtml(formatDate(record.returned_at))}</td>
+          <td>${escapeHtml(record.returnedByName)}</td>
+          <td>${escapeHtml(record.returnApprovedByName)}</td>
         </tr>
       `;
     });
@@ -1529,7 +1824,7 @@ async function printMonthlyRecords(className = null) {
 
   printArea.innerHTML = `
     <h2>탕정삼성어린이집 교재교구 대여·반납 기록</h2>
-    <h3>${title}</h3>
+    <h3>${escapeHtml(title)}</h3>
     <table>
       <thead>
         <tr>
@@ -1584,6 +1879,7 @@ async function loadMaterialManagerRequests() {
     .order("created_at", { ascending: false });
 
   const list = document.getElementById("material-manager-request-list");
+  if (!list) return;
   list.innerHTML = "";
 
   if (!data || !data.length) {
@@ -1596,8 +1892,8 @@ async function loadMaterialManagerRequests() {
 
     list.innerHTML += `
       <tr>
-        <td>${req.name}</td>
-        <td>${currentRoleName}</td>
+        <td>${escapeHtml(req.name)}</td>
+        <td>${escapeHtml(currentRoleName)}</td>
         <td>교재교구담당자</td>
         <td>
           <button class="btn-approve" onclick="approveMaterialManagerRole('${req.id}','${req.user_id}')">승인</button>
@@ -1636,6 +1932,7 @@ async function loadCurrentMaterialManagers() {
     .order("class_name", { ascending: true });
 
   const list = document.getElementById("current-material-manager-list");
+  if (!list) return;
   list.innerHTML = "";
 
   if (error) {
@@ -1651,9 +1948,9 @@ async function loadCurrentMaterialManagers() {
   data.forEach(user => {
     list.innerHTML += `
       <tr>
-        <td>${user.name}</td>
-        <td>${user.username}</td>
-        <td>${user.class_name}</td>
+        <td>${escapeHtml(user.name)}</td>
+        <td>${escapeHtml(user.username)}</td>
+        <td>${escapeHtml(user.class_name)}</td>
         <td>교재교구담당자</td>
         <td>
           <button class="btn-danger" onclick="changeMaterialManagerToTeacher('${user.id}')">선생님 권한으로 변경</button>
@@ -1768,6 +2065,7 @@ async function searchManageMaterials() {
   const { data, error } = await supabaseClient
     .from("materials")
     .select('id,"구입일자","관리번호","분류명","물품명","수량",status,created_at,is_deleted')
+    .or("is_deleted.is.false,is_deleted.is.null")
     .or(`물품명.ilike.%${keyword}%,관리번호.ilike.%${keyword}%,분류명.ilike.%${keyword}%`)
     .limit(50);
 
@@ -1789,6 +2087,7 @@ async function searchMaterialsByDate() {
   const { data, error } = await supabaseClient
     .from("materials")
     .select('id,"구입일자","관리번호","분류명","물품명","수량",status,created_at,is_deleted')
+    .or("is_deleted.is.false,is_deleted.is.null")
     .gte("created_at", startDate)
     .lte("created_at", endDate)
     .order("created_at", { ascending: false })
@@ -1798,7 +2097,7 @@ async function searchMaterialsByDate() {
 }
 
 function safePromptText(value) {
-  return (value || "").replaceAll("'", "\\'");
+  return String(value || "").replaceAll("\\", "\\\\").replaceAll("'", "\\'");
 }
 
 function renderManageMaterials(data, error) {
@@ -1806,18 +2105,11 @@ function renderManageMaterials(data, error) {
   list.innerHTML = "";
 
   if (error) {
-    list.innerHTML = `<tr><td colspan="8">교재교구 조회 실패: ${error.message}</td></tr>`;
+    list.innerHTML = `<tr><td colspan="8">교재교구 조회 실패: ${escapeHtml(error.message)}</td></tr>`;
     return;
   }
 
   if (!data || !data.length) {
-    list.innerHTML = `<tr><td colspan="8">조회 결과가 없습니다.</td></tr>`;
-    return;
-  }
-
-  data = (data || []).filter(item => item.is_deleted !== true);
-
-  if (!data.length) {
     list.innerHTML = `<tr><td colspan="8">조회 결과가 없습니다.</td></tr>`;
     return;
   }
@@ -1831,12 +2123,12 @@ function renderManageMaterials(data, error) {
 
     list.innerHTML += `
       <tr>
-        <td>${formatExcelOrTextDate(item["구입일자"])}</td>
-        <td>${item["관리번호"] || ""}</td>
-        <td>${item["분류명"] || ""}</td>
-        <td>${item["물품명"] || ""}</td>
-        <td>${quantity}</td>
-        <td>${getStatusName(item.status)}</td>
+        <td>${escapeHtml(formatExcelOrTextDate(item["구입일자"]))}</td>
+        <td>${escapeHtml(item["관리번호"] || "")}</td>
+        <td>${escapeHtml(item["분류명"] || "")}</td>
+        <td>${escapeHtml(item["물품명"] || "")}</td>
+        <td>${escapeHtml(quantity)}</td>
+        <td>${escapeHtml(getStatusName(item.status))}</td>
         <td>
           <button class="btn-basic" onclick="editMaterial('${item.id}', '${purchaseDate}', '${number}', '${category}', '${name}', '${quantity}')">수정</button>
         </td>
@@ -1891,7 +2183,9 @@ async function editMaterial(materialId, oldPurchaseDate, oldNumber, oldCategory,
 
   alert("교재교구 정보가 수정되었습니다.");
   loadMaterials();
-  searchManageMaterials();
+
+  const keyword = document.getElementById("manage-material-search")?.value.trim();
+  if (keyword) searchManageMaterials();
 }
 
 async function deleteMaterialSoft(materialId, status) {
@@ -1915,7 +2209,9 @@ async function deleteMaterialSoft(materialId, status) {
 
   alert("교재교구가 삭제 처리되었습니다.");
   loadMaterials();
-  searchManageMaterials();
+
+  const keyword = document.getElementById("manage-material-search")?.value.trim();
+  if (keyword) searchManageMaterials();
 }
 
 async function loadDeletedMaterials() {
@@ -1928,6 +2224,7 @@ async function loadDeletedMaterials() {
     .order("deleted_at", { ascending: false });
 
   const list = document.getElementById("deleted-material-list");
+  if (!list) return;
   list.innerHTML = "";
 
   if (error) {
@@ -1945,11 +2242,11 @@ async function loadDeletedMaterials() {
 
     list.innerHTML += `
       <tr>
-        <td>${item["관리번호"] || ""}</td>
-        <td>${item["분류명"] || ""}</td>
-        <td>${item["물품명"] || ""}</td>
-        <td>${formatDateTime(item.deleted_at)}</td>
-        <td>${deletedByName}</td>
+        <td>${escapeHtml(item["관리번호"] || "")}</td>
+        <td>${escapeHtml(item["분류명"] || "")}</td>
+        <td>${escapeHtml(item["물품명"] || "")}</td>
+        <td>${escapeHtml(formatDateTime(item.deleted_at))}</td>
+        <td>${escapeHtml(deletedByName)}</td>
         <td><button class="btn-approve" onclick="restoreDeletedMaterial('${item.id}')">복구</button></td>
       </tr>
     `;
@@ -1975,7 +2272,6 @@ async function restoreDeletedMaterial(materialId) {
   loadMaterials();
 }
 
-
 function switchManagerTab(tabId) {
   document.querySelectorAll(".manager-tab-content").forEach(tab => tab.classList.remove("active"));
   document.querySelectorAll(".manager-tab-btn").forEach(btn => btn.classList.remove("active"));
@@ -1998,7 +2294,6 @@ function bindEvents() {
   on("logout-btn", "click", logout);
   on("extend-session-btn", "click", extendSession);
 
-
   on("my-materials-btn", "click", loadMyMaterials);
   on("bulk-return-request-btn", "click", bulkRequestReturn);
   on("my-materials-back-btn", "click", () => showScreen("app-screen"));
@@ -2007,8 +2302,16 @@ function bindEvents() {
   on("bulk-return-approve-btn", "click", bulkApproveReturn);
   on("manager-back-btn", "click", () => showScreen("app-screen"));
 
+  on("extra-rental-open-btn", "click", openExtraRentalModal);
+  on("extra-rental-cancel-btn", "click", closeExtraRentalModal);
+  on("extra-rental-close-btn", "click", closeExtraRentalModal);
+  on("extra-rental-save-btn", "click", createExtraMaterialRental);
+  on("extra-label-less-check", "change", () => toggleLabelLessInput("extra-label-less-check", "extra-material-number"));
 
-
+  const extraModal = document.getElementById("extra-rental-modal");
+  if (extraModal) {
+    extraModal.addEventListener("click", closeExtraRentalModal);
+  }
 
   on("prev-page-btn", "click", prevPage);
   on("next-page-btn", "click", nextPage);
@@ -2046,6 +2349,13 @@ function bindEvents() {
 }
 
 bindEvents();
+
+if (document.getElementById("extra-material-number")) {
+  document.getElementById("extra-material-number").dataset.originalPlaceholder =
+    document.getElementById("extra-material-number").placeholder;
+}
+
+closeExtraRentalModal();
 setDefaultPrintMonth();
 restoreLogin();
 </script>
