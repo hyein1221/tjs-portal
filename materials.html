@@ -389,6 +389,30 @@
     <h3>현재 사용중 / 반납관리</h3>
     <div class="panel">
       <div class="grid-row">
+        <select id="rental-manage-year">
+          <option value="2026">2026년</option>
+          <option value="2027">2027년</option>
+          <option value="2028">2028년</option>
+        </select>
+        <select id="rental-manage-month">
+          <option value="">월 전체</option>
+          <option value="1">1월</option>
+          <option value="2">2월</option>
+          <option value="3">3월</option>
+          <option value="4">4월</option>
+          <option value="5">5월</option>
+          <option value="6">6월</option>
+          <option value="7">7월</option>
+          <option value="8">8월</option>
+          <option value="9">9월</option>
+          <option value="10">10월</option>
+          <option value="11">11월</option>
+          <option value="12">12월</option>
+        </select>
+        <button id="load-return-filter-btn" class="btn-basic">조회</button>
+      </div>
+
+      <div class="grid-row">
         <select id="return-filter-age">
           <option value="">연령 선택</option>
           <option value="만1세">만1세</option>
@@ -398,7 +422,7 @@
           <option value="만5세">만5세</option>
         </select>
         <select id="return-filter-class"><option value="">반 전체</option></select>
-        <button id="load-return-filter-btn" class="btn-basic">조회</button>
+        <span class="notice">※ 선택한 월에 대여된 현재 사용중/반납요청 교재교구를 조회합니다.</span>
       </div>
     </div>
 
@@ -1518,28 +1542,48 @@ async function loadReturnApproveList() {
     .order("관리번호", { ascending: true });
 
   query = applyManagerClassFilter(query, "return");
-  const { data } = await query;
+  const { data, error } = await query;
 
   const list = document.getElementById("return-approve-list");
   list.innerHTML = "";
 
-  if (!data || !data.length) {
-    list.innerHTML = `<tr><td colspan="9">선택한 연령/반의 현재 사용중 교재교구가 없습니다.</td></tr>`;
+  if (error) {
+    list.innerHTML = `<tr><td colspan="9">교재교구 목록을 불러오지 못했습니다: ${escapeHtml(error.message)}</td></tr>`;
     return;
   }
 
+  if (!data || !data.length) {
+    list.innerHTML = `<tr><td colspan="9">선택한 조건의 현재 사용중 교재교구가 없습니다.</td></tr>`;
+    return;
+  }
+
+  const monthRange = getRentalManageMonthRange();
+  let rowCount = 0;
+
   for (const item of data) {
     const record = await getActiveRecord(item.id, ["borrowed", "return_requested"]);
+
+    if (monthRange) {
+      const approvedAt = record?.approved_at;
+      if (!approvedAt || approvedAt < monthRange.startDate || approvedAt >= monthRange.endDate) {
+        continue;
+      }
+    }
+
     const returnUserName = item.status === "return_requested"
       ? await getUserNameById(record?.returned_by || item.current_user_id)
       : "-";
+
     const checkBox = item.status === "return_requested"
       ? `<input type="checkbox" class="manager-return-check" value="${item.id}">`
       : "-";
+
     const actionBtn = item.status === "return_requested"
       ? `<button class="btn-approve" onclick="approveReturn('${item.id}')">반납확인</button>
          <button class="btn-danger" onclick="rejectReturn('${item.id}')">반려</button>`
       : `<button class="btn-wait" disabled>사용중</button>`;
+
+    rowCount++;
 
     list.innerHTML += `
       <tr>
@@ -1554,6 +1598,10 @@ async function loadReturnApproveList() {
         <td>${actionBtn}</td>
       </tr>
     `;
+  }
+
+  if (rowCount === 0) {
+    list.innerHTML = `<tr><td colspan="9">선택한 월/연령/반의 현재 사용중 교재교구가 없습니다.</td></tr>`;
   }
 
   const allCheck = document.getElementById("manager-return-check-all");
@@ -1680,6 +1728,29 @@ function setDefaultPrintMonth() {
 
   if (yearEl) yearEl.value = String(now.getFullYear());
   if (monthEl) monthEl.value = String(now.getMonth() + 1);
+}
+
+function setDefaultRentalManageMonth() {
+  const now = new Date();
+  const yearEl = document.getElementById("rental-manage-year");
+  const monthEl = document.getElementById("rental-manage-month");
+
+  if (yearEl) yearEl.value = String(now.getFullYear());
+  if (monthEl) monthEl.value = String(now.getMonth() + 1);
+}
+
+function getRentalManageMonthRange() {
+  const year = Number(document.getElementById("rental-manage-year")?.value || new Date().getFullYear());
+  const monthValue = document.getElementById("rental-manage-month")?.value || "";
+
+  if (!monthValue) return null;
+
+  const month = Number(monthValue) - 1;
+
+  return {
+    startDate: new Date(year, month, 1).toISOString(),
+    endDate: new Date(year, month + 1, 1).toISOString()
+  };
 }
 
 async function getMonthlyRecords(className = null) {
@@ -1823,8 +1894,57 @@ async function printMonthlyRecords(className = null) {
   }
 
   printArea.innerHTML = `
-    <h2>탕정삼성어린이집 교재교구 대여·반납 기록</h2>
-    <h3>${escapeHtml(title)}</h3>
+    <style>
+      .print-header {
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:16px;
+        margin-bottom:16px;
+      }
+      .approval-table {
+        width:180px;
+        border-collapse:collapse;
+        table-layout:fixed;
+      }
+      .approval-table th,
+      .approval-table td {
+        border:1px solid #111;
+        text-align:center;
+        font-size:13px;
+        padding:6px;
+      }
+      .approval-table td {
+        height:48px;
+      }
+      .print-title-box h2,
+      .print-title-box h3 {
+        margin:0 0 8px 0;
+      }
+    </style>
+
+    <div class="print-header">
+      <div class="print-title-box">
+        <h2>탕정삼성어린이집 교재교구 대여·반납 기록</h2>
+        <h3>${escapeHtml(title)}</h3>
+      </div>
+
+      <table class="approval-table">
+        <thead>
+          <tr>
+            <th>담당</th>
+            <th>원장</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <table>
       <thead>
         <tr>
@@ -2357,6 +2477,7 @@ if (document.getElementById("extra-material-number")) {
 
 closeExtraRentalModal();
 setDefaultPrintMonth();
+setDefaultRentalManageMonth();
 restoreLogin();
 </script>
 
