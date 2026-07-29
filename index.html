@@ -141,6 +141,16 @@ async function openDutyPage(){
       return;
     }
 
+    sessionStorage.setItem("dutyAdminAccess",JSON.stringify({
+      id:data.id,
+      name:data.name,
+      username:data.username,
+      class_name:data.class_name,
+      role:data.role,
+      approval_status:data.approval_status,
+      issued_at:Date.now()
+    }));
+
     window.location.href="duty.html";
   }catch(error){
     console.error("당직관리 권한 확인 실패:",error);
