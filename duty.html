@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v4 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v5 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -130,26 +130,49 @@ line-height:1.5;
 <script>
 (function(){
   try{
-    const keys=["libraryCurrentUser","materialsCurrentUser","consumablesCurrentUser","childRightsCurrentUser"];
     let user=null;
 
-    for(const key of keys){
-      const raw=localStorage.getItem(key);
-      if(!raw) continue;
+    const ticketRaw=sessionStorage.getItem("dutyAdminAccess");
+    if(ticketRaw){
       try{
-        user=JSON.parse(raw);
-        if(user) break;
+        const ticket=JSON.parse(ticketRaw);
+        const fresh=Date.now()-Number(ticket.issued_at||0)<10*60*1000;
+        if(fresh && ticket.role==="admin" && ticket.approval_status==="approved"){
+          user=ticket;
+        }
       }catch(e){}
+    }
+
+    if(!user){
+      const keys=["libraryCurrentUser","materialsCurrentUser","consumablesCurrentUser","childRightsCurrentUser"];
+      for(const key of keys){
+        const raw=localStorage.getItem(key);
+        if(!raw) continue;
+        try{
+          const candidate=JSON.parse(raw);
+          if(candidate?.role==="admin" && candidate?.approval_status==="approved"){
+            user=candidate;
+            break;
+          }
+        }catch(e){}
+      }
     }
 
     window.__DUTY_BOOT_USER__=user;
 
-    if(user && user.id && user.approval_status==="approved" && user.role==="admin"){
+    if(user){
       document.getElementById("accessScreen").classList.add("hidden");
       document.getElementById("dutyApp").classList.remove("hidden");
+    }else{
+      document.getElementById("accessMessage").textContent=
+        "관리자 로그인 정보를 확인하지 못했습니다. 통합포털에서 당직관리 메뉴를 다시 눌러주세요.";
+      document.getElementById("portalReturnBtn").classList.remove("hidden");
     }
   }catch(error){
     console.error("당직관리 초기 권한 확인 실패:",error);
+    document.getElementById("accessMessage").textContent=
+      "관리자 로그인 정보를 확인하지 못했습니다.";
+    document.getElementById("portalReturnBtn").classList.remove("hidden");
   }
 })();
 </script>
@@ -305,6 +328,19 @@ let dutyCurrentAdmin = null;
 function getSavedPortalUser(){
   if(window.__DUTY_BOOT_USER__) return window.__DUTY_BOOT_USER__;
 
+  const ticketRaw=sessionStorage.getItem("dutyAdminAccess");
+  if(ticketRaw){
+    try{
+      const ticket=JSON.parse(ticketRaw);
+      const fresh=Date.now()-Number(ticket.issued_at||0)<10*60*1000;
+      if(fresh && ticket.role==="admin" && ticket.approval_status==="approved"){
+        return ticket;
+      }
+    }catch(error){
+      console.warn("당직 입장권 해석 실패:",error);
+    }
+  }
+
   for(const key of PORTAL_LOGIN_KEYS){
     const raw = localStorage.getItem(key);
     if(!raw) continue;
@@ -382,6 +418,15 @@ async function verifyAdminOnServer(savedUser){
 
     dutyCurrentAdmin = {...savedUser, ...data};
     savePortalUser(dutyCurrentAdmin);
+    sessionStorage.setItem("dutyAdminAccess",JSON.stringify({
+      id:dutyCurrentAdmin.id,
+      name:dutyCurrentAdmin.name,
+      username:dutyCurrentAdmin.username,
+      class_name:dutyCurrentAdmin.class_name,
+      role:dutyCurrentAdmin.role,
+      approval_status:dutyCurrentAdmin.approval_status,
+      issued_at:Date.now()
+    }));
     document.getElementById("dutyAdminInfo").textContent =
       `${dutyCurrentAdmin.name || dutyCurrentAdmin.username || "관리자"} 관리자`;
   }catch(error){
@@ -1381,8 +1426,7 @@ function downloadTableAsExcel(tableId, filename){
   const table = document.getElementById(tableId);
   if(!table) return alert("다운로드할 내용이 없습니다.");
 
-  const html = `<html><head><meta charset="UTF-8"></head><body>${table.outerHTML}</div>
-</body></html>`;
+  const html = `<html><head><meta charset="UTF-8"></head><body>${table.outerHTML}</body></html>`;
   const blob = new Blob([html], {type:"application/vnd.ms-excel;charset=utf-8;"});
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -1398,6 +1442,6 @@ function downloadStatsExcel(){
   downloadTableAsExcel("statsTable","교사별통계");
 }
 </script>
-
+</div>
 </body>
 </html>
