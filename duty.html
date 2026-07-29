@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v3 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v4 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -127,6 +127,32 @@ line-height:1.5;
 </div>
 
 <div id="dutyApp" class="hidden">
+<script>
+(function(){
+  try{
+    const keys=["libraryCurrentUser","materialsCurrentUser","consumablesCurrentUser","childRightsCurrentUser"];
+    let user=null;
+
+    for(const key of keys){
+      const raw=localStorage.getItem(key);
+      if(!raw) continue;
+      try{
+        user=JSON.parse(raw);
+        if(user) break;
+      }catch(e){}
+    }
+
+    window.__DUTY_BOOT_USER__=user;
+
+    if(user && user.id && user.approval_status==="approved" && user.role==="admin"){
+      document.getElementById("accessScreen").classList.add("hidden");
+      document.getElementById("dutyApp").classList.remove("hidden");
+    }
+  }catch(error){
+    console.error("당직관리 초기 권한 확인 실패:",error);
+  }
+})();
+</script>
 
 <div class="header">
 <img src="logo.png" class="logo" onerror="this.style.display='none'">
@@ -216,10 +242,10 @@ line-height:1.5;
 <script>
 const SUPABASE_URL = "https://vohcugxfwxdvkbcpjcgl.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Q0cXaglzBaz9Py2oct_NTQ_vMHsUeSQ";
-const supabaseClient = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+const supabaseClient =
+  window.supabase && typeof window.supabase.createClient==="function"
+    ? window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY)
+    : null;
 
 const DEFAULT_TEACHERS = `만1세, 햇빛반, 신지영
 만1세, 햇빛반, 신의주
@@ -277,6 +303,8 @@ const PORTAL_LOGIN_KEYS = [
 let dutyCurrentAdmin = null;
 
 function getSavedPortalUser(){
+  if(window.__DUTY_BOOT_USER__) return window.__DUTY_BOOT_USER__;
+
   for(const key of PORTAL_LOGIN_KEYS){
     const raw = localStorage.getItem(key);
     if(!raw) continue;
@@ -300,6 +328,19 @@ function showAccessDenied(message){
   document.getElementById("portalReturnBtn").classList.remove("hidden");
 }
 
+setTimeout(()=>{
+  const screen=document.getElementById("accessScreen");
+  if(screen && !screen.classList.contains("hidden")){
+    const saved=getSavedPortalUser();
+    if(saved?.role==="admin" && saved?.approval_status==="approved"){
+      openDutyApp(saved);
+      loadAllSharedData();
+    }else{
+      showAccessDenied("관리자 로그인 정보를 확인하지 못했습니다. 통합포털로 돌아가 다시 로그인해주세요.");
+    }
+  }
+},4000);
+
 function withTimeout(promise, milliseconds=7000){
   return Promise.race([
     Promise.resolve(promise),
@@ -318,6 +359,11 @@ function openDutyApp(user){
 }
 
 async function verifyAdminOnServer(savedUser){
+  if(!supabaseClient){
+    console.warn("Supabase 라이브러리를 불러오지 못해 서버 권한 재확인을 건너뜁니다.");
+    return;
+  }
+
   try{
     const query = supabaseClient
       .from("users")
@@ -417,12 +463,18 @@ const slots = [
 {key:"a2", room:"예빛", time:"18:00~20:00<br>(2h)", role:"오후책임교사", hours:2, part:"afternoon", type:"eveningManager"}
 ];
 
-window.addEventListener("DOMContentLoaded", async ()=>{
-  const allowed = await verifyAdminAccess();
+async function initializeDutyPage(){
+  const allowed=await verifyAdminAccess();
   if(allowed){
     await loadAllSharedData();
   }
-});
+}
+
+if(document.readyState==="loading"){
+  window.addEventListener("DOMContentLoaded",initializeDutyPage,{once:true});
+}else{
+  initializeDutyPage();
+}
 
 async function saveAppData(key, value){
   const { error } = await supabaseClient
@@ -482,6 +534,11 @@ async function loadAllSharedData(){
   renderSavedScheduleList();
 
   setConnectionStatus("화면 사용 가능 · 공용 서버 연결 확인 중...");
+
+  if(!supabaseClient){
+    setConnectionStatus("공용 서버 라이브러리를 불러오지 못해 현재 기기 데이터로 실행 중입니다.","offline");
+    return;
+  }
 
   try{
     const { data, error } = await supabaseClient
