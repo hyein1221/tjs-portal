@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>탕정삼성어린이집 도서관리 시스템</title>
-  <!-- v: set-books-common-room-label-less -->
+  <!-- v: set-books-common-room-target-choice-record-search -->
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
@@ -319,7 +319,7 @@
           <option value="만2세">만2세</option>
           <option value="만3세">만3세</option>
           <option value="만4세">만4세</option>
-          <option value="만5세">만5세</option>
+          <option value="만5세">만5세</option><option value="공동실">공동실</option>
         </select>
         <select id="rental-filter-class"><option value="">반 선택</option></select>
         <button id="load-rental-filter-btn" class="btn-basic">조회</button>
@@ -344,7 +344,7 @@
           <option value="만2세">만2세</option>
           <option value="만3세">만3세</option>
           <option value="만4세">만4세</option>
-          <option value="만5세">만5세</option>
+          <option value="만5세">만5세</option><option value="공동실">공동실</option>
         </select>
         <select id="return-filter-class"><option value="">반 선택</option></select>
         <button id="load-return-filter-btn" class="btn-basic">조회</button>
@@ -373,16 +373,25 @@
         <button id="print-all-month-btn" class="btn-basic">전체 기록 출력</button>
       </div>
       <div class="grid-row">
-        <select id="print-age"><option value="">연령 선택</option><option value="만1세">만1세</option><option value="만2세">만2세</option><option value="만3세">만3세</option><option value="만4세">만4세</option><option value="만5세">만5세</option></select>
+        <select id="print-age"><option value="">연령 선택</option><option value="만1세">만1세</option><option value="만2세">만2세</option><option value="만3세">만3세</option><option value="만4세">만4세</option><option value="만5세">만5세</option><option value="공동실">공동실</option></select>
         <select id="print-class"><option value="">반 선택</option></select>
         <button id="print-class-month-btn" class="btn-basic">선택한 반 기록 출력</button>
       </div>
     </div>
 
+    <h3>대여기록 검색</h3>
+    <div class="panel">
+      <div class="book-search-row">
+        <input id="record-search" placeholder="관리번호 / 도서명 / 반명 / 공동실명 / 대여자 / 반납자 검색" />
+        <button id="search-record-btn" class="btn-basic">기록 검색</button>
+      </div>
+      <p class="notice">※ 반납이 끝난 도서도 대여기록에서 검색할 수 있습니다.</p>
+    </div>
+
     <h3>월별 대여기록 조회</h3>
     <button id="load-record-month-btn" class="btn-basic">선택 월 대여기록 불러오기</button>
     <table>
-      <thead><tr><th>반</th><th>대여일</th><th>관리번호</th><th>도서명</th><th>대여자</th><th>대여승인자</th><th>반납일</th><th>반납자</th><th>반납승인자</th><th>초기화</th></tr></thead>
+      <thead><tr><th>반/공동실</th><th>대여일</th><th>관리번호</th><th>도서명</th><th>대여자</th><th>대여승인자</th><th>반납일</th><th>반납자</th><th>반납승인자</th><th>초기화</th></tr></thead>
       <tbody id="monthly-record-list"></tbody>
     </table>
     </div>
@@ -497,6 +506,7 @@ const commonRoomMap = {
   "은빛반": "2층로비",
   "들빛반": "2층식당"
 };
+const COMMON_ROOM_NAMES = ["1층로비", "1층식당", "2층로비", "2층식당"];
 
 function getRoleName(role) {
   if (role === "admin") return "관리자";
@@ -561,6 +571,13 @@ function updateClassOptions(ageId, classId, includeAll = false) {
   const age = document.getElementById(ageId).value;
   const classSelect = document.getElementById(classId);
   classSelect.innerHTML = includeAll ? `<option value="">반 전체</option>` : `<option value="">반 선택</option>`;
+
+  if (age === "공동실") {
+    COMMON_ROOM_NAMES.forEach(room => {
+      classSelect.innerHTML += `<option value="${room}">${room}</option>`;
+    });
+    return;
+  }
 
   if (!classMap[age]) return;
 
@@ -634,11 +651,7 @@ function afterLoginSuccess() {
 
   document.getElementById("manager-page-btn").classList.add("hidden");
   const commonRoomBtn = document.getElementById("common-room-btn");
-  if (commonRoomBtn) {
-    const assignedRoom = getAssignedCommonRoom();
-    commonRoomBtn.classList.toggle("hidden", !assignedRoom);
-    if (assignedRoom) commonRoomBtn.innerText = `${assignedRoom} 도서대여`;
-  }
+  if (commonRoomBtn) commonRoomBtn.classList.add("hidden");
 
   if (currentUser.role === "manager") {
     document.getElementById("manager-page-btn").classList.remove("hidden");
@@ -737,7 +750,7 @@ function renderBooks(books) {
 
     let rentalButton = "-";
     let returnButton = "-";
-    const isSameClass = book.current_class === currentUser.class_name;
+    const isSameClass = getAllowedRentalTargets().includes(book.current_class);
 
     if (statusText === "대여가능") {
       rentalButton = `<button class="btn-reserve" onclick="reserveBook('${book.id}')">대여예약</button>`;
@@ -953,7 +966,7 @@ async function cancelReservation(bookId) {
     .from("rental_records")
     .delete()
     .eq("book_id", bookId)
-    .eq("class_name", currentUser.class_name)
+    .in("class_name", getAllowedRentalTargets())
     .eq("status", "reserved");
 
   alert("대여가 취소되었습니다.");
@@ -982,7 +995,7 @@ async function requestReturn(bookId) {
       return_requested_at: new Date().toISOString()
     })
     .eq("book_id", bookId)
-    .eq("class_name", currentUser.class_name)
+    .in("class_name", getAllowedRentalTargets())
     .eq("status", "borrowed");
 
   alert("반납요청이 완료되었습니다.");
@@ -1011,7 +1024,7 @@ async function cancelReturnRequest(bookId) {
       return_requested_at: null
     })
     .eq("book_id", bookId)
-    .eq("class_name", currentUser.class_name)
+    .in("class_name", getAllowedRentalTargets())
     .eq("status", "return_requested");
 
   alert("반납요청이 취소되었습니다.");
@@ -1166,6 +1179,8 @@ function getClassOrderValue(className) {
     const classIndex = classMap[age].indexOf(className);
     if (classIndex !== -1) return ageIndex * 100 + classIndex;
   }
+  const commonIndex = COMMON_ROOM_NAMES.indexOf(className);
+  if (commonIndex !== -1) return 9000 + commonIndex;
   return 9999;
 }
 
@@ -1407,34 +1422,7 @@ async function getMonthlyRecords(className = null) {
 
 async function loadMonthlyRecordList() {
   const records = await getMonthlyRecords();
-  const list = document.getElementById("monthly-record-list");
-  list.innerHTML = "";
-
-  if (!records.length) {
-    list.innerHTML = `<tr><td colspan="10">선택 월 대여기록이 없습니다.</td></tr>`;
-    return;
-  }
-
-  records.forEach(record => {
-    const resetCell = currentUser.role === "admin"
-      ? `<button class="btn-danger" onclick="deleteRentalRecord('${record.id}')">초기화</button>`
-      : `관리자 문의`;
-
-    list.innerHTML += `
-      <tr>
-        <td>${record.class_name || ""}</td>
-        <td>${formatDate(record.approved_at)}</td>
-        <td>${record.bookNumber}</td>
-        <td>${record.bookTitle}</td>
-        <td>${record.borrowerName}</td>
-        <td>${record.approvedByName}</td>
-        <td>${formatDate(record.returned_at)}</td>
-        <td>${record.returnedByName}</td>
-        <td>${record.returnApprovedByName}</td>
-        <td>${resetCell}</td>
-      </tr>
-    `;
-  });
+  renderRecordRows(records, "선택 월 대여기록이 없습니다.");
 }
 
 async function deleteRentalRecord(recordId) {
@@ -1852,7 +1840,7 @@ async function requestReturnWithoutAlert(bookId) {
       return_requested_at: new Date().toISOString()
     })
     .eq("book_id", bookId)
-    .eq("class_name", currentUser.class_name)
+    .in("class_name", getAllowedRentalTargets())
     .eq("status", "borrowed");
 
   return recordUpdate.error || null;
@@ -1944,6 +1932,35 @@ const ACTIVE_RECORD_STATUSES = ["reserved", "borrowed", "return_requested"];
 
 function getAssignedCommonRoom() {
   return commonRoomMap[currentUser?.class_name] || "";
+}
+
+function getAllowedRentalTargets() {
+  const targets = [currentUser?.class_name].filter(Boolean);
+  const assignedRoom = getAssignedCommonRoom();
+  if (assignedRoom) targets.push(assignedRoom);
+  return targets;
+}
+
+function canControlRecordTarget(className) {
+  return currentUser?.role === "manager" || currentUser?.role === "admin" || getAllowedRentalTargets().includes(className);
+}
+
+function chooseRentalTarget() {
+  const assignedRoom = getAssignedCommonRoom();
+  if (!assignedRoom) return currentUser.class_name;
+
+  const answer = prompt(`대여처를 선택해주세요.
+
+1. ${currentUser.class_name}
+2. ${assignedRoom}
+
+숫자 1 또는 2를 입력해주세요.`);
+  if (answer === null) return null;
+  const trimmed = answer.trim();
+  if (trimmed === "1") return currentUser.class_name;
+  if (trimmed === "2") return assignedRoom;
+  alert("1 또는 2를 입력해야 합니다.");
+  return null;
 }
 
 function escapeHtml(value) {
@@ -2079,7 +2096,7 @@ async function renderBooks(books) {
       }
     } else {
       statusText = getNormalStatusText(book);
-      const isSameClass = book.current_class === currentUser.class_name;
+      const isSameClass = getAllowedRentalTargets().includes(book.current_class);
 
       if (statusText === "대여가능") {
         rentalButton = `<button class="btn-reserve" onclick="reserveBook('${book.id}')">대여예약</button>`;
@@ -2116,6 +2133,9 @@ async function reserveBook(bookId) {
     return;
   }
 
+  const targetName = chooseRentalTarget();
+  if (!targetName) return;
+
   const setCount = getSetBookCount(book);
 
   if (setCount > 1) {
@@ -2129,7 +2149,7 @@ async function reserveBook(bookId) {
     const { error: recordError } = await supabaseClient.from("rental_records").insert([{
       book_id: bookId,
       user_id: currentUser.id,
-      class_name: currentUser.class_name,
+      class_name: targetName,
       borrower_name: currentUser.name,
       reserved_at: new Date().toISOString(),
       status: "reserved"
@@ -2140,29 +2160,38 @@ async function reserveBook(bookId) {
       return;
     }
 
-    alert(`대여예약이 완료되었습니다.\n세트도서 남은 권수: ${setCount - usedCount - 1}/${setCount}권`);
+    alert(`${targetName} 대여예약이 완료되었습니다.\n세트도서 남은 권수: ${setCount - usedCount - 1}/${setCount}권`);
     await loadBooks();
     return;
   }
 
-  const { error } = await supabaseClient
+  const { data: updatedBook, error } = await supabaseClient
     .from("books")
     .update({
       status: "reserved",
-      current_class: currentUser.class_name,
+      current_class: targetName,
       current_user_id: currentUser.id
     })
-    .eq("id", bookId);
+    .eq("id", bookId)
+    .or("status.is.null,status.eq.available")
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     alert("대여예약 실패: " + error.message);
     return;
   }
 
+  if (!updatedBook) {
+    alert("이미 예약 또는 대여 중인 도서입니다. 화면을 새로 불러옵니다.");
+    await loadBooks();
+    return;
+  }
+
   const { error: recordError } = await supabaseClient.from("rental_records").insert([{
     book_id: bookId,
     user_id: currentUser.id,
-    class_name: currentUser.class_name,
+    class_name: targetName,
     borrower_name: currentUser.name,
     reserved_at: new Date().toISOString(),
     status: "reserved"
@@ -2174,10 +2203,9 @@ async function reserveBook(bookId) {
     return;
   }
 
-  alert("대여예약이 완료되었습니다.");
+  alert(`${targetName} 대여예약이 완료되었습니다.`);
   await loadBooks();
 }
-
 async function cancelReservation(bookId) {
   if (!confirm("대여를 취소하시겠습니까?")) return;
 
@@ -2185,7 +2213,7 @@ async function cancelReservation(bookId) {
     .from("rental_records")
     .select("*")
     .eq("book_id", bookId)
-    .eq("class_name", currentUser.class_name)
+    .in("class_name", getAllowedRentalTargets())
     .eq("status", "reserved")
     .order("created_at", { ascending: false })
     .limit(1)
@@ -2212,7 +2240,7 @@ async function requestReturn(bookId) {
     .from("rental_records")
     .select("*")
     .eq("book_id", bookId)
-    .eq("class_name", currentUser.class_name)
+    .in("class_name", getAllowedRentalTargets())
     .eq("status", "borrowed")
     .order("created_at", { ascending: false })
     .limit(1)
@@ -2235,7 +2263,7 @@ async function cancelReturnRequest(bookId) {
     .from("rental_records")
     .select("*")
     .eq("book_id", bookId)
-    .eq("class_name", currentUser.class_name)
+    .in("class_name", getAllowedRentalTargets())
     .eq("status", "return_requested")
     .order("created_at", { ascending: false })
     .limit(1)
@@ -2269,8 +2297,8 @@ async function cancelReservationRecord(recordId, showAlert = true) {
     if (showAlert) alert("대여예약 기록을 찾을 수 없습니다.");
     return;
   }
-  if (record.class_name !== currentUser.class_name && currentUser.role !== "manager" && currentUser.role !== "admin") {
-    if (showAlert) alert("같은 반의 대여예약만 취소할 수 있습니다.");
+  if (!canControlRecordTarget(record.class_name)) {
+    if (showAlert) alert("담당 반 또는 담당 공동실의 대여예약만 취소할 수 있습니다.");
     return;
   }
   if (record.status !== "reserved") {
@@ -2300,8 +2328,8 @@ async function requestReturnRecord(recordId, showAlert = true) {
     if (showAlert) alert("대여기록을 찾을 수 없습니다.");
     return new Error("record not found");
   }
-  if (record.class_name !== currentUser.class_name && currentUser.role !== "manager" && currentUser.role !== "admin") {
-    if (showAlert) alert("같은 반의 도서만 반납요청할 수 있습니다.");
+  if (!canControlRecordTarget(record.class_name)) {
+    if (showAlert) alert("담당 반 또는 담당 공동실의 도서만 반납요청할 수 있습니다.");
     return new Error("permission denied");
   }
 
@@ -2337,8 +2365,8 @@ async function cancelReturnRequestRecord(recordId, showAlert = true) {
     if (showAlert) alert("반납요청 기록을 찾을 수 없습니다.");
     return;
   }
-  if (record.class_name !== currentUser.class_name && currentUser.role !== "manager" && currentUser.role !== "admin") {
-    if (showAlert) alert("같은 반의 반납요청만 취소할 수 있습니다.");
+  if (!canControlRecordTarget(record.class_name)) {
+    if (showAlert) alert("담당 반 또는 담당 공동실의 반납요청만 취소할 수 있습니다.");
     return;
   }
 
@@ -2384,7 +2412,7 @@ async function loadMyBooks() {
   const { data: records, error } = await supabaseClient
     .from("rental_records")
     .select("*")
-    .eq("class_name", currentUser.class_name)
+    .in("class_name", getAllowedRentalTargets())
     .in("status", ACTIVE_RECORD_STATUSES)
     .order("created_at", { ascending: false });
 
@@ -2392,7 +2420,7 @@ async function loadMyBooks() {
   list.innerHTML = "";
 
   if (error || !records || !records.length) {
-    list.innerHTML = `<tr><td colspan="7">현재 ${escapeHtml(currentUser.class_name)}에서 예약 또는 대여중인 도서가 없습니다.</td></tr>`;
+    list.innerHTML = `<tr><td colspan="7">현재 담당 반/공동실에서 예약 또는 대여중인 도서가 없습니다.</td></tr>`;
   } else {
     for (const record of records) {
       const book = await fetchBookById(record.book_id);
@@ -2430,7 +2458,7 @@ async function loadMyBooks() {
       `;
     }
     if (!list.innerHTML.trim()) {
-      list.innerHTML = `<tr><td colspan="7">현재 ${escapeHtml(currentUser.class_name)}에서 예약 또는 대여중인 도서가 없습니다.</td></tr>`;
+      list.innerHTML = `<tr><td colspan="7">현재 담당 반/공동실에서 예약 또는 대여중인 도서가 없습니다.</td></tr>`;
     }
   }
 
@@ -2445,6 +2473,7 @@ function filterRecordsByManagerSelection(records, type = "rental") {
 
   return (records || []).filter(record => {
     if (selectedClass) return record.class_name === selectedClass;
+    if (selectedAge === "공동실") return COMMON_ROOM_NAMES.includes(record.class_name);
     if (selectedAge && classMap[selectedAge]) return classMap[selectedAge].includes(record.class_name);
     return true;
   });
@@ -3034,6 +3063,99 @@ async function loadCommonRoomBooks() {
   });
 }
 
+
+async function searchRentalRecords() {
+  const keyword = document.getElementById("record-search")?.value.trim();
+  if (!keyword) {
+    alert("검색어를 입력해주세요.");
+    return;
+  }
+
+  const { data: records, error } = await supabaseClient
+    .from("rental_records")
+    .select("*")
+    .in("status", ["reserved", "borrowed", "return_requested", "returned", "rental_rejected", "return_rejected"])
+    .order("created_at", { ascending: false })
+    .limit(1000);
+
+  if (error) {
+    alert("대여기록 검색 실패: " + error.message);
+    return;
+  }
+
+  const lower = keyword.toLowerCase();
+  const result = [];
+
+  for (const record of records || []) {
+    const { data: book } = await supabaseClient
+      .from("books")
+      .select('"관리번호","도서명"')
+      .eq("id", record.book_id)
+      .maybeSingle();
+
+    const borrowerName = record.borrower_name || await getUserNameById(record.user_id);
+    const returnedByName = await getUserNameById(record.returned_by);
+    const approvedByName = await getUserNameById(record.approved_by);
+    const returnApprovedByName = await getUserNameById(record.return_approved_by);
+
+    const searchText = [
+      record.class_name,
+      book?.["관리번호"],
+      book?.["도서명"],
+      borrowerName,
+      returnedByName,
+      approvedByName,
+      returnApprovedByName,
+      getStatusName(record.status)
+    ].join(" ").toLowerCase();
+
+    if (searchText.includes(lower)) {
+      result.push({
+        ...record,
+        bookNumber: book?.["관리번호"] || "",
+        bookTitle: book?.["도서명"] || "",
+        borrowerName,
+        approvedByName,
+        returnedByName,
+        returnApprovedByName
+      });
+    }
+  }
+
+  renderRecordRows(result, `검색 결과가 없습니다. 검색어: ${keyword}`);
+}
+
+function renderRecordRows(records, emptyMessage = "선택 월 대여기록이 없습니다.") {
+  const list = document.getElementById("monthly-record-list");
+  list.innerHTML = "";
+
+  if (!records.length) {
+    list.innerHTML = `<tr><td colspan="10">${escapeHtml(emptyMessage)}</td></tr>`;
+    return;
+  }
+
+  records.forEach(record => {
+    const resetCell = currentUser.role === "admin"
+      ? `<button class="btn-danger" onclick="deleteRentalRecord('${record.id}')">초기화</button>`
+      : `관리자 문의`;
+
+    list.innerHTML += `
+      <tr>
+        <td>${escapeHtml(record.class_name || "")}</td>
+        <td>${escapeHtml(formatDate(record.approved_at || record.reserved_at || record.created_at))}</td>
+        <td>${escapeHtml(record.bookNumber || "")}</td>
+        <td>${escapeHtml(record.bookTitle || "")}</td>
+        <td>${escapeHtml(record.borrowerName || "-")}</td>
+        <td>${escapeHtml(record.approvedByName || "-")}</td>
+        <td>${escapeHtml(formatDate(record.returned_at))}</td>
+        <td>${escapeHtml(record.returnedByName || "-")}</td>
+        <td>${escapeHtml(record.returnApprovedByName || "-")}</td>
+        <td>${resetCell}</td>
+      </tr>
+    `;
+  });
+}
+
 function bindEvents() {
 
   const portalLoginBtn = document.getElementById("portal-btn-login");
@@ -3075,6 +3197,8 @@ function bindEvents() {
   document.getElementById("print-all-month-btn").addEventListener("click", () => printMonthlyRecords());
   document.getElementById("print-class-month-btn").addEventListener("click", printClassMonthlyRecords);
   document.getElementById("load-record-month-btn").addEventListener("click", loadMonthlyRecordList);
+  document.getElementById("search-record-btn").addEventListener("click", searchRentalRecords);
+  document.getElementById("record-search").addEventListener("keydown", (e) => { if (e.key === "Enter") searchRentalRecords(); });
   document.getElementById("load-rental-filter-btn").addEventListener("click", loadRentalApproveList);
   document.getElementById("batch-rental-approve-btn").addEventListener("click", batchApproveRentalBooks);
   document.getElementById("load-return-filter-btn").addEventListener("click", loadReturnApproveList);
