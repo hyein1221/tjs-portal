@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v14 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v15 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -88,9 +88,10 @@ th{background:#e8eef9}
 #statsTable th:nth-child(7), #statsTable td:nth-child(7),
 #statsTable th:nth-child(8), #statsTable td:nth-child(8),
 #statsTable th:nth-child(9), #statsTable td:nth-child(9){width:6%}
-#statsTable th:nth-child(10), #statsTable td:nth-child(10){width:10%}
-#statsTable th:nth-child(11), #statsTable td:nth-child(11){
-width:36%;
+#statsTable th:nth-child(10), #statsTable td:nth-child(10){width:6%}
+#statsTable th:nth-child(11), #statsTable td:nth-child(11){width:10%}
+#statsTable th:nth-child(12), #statsTable td:nth-child(12){
+width:32%;
 text-align:left;
 line-height:1.5;
 }
@@ -294,7 +295,7 @@ line-height:1.5;
 
 <div class="box">
 <h2>배정 우선순위 안내</h2>
-<p class="small">같은 연령의 당직을 가장 우선하고, 다음으로 영아반 교사는 영아 당직·유아반 교사는 유아 당직을 우선합니다. 동일한 당직 반이 한 교사에게 반복되지 않도록 분산하며, 연차·제한·인원 부족 시에는 다른 연령 또는 다른 그룹으로 배정될 수 있습니다.</p>
+<p class="small">같은 연령의 당직을 가장 우선하고, 다음으로 영아반 교사는 영아 당직·유아반 교사는 유아 당직을 우선합니다. 동일한 당직 반과 놀이터 시건이 한 교사에게 반복되지 않도록 분산하며, 놀이터 시건은 월 1회씩 우선 배정하고 인원 부족 시에만 최대 2회까지 허용합니다. 연차·제한·인원 부족 시에는 다른 연령 또는 다른 그룹으로 배정될 수 있습니다.</p>
 </div>
 
 <div class="box">
@@ -735,7 +736,8 @@ function parseTeachers(){
       availabilityRatio:1,
       dutyRoomCounts:{},
       lastDutyRoom:"",
-      lastDutyDate:""
+      lastDutyDate:"",
+      playgroundLockCount:0
     };
   }).filter(t=>t.name);
 }
@@ -1273,6 +1275,10 @@ function getAgeGroup(age){
   return age==="만1세" || age==="만2세" ? "영아" : "유아";
 }
 
+function isPlaygroundLockSlot(slot){
+  return String(slot.role || "").includes("놀이터 시건");
+}
+
 function getSlotMatchScore(teacher, slot){
   const dutyAge=getDutyAgeByRoom(slot.room);
   if(!dutyAge) return 0;
@@ -1300,6 +1306,16 @@ function getSlotMatchScore(teacher, slot){
   // 직전 배정과 같은 반이면 추가 불이익
   if(teacher.lastDutyRoom===slot.room){
     score+=220;
+  }
+
+  // 놀이터 시건이 특정 교사에게 반복되지 않도록 강하게 분산한다.
+  if(isPlaygroundLockSlot(slot)){
+    score += (teacher.playgroundLockCount || 0) * 900;
+
+    // 아직 놀이터 시건을 하지 않은 교사를 우선한다.
+    if((teacher.playgroundLockCount || 0)===0){
+      score -= 450;
+    }
   }
 
   return score;
@@ -1353,6 +1369,9 @@ function chooseTeacher(teachers, slot, dateStr){
 
     if(slot.type==="flex" && t.flexCount >= getFlexLimit(t)) return false;
 
+    // 놀이터 시건은 기본적으로 교사 1명당 월 1회까지만 우선 배정한다.
+    if(isPlaygroundLockSlot(slot) && (t.playgroundLockCount || 0) >= 1) return false;
+
     // 오후당직·오후책임교사는 기본적으로 교사 1명당 월 1회만 배정한다.
     if(slot.part==="afternoon" && t.afternoonCount >= 1) return false;
 
@@ -1379,6 +1398,9 @@ function chooseTeacher(teachers, slot, dateStr){
       if(isBeforeTeacherStartDate(dateStr,t.name)) return false;
       if(getAvailabilityRatio(t)<=0) return false;
       if(t.assignedDates.includes(dateStr)) return false;
+
+      // 인원 부족 시에도 놀이터 시건은 월 2회를 넘지 않도록 한다.
+      if(isPlaygroundLockSlot(slot) && (t.playgroundLockCount || 0) >= 2) return false;
 
       // 연차·제한 등으로 1회 배정이 불가능한 경우에만 오후당직 2회까지 허용한다.
       if(slot.part==="afternoon" && t.afternoonCount >= 2) return false;
@@ -1535,6 +1557,11 @@ async function generateSchedule(){
         teacher.lastDutyRoom = slot.room;
         teacher.lastDutyDate = day.dateStr;
 
+        if(isPlaygroundLockSlot(slot)){
+          teacher.playgroundLockCount =
+            (teacher.playgroundLockCount || 0) + 1;
+        }
+
         const cleanTime = slot.time.replaceAll("<br>"," ");
         const cleanRole = slot.role ? slot.role.replaceAll("<br>"," ") : slot.room;
         teacher.dutyDates.push(`${day.day}일(${day.weekday}) ${cleanTime} ${cleanRole}`);
@@ -1670,6 +1697,7 @@ function renderStats(teachers){
 <th>오후 시간</th>
 <th>오후 횟수</th>
 <th>탄력 횟수</th>
+<th>놀이터 시건</th>
 <th>총 시간</th>
 <th>당직 가능 비율</th>
 <th>배정 날짜</th>
@@ -1679,7 +1707,7 @@ function renderStats(teachers){
   sorted.forEach(t=>{
     if(currentAge!==t.age){
       currentAge=t.age;
-      html += `<tr><td colspan="11" class="group">${t.age}</td></tr>`;
+      html += `<tr><td colspan="12" class="group">${t.age}</td></tr>`;
     }
 
     html += `<tr>
@@ -1691,6 +1719,7 @@ function renderStats(teachers){
 <td>${t.afternoonHours}</td>
 <td>${t.afternoonCount}</td>
 <td>${t.flexCount}</td>
+<td>${t.playgroundLockCount || 0}</td>
 <td>${t.totalHours}</td>
 <td>${Math.round((t.availabilityRatio||0)*100)}% (${t.availableWorkDays}/${t.totalWorkDays}일)</td>
 <td>${t.dutyDates.join("<br>")}</td>
