@@ -87,6 +87,9 @@
     #extra-rental-modal.hidden { display:none !important; }
     #extra-rental-modal { display:none; }
     #extra-rental-modal:not(.hidden) { display:flex; }
+    #rental-target-modal.hidden { display:none !important; }
+    #rental-target-modal { display:none; }
+    #rental-target-modal:not(.hidden) { display:flex; }
     .modal-header {
       display:flex;
       justify-content:space-between;
@@ -471,6 +474,19 @@
     <div class="modal-actions">
       <button id="extra-rental-save-btn" class="btn-reserve">대여예약 등록</button>
       <button id="extra-rental-cancel-btn" class="btn-cancel">취소</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="rental-target-modal" class="modal-overlay hidden" style="display:none;">
+  <div class="modal-box" onclick="event.stopPropagation();">
+    <div class="modal-header">
+      <h3>대여처 선택</h3>
+      <button id="rental-target-close-btn" class="modal-close-btn" type="button" aria-label="닫기">×</button>
+    </div>
+    <p class="notice" id="rental-target-notice">대여처를 선택해주세요.</p>
+    <div class="modal-actions" id="rental-target-actions" style="justify-content:stretch;">
     </div>
   </div>
 </div>
@@ -1998,20 +2014,47 @@ function canControlRecordTarget(className) {
 
 function chooseRentalTarget() {
   const assignedRoom = getAssignedCommonRoom();
-  if (!assignedRoom) return currentUser.class_name;
+  if (!assignedRoom) return Promise.resolve(currentUser.class_name);
 
-  const answer = prompt(`대여처를 선택해주세요.
+  return new Promise(resolve => {
+    const modal = document.getElementById("rental-target-modal");
+    const actions = document.getElementById("rental-target-actions");
+    const notice = document.getElementById("rental-target-notice");
+    const closeBtn = document.getElementById("rental-target-close-btn");
 
-1. ${currentUser.class_name}
-2. ${assignedRoom}
+    if (!modal || !actions || !notice || !closeBtn) {
+      resolve(currentUser.class_name);
+      return;
+    }
 
-숫자 1 또는 2를 입력해주세요.`);
-  if (answer === null) return null;
-  const trimmed = answer.trim();
-  if (trimmed === "1") return currentUser.class_name;
-  if (trimmed === "2") return assignedRoom;
-  alert("1 또는 2를 입력해야 합니다.");
-  return null;
+    let settled = false;
+    const finish = (target) => {
+      if (settled) return;
+      settled = true;
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+      actions.innerHTML = "";
+      modal.onclick = null;
+      closeBtn.onclick = null;
+      resolve(target);
+    };
+
+    notice.innerText = `${currentUser.class_name} 선생님은 우리 반 또는 담당 공동실 중 선택해서 대여할 수 있습니다.`;
+    actions.innerHTML = `
+      <button class="btn-reserve" type="button" style="flex:1; padding:14px;" id="rent-target-class-btn">${escapeHtml(currentUser.class_name)}으로 대여</button>
+      <button class="btn-approve" type="button" style="flex:1; padding:14px;" id="rent-target-room-btn">${escapeHtml(assignedRoom)}로 대여</button>
+      <button class="btn-cancel" type="button" style="flex:1; padding:14px;" id="rent-target-cancel-btn">취소</button>
+    `;
+
+    modal.classList.remove("hidden");
+    modal.style.display = "flex";
+
+    document.getElementById("rent-target-class-btn").onclick = () => finish(currentUser.class_name);
+    document.getElementById("rent-target-room-btn").onclick = () => finish(assignedRoom);
+    document.getElementById("rent-target-cancel-btn").onclick = () => finish(null);
+    closeBtn.onclick = () => finish(null);
+    modal.onclick = () => finish(null);
+  });
 }
 
 function escapeHtml(value) {
@@ -2184,7 +2227,7 @@ async function reserveBook(bookId) {
     return;
   }
 
-  const targetName = chooseRentalTarget();
+  const targetName = await chooseRentalTarget();
   if (!targetName) return;
 
   const setCount = getSetBookCount(book);
@@ -3351,6 +3394,8 @@ bindEvents();
 if (document.getElementById("extra-book-number")) document.getElementById("extra-book-number").dataset.originalPlaceholder = document.getElementById("extra-book-number").placeholder;
 if (document.getElementById("common-book-number")) document.getElementById("common-book-number").dataset.originalPlaceholder = document.getElementById("common-book-number").placeholder;
 closeExtraRentalModal();
+const rentalTargetModal = document.getElementById("rental-target-modal");
+if (rentalTargetModal) { rentalTargetModal.classList.add("hidden"); rentalTargetModal.style.display = "none"; }
 setDefaultPrintMonth();
 restoreLogin();
 </script>
