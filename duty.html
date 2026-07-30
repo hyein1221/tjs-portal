@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v13 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v14 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -290,6 +290,11 @@ line-height:1.5;
 <button onclick="loadSavedSchedule()">불러오기</button>
 <button class="gray" onclick="refreshSavedSchedules(true)">목록 새로고침</button>
 <button class="red" onclick="deleteSavedSchedule()">삭제</button>
+</div>
+
+<div class="box">
+<h2>배정 우선순위 안내</h2>
+<p class="small">같은 연령의 당직을 가장 우선하고, 다음으로 영아반 교사는 영아 당직·유아반 교사는 유아 당직을 우선합니다. 동일한 당직 반이 한 교사에게 반복되지 않도록 분산하며, 연차·제한·인원 부족 시에는 다른 연령 또는 다른 그룹으로 배정될 수 있습니다.</p>
 </div>
 
 <div class="box">
@@ -727,7 +732,10 @@ function parseTeachers(){
       eveningManagerCountThisMonth:0,
       totalWorkDays:0,
       availableWorkDays:0,
-      availabilityRatio:1
+      availabilityRatio:1,
+      dutyRoomCounts:{},
+      lastDutyRoom:"",
+      lastDutyDate:""
     };
   }).filter(t=>t.name);
 }
@@ -1246,6 +1254,57 @@ function getAvailabilityRatio(teacher){
   return Number.isFinite(ratio) && ratio > 0 ? ratio : 0;
 }
 
+function getDutyAgeByRoom(room){
+  const map={
+    "햇빛":"만1세",
+    "달빛":"만1세",
+    "봄빛":"만2세",
+    "예빛":"만2세",
+    "새빛":"만3세",
+    "꽃빛":"만4세",
+    "윤빛":"만4세",
+    "솔빛":"만5세",
+    "들빛":"만5세"
+  };
+  return map[room] || "";
+}
+
+function getAgeGroup(age){
+  return age==="만1세" || age==="만2세" ? "영아" : "유아";
+}
+
+function getSlotMatchScore(teacher, slot){
+  const dutyAge=getDutyAgeByRoom(slot.room);
+  if(!dutyAge) return 0;
+
+  const teacherGroup=getAgeGroup(teacher.age);
+  const dutyGroup=getAgeGroup(dutyAge);
+
+  let score=0;
+
+  // 같은 연령 당직을 가장 우선한다.
+  if(teacher.age===dutyAge){
+    score-=220;
+  }else if(teacherGroup===dutyGroup){
+    // 같은 영아·유아 그룹이면 두 번째 우선순위
+    score-=80;
+  }else{
+    // 영아 교사가 유아 당직, 유아 교사가 영아 당직인 경우 후순위
+    score+=260;
+  }
+
+  // 같은 당직 반이 한 사람에게 반복되지 않도록 누적 횟수만큼 불이익
+  const sameRoomCount=teacher.dutyRoomCounts?.[slot.room] || 0;
+  score+=sameRoomCount*140;
+
+  // 직전 배정과 같은 반이면 추가 불이익
+  if(teacher.lastDutyRoom===slot.room){
+    score+=220;
+  }
+
+  return score;
+}
+
 function getNormalizedValue(value, teacher){
   const ratio = getAvailabilityRatio(teacher);
   if(ratio <= 0) return Number.POSITIVE_INFINITY;
@@ -1349,6 +1408,11 @@ function chooseTeacher(teachers, slot, dateStr){
   candidates.sort((a,b)=>{
     let aScore = 0;
     let bScore = 0;
+
+    // 같은 연령 → 같은 영아·유아 그룹 → 다른 그룹 순으로 우선하며,
+    // 동일한 당직 반이 한 교사에게 반복되지 않도록 조정한다.
+    aScore += getSlotMatchScore(a, slot);
+    bScore += getSlotMatchScore(b, slot);
 
     // 실제 배정량을 당직 가능 비율로 나눈 환산값을 비교한다.
     // 예: 월 절반만 가능한 교사는 실제 3시간이 일반 교사의 6시간과 같은 수준으로 계산된다.
@@ -1465,6 +1529,11 @@ async function generateSchedule(){
         }
 
         teacher.assignedDates.push(day.dateStr);
+
+        teacher.dutyRoomCounts[slot.room] =
+          (teacher.dutyRoomCounts[slot.room] || 0) + 1;
+        teacher.lastDutyRoom = slot.room;
+        teacher.lastDutyDate = day.dateStr;
 
         const cleanTime = slot.time.replaceAll("<br>"," ");
         const cleanRole = slot.role ? slot.role.replaceAll("<br>"," ") : slot.room;
