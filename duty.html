@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v16 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v17 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -296,7 +296,7 @@ line-height:1.5;
 
 <div class="box">
 <h2>배정 우선순위 안내</h2>
-<p class="small">같은 연령의 당직을 가장 우선하고, 다음으로 영아반 교사는 영아 당직·유아반 교사는 유아 당직을 우선합니다. 동일한 당직 반과 놀이터 시건이 한 교사에게 반복되지 않도록 분산하며, 0.5시간·1시간·1.5시간·2시간 당직도 각 교사에게 고르게 돌아가도록 배정합니다. 놀이터 시건은 월 1회씩 우선 배정하고 인원 부족 시에만 최대 2회까지 허용합니다. 연차·제한·인원 부족 시에는 다른 연령 또는 다른 그룹으로 배정될 수 있습니다.</p>
+<p class="small">같은 연령의 당직을 가장 우선하고, 다음으로 영아반 교사는 영아 당직·유아반 교사는 유아 당직을 우선합니다. 동일한 당직 반과 놀이터 시건이 한 교사에게 반복되지 않도록 분산하며, 1시간·1.5시간·2시간 당직도 각 교사에게 고르게 돌아가도록 배정합니다. 탄력근무는 추가 근무시간이 아니므로 시간별 통계에서는 제외하고 탄력 횟수로만 관리합니다. 놀이터 시건은 월 1회씩 우선 배정하고 인원 부족 시에만 최대 2회까지 허용합니다. 연차·제한·인원 부족 시에는 다른 연령 또는 다른 그룹으로 배정될 수 있습니다.</p>
 </div>
 
 <div class="box">
@@ -1281,9 +1281,11 @@ function isPlaygroundLockSlot(slot){
   return String(slot.role || "").includes("놀이터 시건");
 }
 
-function getDurationKey(hours){
+function getDurationKey(hours, slot=null){
+  // 탄력근무는 추가 근무시간이 아니므로 시간별 통계와 균등배분에서 제외한다.
+  if(slot && slot.type==="flex") return "";
+
   const value=Number(hours);
-  if(value===0.5) return "0.5";
   if(value===1) return "1";
   if(value===1.5) return "1.5";
   if(value===2) return "2";
@@ -1291,7 +1293,7 @@ function getDurationKey(hours){
 }
 
 function getDurationBalanceScore(teacher, slot){
-  const key=getDurationKey(slot.hours);
+  const key=getDurationKey(slot.hours, slot);
   if(!key) return 0;
 
   const count=teacher.durationCounts?.[key] || 0;
@@ -1591,7 +1593,7 @@ async function generateSchedule(){
             (teacher.playgroundLockCount || 0) + 1;
         }
 
-        const durationKey=getDurationKey(slot.hours);
+        const durationKey=getDurationKey(slot.hours, slot);
         if(durationKey){
           teacher.durationCounts[durationKey] =
             (teacher.durationCounts[durationKey] || 0) + 1;
@@ -1757,7 +1759,6 @@ function renderStats(teachers){
 <td>${t.flexCount}</td>
 <td>${t.playgroundLockCount || 0}</td>
 <td>
-0.5h ${t.durationCounts?.["0.5"]||0}회<br>
 1h ${t.durationCounts?.["1"]||0}회<br>
 1.5h ${t.durationCounts?.["1.5"]||0}회<br>
 2h ${t.durationCounts?.["2"]||0}회
