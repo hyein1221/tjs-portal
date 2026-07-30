@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v8 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v9 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -553,6 +553,17 @@ if(document.readyState==="loading"){
   window.addEventListener("DOMContentLoaded",initializeDutyPage,{once:true});
 }else{
   initializeDutyPage();
+}
+
+function setConnectionStatus(message, status=""){
+  const el=document.getElementById("connectionStatus");
+  if(!el) return;
+
+  el.textContent=message;
+  el.className="connection-status";
+
+  if(status==="online") el.classList.add("online");
+  if(status==="offline") el.classList.add("offline");
 }
 
 async function saveAppData(key, value){
