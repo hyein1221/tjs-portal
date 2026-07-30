@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>탕정삼성어린이집 도서관리 시스템</title>
-  <!-- v: set-books-common-room-target-choice-record-search -->
+  <!-- v: common-target-record-search-excel-flex-final -->
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
@@ -1532,6 +1532,36 @@ function printClassMonthlyRecords() {
   printMonthlyRecords(className);
 }
 
+function normalizeExcelHeader(value) {
+  return String(value ?? "")
+    .replace(/^\uFEFF/, "")
+    .replace(/\s+/g, "")
+    .replace(/[()\[\]{}<>]/g, "")
+    .replace(/[*※:：._-]/g, "")
+    .toLowerCase();
+}
+
+function getExcelValue(row, aliases) {
+  const normalizedAliases = aliases.map(normalizeExcelHeader);
+  const keyMap = {};
+
+  Object.keys(row || {}).forEach(key => {
+    keyMap[normalizeExcelHeader(key)] = key;
+  });
+
+  for (const alias of normalizedAliases) {
+    if (keyMap[alias] !== undefined) {
+      return String(row[keyMap[alias]] ?? "").trim();
+    }
+  }
+
+  return "";
+}
+
+function isBlankExcelRow(row) {
+  return Object.values(row || {}).every(value => String(value ?? "").trim() === "");
+}
+
 async function handleExcelUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -1542,29 +1572,50 @@ async function handleExcelUpload(event) {
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, { type: "array" });
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false });
 
     if (!jsonData.length) {
       alert("엑셀 데이터가 없습니다.");
       return;
     }
 
+    const numberAliases = ["관리번호", "관리 번호", "등록번호", "등록 번호", "도서번호", "도서 번호", "번호", "라벨번호", "라벨 번호"];
+    const categoryAliases = ["분류명", "분류", "카테고리", "영역", "분류이름", "분류 이름"];
+    const titleAliases = ["도서명", "도서 제목", "도서제목", "책이름", "책 이름", "제목", "자료명"];
+
     let successCount = 0;
     let duplicateCount = 0;
     let missingCount = 0;
     let errorCount = 0;
+    let skippedBlankCount = 0;
 
     for (const row of jsonData) {
-      const bookNumber = row["관리번호"]?.toString().trim();
-      const category = row["분류명"]?.toString().trim();
-      const title = row["도서명"]?.toString().trim();
+      if (isBlankExcelRow(row)) {
+        skippedBlankCount++;
+        continue;
+      }
+
+      const bookNumber = getExcelValue(row, numberAliases);
+      const category = getExcelValue(row, categoryAliases);
+      const title = getExcelValue(row, titleAliases);
 
       if (!bookNumber || !category || !title) {
         missingCount++;
         continue;
       }
 
-      const { data: existingBook } = await supabaseClient.from("books").select("id").eq("관리번호", bookNumber).maybeSingle();
+      const { data: existingBook, error: duplicateError } = await supabaseClient
+        .from("books")
+        .select("id")
+        .eq("관리번호", bookNumber)
+        .or("is_deleted.is.false,is_deleted.is.null")
+        .limit(1)
+        .maybeSingle();
+
+      if (duplicateError) {
+        errorCount++;
+        continue;
+      }
 
       if (existingBook) {
         duplicateCount++;
@@ -1585,8 +1636,8 @@ async function handleExcelUpload(event) {
       else successCount++;
     }
 
-    const resultText = `엑셀 등록 완료\n성공: ${successCount}권\n중복: ${duplicateCount}권\n필수값 누락: ${missingCount}권\n기타 오류: ${errorCount}권`;
-    setMessage("excel-upload-result", resultText);
+    const resultText = `엑셀 등록 완료\n성공: ${successCount}권\n중복: ${duplicateCount}권\n필수값 누락: ${missingCount}권\n빈 행 제외: ${skippedBlankCount}행\n기타 오류: ${errorCount}권`;
+    setMessage("excel-upload-result", resultText, errorCount ? "#b91c1c" : "#2563eb");
     alert(resultText);
     loadBooks();
   };
@@ -3064,6 +3115,58 @@ async function loadCommonRoomBooks() {
 }
 
 
+function uniqueById(items) {
+  const map = new Map();
+  (items || []).forEach(item => {
+    if (item && item.id) map.set(item.id, item);
+  });
+  return Array.from(map.values());
+}
+
+async function addRecordQueryResult(resultMap, queryBuilder) {
+  const { data, error } = await queryBuilder;
+  if (error) throw error;
+  (data || []).forEach(record => {
+    if (record && record.id) resultMap.set(record.id, record);
+  });
+}
+
+async function getBookMapByIds(bookIds) {
+  const ids = Array.from(new Set((bookIds || []).filter(Boolean)));
+  const map = {};
+  if (!ids.length) return map;
+
+  const { data, error } = await supabaseClient
+    .from("books")
+    .select('id,"관리번호","도서명"')
+    .in("id", ids)
+    .limit(5000);
+
+  if (error) throw error;
+  (data || []).forEach(book => { map[book.id] = book; });
+  return map;
+}
+
+async function enrichRentalRecords(records) {
+  const bookMap = await getBookMapByIds((records || []).map(record => record.book_id));
+  const result = [];
+
+  for (const record of records || []) {
+    const book = bookMap[record.book_id] || {};
+    result.push({
+      ...record,
+      bookNumber: book?.["관리번호"] || "",
+      bookTitle: book?.["도서명"] || "",
+      borrowerName: record.borrower_name || await getUserNameById(record.user_id),
+      approvedByName: await getUserNameById(record.approved_by),
+      returnedByName: await getUserNameById(record.returned_by),
+      returnApprovedByName: await getUserNameById(record.return_approved_by)
+    });
+  }
+
+  return result.sort((a, b) => String(b.created_at || b.reserved_at || "").localeCompare(String(a.created_at || a.reserved_at || "")));
+}
+
 async function searchRentalRecords() {
   const keyword = document.getElementById("record-search")?.value.trim();
   if (!keyword) {
@@ -3071,58 +3174,70 @@ async function searchRentalRecords() {
     return;
   }
 
-  const { data: records, error } = await supabaseClient
-    .from("rental_records")
-    .select("*")
-    .in("status", ["reserved", "borrowed", "return_requested", "returned", "rental_rejected", "return_rejected"])
-    .order("created_at", { ascending: false })
-    .limit(1000);
+  const safeKeyword = keyword.replaceAll("%", "\\%").replaceAll("_", "\\_");
+  const statuses = ["reserved", "borrowed", "return_requested", "returned", "rental_rejected", "return_rejected"];
+  const resultMap = new Map();
 
-  if (error) {
-    alert("대여기록 검색 실패: " + error.message);
-    return;
-  }
-
-  const lower = keyword.toLowerCase();
-  const result = [];
-
-  for (const record of records || []) {
-    const { data: book } = await supabaseClient
+  try {
+    const { data: matchedBooks, error: bookError } = await supabaseClient
       .from("books")
-      .select('"관리번호","도서명"')
-      .eq("id", record.book_id)
-      .maybeSingle();
+      .select('id,"관리번호","도서명"')
+      .or(`관리번호.ilike.%${safeKeyword}%,도서명.ilike.%${safeKeyword}%`)
+      .limit(5000);
 
-    const borrowerName = record.borrower_name || await getUserNameById(record.user_id);
-    const returnedByName = await getUserNameById(record.returned_by);
-    const approvedByName = await getUserNameById(record.approved_by);
-    const returnApprovedByName = await getUserNameById(record.return_approved_by);
+    if (bookError) throw bookError;
 
-    const searchText = [
-      record.class_name,
-      book?.["관리번호"],
-      book?.["도서명"],
-      borrowerName,
-      returnedByName,
-      approvedByName,
-      returnApprovedByName,
-      getStatusName(record.status)
-    ].join(" ").toLowerCase();
-
-    if (searchText.includes(lower)) {
-      result.push({
-        ...record,
-        bookNumber: book?.["관리번호"] || "",
-        bookTitle: book?.["도서명"] || "",
-        borrowerName,
-        approvedByName,
-        returnedByName,
-        returnApprovedByName
-      });
+    const bookIds = (matchedBooks || []).map(book => book.id).filter(Boolean);
+    if (bookIds.length) {
+      await addRecordQueryResult(resultMap,
+        supabaseClient
+          .from("rental_records")
+          .select("*")
+          .in("status", statuses)
+          .in("book_id", bookIds)
+          .order("created_at", { ascending: false })
+          .limit(5000)
+      );
     }
-  }
 
-  renderRecordRows(result, `검색 결과가 없습니다. 검색어: ${keyword}`);
+    await addRecordQueryResult(resultMap,
+      supabaseClient
+        .from("rental_records")
+        .select("*")
+        .in("status", statuses)
+        .or(`class_name.ilike.%${safeKeyword}%,borrower_name.ilike.%${safeKeyword}%`)
+        .order("created_at", { ascending: false })
+        .limit(5000)
+    );
+
+    const { data: matchedUsers, error: userError } = await supabaseClient
+      .from("users")
+      .select("id,name")
+      .ilike("name", `%${safeKeyword}%`)
+      .limit(1000);
+
+    if (userError) throw userError;
+
+    const userIds = (matchedUsers || []).map(user => user.id).filter(Boolean);
+    if (userIds.length) {
+      for (const field of ["user_id", "returned_by", "approved_by", "return_approved_by", "rejected_by", "return_rejected_by"]) {
+        await addRecordQueryResult(resultMap,
+          supabaseClient
+            .from("rental_records")
+            .select("*")
+            .in("status", statuses)
+            .in(field, userIds)
+            .order("created_at", { ascending: false })
+            .limit(5000)
+        );
+      }
+    }
+
+    const enriched = await enrichRentalRecords(uniqueById(Array.from(resultMap.values())));
+    renderRecordRows(enriched, `검색 결과가 없습니다. 검색어: ${keyword}`);
+  } catch (error) {
+    alert("대여기록 검색 실패: " + error.message);
+  }
 }
 
 function renderRecordRows(records, emptyMessage = "선택 월 대여기록이 없습니다.") {
