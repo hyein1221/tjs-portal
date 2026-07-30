@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v9 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v10 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -259,7 +259,8 @@ line-height:1.5;
   <select id="ruleScope">
     <option value="morning">오전 당직 제외</option>
     <option value="afternoon">오후 당직 제외</option>
-    <option value="all">오전·오후 전체 제외</option>
+    <option value="flex">탄력근무 제외</option>
+    <option value="all">오전·오후·탄력 전체 제외</option>
   </select>
   <input type="text" id="ruleReason" placeholder="예: 외부교육, 면담, 개인사유">
   <button onclick="addDutyRestriction()">추가 및 저장</button>
@@ -269,7 +270,20 @@ line-height:1.5;
 </div>
 
 <div class="box">
-<h2>6. 저장된 당직표 조회</h2>
+<h2>6. 교사별 당직 시작일</h2>
+<p class="small">신입·중도입사 교사가 특정 날짜 이후부터 당직에 배정되도록 설정할 수 있습니다.</p>
+<div class="rule-toolbar">
+  <select id="startDateTeacher"></select>
+  <input type="date" id="startDateValue">
+  <input type="text" id="startDateReason" placeholder="예: 신입교사 적응기간">
+  <button onclick="addTeacherStartDate()">추가 및 저장</button>
+  <button class="red" onclick="clearTeacherStartDates()">전체 삭제</button>
+</div>
+<div id="teacherStartDateList"></div>
+</div>
+
+<div class="box">
+<h2>7. 저장된 당직표 조회</h2>
 <select id="savedScheduleSelect"></select>
 <button onclick="loadSavedSchedule()">불러오기</button>
 <button class="gray" onclick="refreshSavedSchedules(true)">목록 새로고침</button>
@@ -339,6 +353,7 @@ let leaves = [];
 let holidays = [];
 let eventExclusions = [];
 let dutyRestrictions = [];
+let teacherStartDates = [];
 let currentSchedule = [];
 let currentStats = [];
 let savedSchedules = {};
@@ -497,7 +512,7 @@ function saveLocalCache(){
   try{
     localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify({
       teachers:teacherInput.value || DEFAULT_TEACHERS,
-      leaves, holidays, eventExclusions, dutyRestrictions, savedSchedules, eveningManagerCounts,
+      leaves, holidays, eventExclusions, dutyRestrictions, teacherStartDates, savedSchedules, eveningManagerCounts,
       cachedAt:new Date().toISOString()
     }));
   }catch(error){
@@ -612,6 +627,7 @@ async function loadAllSharedData(){
   holidays = cached?.holidays || [];
   eventExclusions = cached?.eventExclusions || [];
   dutyRestrictions = cached?.dutyRestrictions || [];
+  teacherStartDates = cached?.teacherStartDates || [];
   savedSchedules = cached?.savedSchedules || {};
   eveningManagerCounts = cached?.eveningManagerCounts || {};
 
@@ -620,6 +636,7 @@ async function loadAllSharedData(){
   renderLeaves();
   renderHolidays();
   renderDutyRestrictions();
+  renderTeacherStartDates();
   renderSavedScheduleList();
 
   setConnectionStatus("화면 사용 가능 · 공용 저장소 연결 확인 중...");
@@ -635,7 +652,7 @@ async function loadAllSharedData(){
         .from("duty_app_data")
         .select("id,data,updated_at")
         .in("id", [
-          "teachers","leaves","holidays","eventExclusions","dutyRestrictions",
+          "teachers","leaves","holidays","eventExclusions","dutyRestrictions","teacherStartDates",
           "savedSchedules","eveningManagerCounts"
         ]),
       8000
@@ -653,6 +670,7 @@ async function loadAllSharedData(){
     holidays = map.holidays || holidays;
     eventExclusions = map.eventExclusions || eventExclusions;
     dutyRestrictions = map.dutyRestrictions || dutyRestrictions;
+    teacherStartDates = map.teacherStartDates || teacherStartDates;
     savedSchedules = map.savedSchedules || savedSchedules;
     eveningManagerCounts = map.eveningManagerCounts || eveningManagerCounts;
 
@@ -661,6 +679,7 @@ async function loadAllSharedData(){
     renderLeaves();
     renderHolidays();
       renderDutyRestrictions();
+    renderTeacherStartDates();
     renderSavedScheduleList();
 
     saveLocalCache();
@@ -740,6 +759,17 @@ function updateTeacherSelect(){
       op.value=t.name;
       op.textContent=`${t.name} (${t.age} ${t.room}${t.status==="신입" ? ", 신입" : ""})`;
       ruleTeacherEl.appendChild(op);
+    });
+  }
+
+  const startDateTeacherEl=document.getElementById("startDateTeacher");
+  if(startDateTeacherEl){
+    startDateTeacherEl.innerHTML="";
+    teachers.forEach(t=>{
+      const op=document.createElement("option");
+      op.value=t.name;
+      op.textContent=`${t.name} (${t.age} ${t.room}${t.status==="신입" ? ", 신입" : ""})`;
+      startDateTeacherEl.appendChild(op);
     });
   }
 
@@ -931,7 +961,10 @@ function renderEventExclusions(){
 }
 
 function restrictionScopeLabel(scope){
-  return scope==="morning"?"오전 제외":scope==="afternoon"?"오후 제외":"오전·오후 전체 제외";
+  if(scope==="morning") return "오전 제외";
+  if(scope==="afternoon") return "오후 제외";
+  if(scope==="flex") return "탄력근무 제외";
+  return "오전·오후·탄력 전체 제외";
 }
 async function addDutyRestriction(){
   const date=ruleDate.value,teacher=ruleTeacher.value,scope=ruleScope.value,reason=ruleReason.value.trim();
@@ -960,11 +993,95 @@ function renderDutyRestrictions(){
 function isTeacherRestricted(dateStr,teacherName,slot){
   return dutyRestrictions.some(r=>{
     if(r.date!==dateStr||r.teacher!==teacherName)return false;
-    if(r.scope==="all")return true;
-    if(r.scope==="morning")return slot.part==="morning"||slot.part==="flex";
-    if(r.scope==="afternoon")return slot.part==="afternoon";
+    if(r.scope==="all") return true;
+    if(r.scope==="morning") return slot.part==="morning";
+    if(r.scope==="afternoon") return slot.part==="afternoon";
+    if(r.scope==="flex") return slot.part==="flex";
     return false;
   });
+}
+
+function getTeacherStartDate(teacherName){
+  const row=teacherStartDates.find(x=>x.teacher===teacherName);
+  return row?.startDate || "";
+}
+
+function isBeforeTeacherStartDate(dateStr,teacherName){
+  const startDate=getTeacherStartDate(teacherName);
+  return !!startDate && dateStr<startDate;
+}
+
+async function addTeacherStartDate(){
+  const teacher=document.getElementById("startDateTeacher").value;
+  const startDate=document.getElementById("startDateValue").value;
+  const reason=document.getElementById("startDateReason").value.trim();
+
+  if(!teacher || !startDate) return alert("교사와 당직 가능 시작일을 선택해주세요.");
+
+  const existingIndex=teacherStartDates.findIndex(x=>x.teacher===teacher);
+  const row={teacher,startDate,reason};
+
+  if(existingIndex>=0){
+    teacherStartDates[existingIndex]=row;
+  }else{
+    teacherStartDates.push(row);
+  }
+
+  teacherStartDates.sort((a,b)=>a.startDate.localeCompare(b.startDate)||a.teacher.localeCompare(b.teacher,"ko"));
+  renderTeacherStartDates();
+  saveLocalCache();
+
+  try{
+    await saveAppData("teacherStartDates",teacherStartDates);
+    document.getElementById("startDateReason").value="";
+  }catch(error){
+    alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");
+  }
+}
+
+async function removeTeacherStartDate(i){
+  teacherStartDates.splice(i,1);
+  renderTeacherStartDates();
+  saveLocalCache();
+
+  try{
+    await saveAppData("teacherStartDates",teacherStartDates);
+  }catch(error){
+    alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");
+  }
+}
+
+async function clearTeacherStartDates(){
+  if(!confirm("교사별 당직 시작일 설정을 모두 삭제할까요?")) return;
+
+  teacherStartDates=[];
+  renderTeacherStartDates();
+  saveLocalCache();
+
+  try{
+    await saveAppData("teacherStartDates",teacherStartDates);
+  }catch(error){
+    alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");
+  }
+}
+
+function renderTeacherStartDates(){
+  const area=document.getElementById("teacherStartDateList");
+  if(!area) return;
+
+  let html="<table><tr><th>교사</th><th>당직 가능 시작일</th><th>사유</th><th>삭제</th></tr>";
+
+  teacherStartDates.forEach((r,i)=>{
+    html+=`<tr>
+      <td>${r.teacher}</td>
+      <td>${r.startDate}</td>
+      <td>${r.reason||""}</td>
+      <td><button class="red" onclick="removeTeacherStartDate(${i})">삭제</button></td>
+    </tr>`;
+  });
+
+  html+="</table>";
+  area.innerHTML=html;
 }
 
 function getWeekday(date){
@@ -1060,6 +1177,7 @@ function chooseTeacher(teachers, slot, dateStr){
     if(unavailable.includes(t.name)) return false;
     if(eventUnavailable.includes(t.name)) return false;
     if(isTeacherRestricted(dateStr,t.name,slot)) return false;
+    if(isBeforeTeacherStartDate(dateStr,t.name)) return false;
     if(t.assignedDates.includes(dateStr)) return false;
 
     if(t.assignedDates.includes(prevWorkDate)) return false;
@@ -1085,6 +1203,7 @@ function chooseTeacher(teachers, slot, dateStr){
       if(unavailable.includes(t.name)) return false;
       if(eventUnavailable.includes(t.name)) return false;
       if(isTeacherRestricted(dateStr,t.name,slot)) return false;
+      if(isBeforeTeacherStartDate(dateStr,t.name)) return false;
       if(t.assignedDates.includes(dateStr)) return false;
 
       if(slot.type==="eveningManager" && t.eveningManagerCountThisMonth >= 1) return false;
