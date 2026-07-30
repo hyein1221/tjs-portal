@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v6 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v7 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -113,6 +113,12 @@ line-height:1.5;
   .portal-back-btn{width:100%;margin-left:0}
 }
 
+
+.modal-backdrop{position:fixed;inset:0;z-index:9000;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:18px}
+.modal-card{width:min(760px,100%);max-height:86vh;overflow:auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.22)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.modal-head h3{margin:0}.modal-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}
+.rule-toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.rule-toolbar select{min-width:150px}
 </style>
 </head>
 
@@ -186,7 +192,7 @@ line-height:1.5;
 <button class="gray portal-back-btn" onclick="location.href='index.html'">통합포털로 돌아가기</button>
 </div>
 
-<div id="connectionStatus" class="connection-status">화면 사용 가능 · 공용 서버 연결 확인 중...</div>
+<div id="connectionStatus" class="connection-status">화면 사용 가능 · 공용 저장소 연결 확인 중...</div>
 
 <div class="box">
 <h2>1. 월 선택</h2>
@@ -207,20 +213,32 @@ line-height:1.5;
 
 <div class="box">
 <h2>3. 연차 입력</h2>
-<p class="small">날짜를 선택한 뒤 연차 교사를 여러 명 체크하여 한 번에 등록할 수 있습니다.</p>
-
+<p class="small">날짜를 선택하면 교사 선택창이 팝업으로 열립니다. 등록·삭제와 동시에 공용 저장소에 자동 저장됩니다.</p>
 <div class="leave-toolbar">
-  <input type="date" id="leaveDate" onchange="renderLeaveTeacherChecks()">
-  <button class="gray" onclick="selectAllLeaveTeachers(true)">전체 선택</button>
-  <button class="gray" onclick="selectAllLeaveTeachers(false)">전체 해제</button>
-  <button onclick="addMultipleLeaves()">선택 교사 연차 일괄등록</button>
-  <button class="green" onclick="saveLeavesToServer()">연차 서버 저장</button>
+  <input type="date" id="leaveDate" onchange="openLeaveModal()">
+  <button onclick="openLeaveModal()">교사 선택</button>
   <button class="red" onclick="clearLeaves()">전체 삭제</button>
 </div>
-
-<div id="leaveTeacherChecks" class="teacher-check-grid"></div>
 <div id="leaveSaveStatus" class="small"></div>
 <div id="leaveList"></div>
+</div>
+
+<div id="leaveModal" class="modal-backdrop hidden" onclick="closeLeaveModalByBackdrop(event)">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3><span id="leaveModalDateText"></span> 연차 교사 선택</h3>
+      <button class="gray" onclick="closeLeaveModal()">닫기</button>
+    </div>
+    <div class="leave-toolbar">
+      <button class="gray" onclick="selectAllLeaveTeachers(true)">전체 선택</button>
+      <button class="gray" onclick="selectAllLeaveTeachers(false)">전체 해제</button>
+    </div>
+    <div id="leaveTeacherChecks" class="teacher-check-grid"></div>
+    <div class="modal-actions">
+      <button onclick="addMultipleLeaves()">선택 교사 등록 및 저장</button>
+      <button class="gray" onclick="closeLeaveModal()">취소</button>
+    </div>
+  </div>
 </div>
 
 <div class="box">
@@ -233,13 +251,21 @@ line-height:1.5;
 </div>
 
 <div class="box">
-<h2>5. 행사 / 지정교사 제외</h2>
-<input type="date" id="eventDate">
-<select id="eventTeacher"></select>
-<input type="text" id="eventReason" placeholder="예: 부모참여수업, 외부교육, 회의">
-<button onclick="addEventExclusion()">추가</button>
-<button class="red" onclick="clearEventExclusions()">전체 삭제</button>
-<div id="eventExclusionList"></div>
+<h2>5. 날짜별 개별 당직 제한</h2>
+<p class="small">특정 교사가 특정 날짜에 오전만, 오후만 또는 전체 당직을 하지 않도록 설정할 수 있습니다.</p>
+<div class="rule-toolbar">
+  <input type="date" id="ruleDate">
+  <select id="ruleTeacher"></select>
+  <select id="ruleScope">
+    <option value="morning">오전 당직 제외</option>
+    <option value="afternoon">오후 당직 제외</option>
+    <option value="all">오전·오후 전체 제외</option>
+  </select>
+  <input type="text" id="ruleReason" placeholder="예: 외부교육, 면담, 개인사유">
+  <button onclick="addDutyRestriction()">추가 및 저장</button>
+  <button class="red" onclick="clearDutyRestrictions()">전체 삭제</button>
+</div>
+<div id="dutyRestrictionList"></div>
 </div>
 
 <div class="box">
@@ -311,6 +337,7 @@ const DEFAULT_TEACHERS = `만1세, 햇빛반, 신지영
 let leaves = [];
 let holidays = [];
 let eventExclusions = [];
+let dutyRestrictions = [];
 let currentSchedule = [];
 let currentStats = [];
 let savedSchedules = {};
@@ -458,11 +485,18 @@ async function verifyAdminAccess(){
   return true;
 }
 
+function supabaseTimeout(promise,milliseconds=8000){
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error("공용 저장소 응답 시간이 초과되었습니다.")),milliseconds))
+  ]);
+}
+
 function saveLocalCache(){
   try{
     localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify({
       teachers:teacherInput.value || DEFAULT_TEACHERS,
-      leaves, holidays, eventExclusions, savedSchedules, eveningManagerCounts,
+      leaves, holidays, eventExclusions, dutyRestrictions, savedSchedules, eveningManagerCounts,
       cachedAt:new Date().toISOString()
     }));
   }catch(error){
@@ -522,7 +556,8 @@ if(document.readyState==="loading"){
 }
 
 async function saveAppData(key, value){
-  const { error } = await supabaseClient
+  const { error } = await supabaseTimeout(
+    supabaseClient
     .from("duty_app_data")
     .upsert(
       {
@@ -533,31 +568,27 @@ async function saveAppData(key, value){
         updated_by_name:dutyCurrentAdmin?.name || dutyCurrentAdmin?.username || null
       },
       {onConflict:"id"}
-    );
+    ),8000
+  );
 
   if(error){
-    setConnectionStatus("공용 서버 저장 실패 · 현재 기기에만 임시 보관됩니다.", "offline");
+    setConnectionStatus("공용 저장소 저장 실패 · 현재 기기에만 임시 보관됩니다.", "offline");
     console.error("Supabase 저장 오류:", error);
     throw error;
   }
 
   saveLocalCache();
-  setConnectionStatus("공용 서버 연결됨 · 다른 컴퓨터와 데이터가 공유됩니다.", "online");
+  setConnectionStatus("공용 저장소 연결됨 · 다른 컴퓨터와 데이터가 공유됩니다.", "online");
   return true;
 }
 
 async function loadAppData(key){
-  const { data, error } = await supabaseClient
-    .from("duty_app_data")
-    .select("*")
-    .eq("id", key)
-    .maybeSingle();
-
-  if(error){
-    console.error("Supabase 불러오기 오류:", error);
-    throw error;
-  }
-
+  if(!supabaseClient) throw new Error("공용 저장소 연결을 불러오지 못했습니다.");
+  const {data,error}=await supabaseTimeout(
+    supabaseClient.from("duty_app_data").select("*").eq("id",key).maybeSingle(),
+    8000
+  );
+  if(error) throw error;
   return data ? data.data : null;
 }
 
@@ -568,6 +599,7 @@ async function loadAllSharedData(){
   leaves = cached?.leaves || [];
   holidays = cached?.holidays || [];
   eventExclusions = cached?.eventExclusions || [];
+  dutyRestrictions = cached?.dutyRestrictions || [];
   savedSchedules = cached?.savedSchedules || {};
   eveningManagerCounts = cached?.eveningManagerCounts || {};
 
@@ -576,23 +608,27 @@ async function loadAllSharedData(){
   renderLeaves();
   renderHolidays();
   renderEventExclusions();
+  renderDutyRestrictions();
   renderSavedScheduleList();
 
-  setConnectionStatus("화면 사용 가능 · 공용 서버 연결 확인 중...");
+  setConnectionStatus("화면 사용 가능 · 공용 저장소 연결 확인 중...");
 
   if(!supabaseClient){
-    setConnectionStatus("공용 서버 라이브러리를 불러오지 못해 현재 기기 데이터로 실행 중입니다.","offline");
+    setConnectionStatus("공용 저장소 라이브러리를 불러오지 못해 현재 기기 데이터로 실행 중입니다.","offline");
     return;
   }
 
   try{
-    const { data, error } = await supabaseClient
-      .from("duty_app_data")
-      .select("id,data,updated_at")
-      .in("id", [
-        "teachers","leaves","holidays","eventExclusions",
-        "savedSchedules","eveningManagerCounts"
-      ]);
+    const { data, error } = await supabaseTimeout(
+      supabaseClient
+        .from("duty_app_data")
+        .select("id,data,updated_at")
+        .in("id", [
+          "teachers","leaves","holidays","eventExclusions","dutyRestrictions",
+          "savedSchedules","eveningManagerCounts"
+        ]),
+      8000
+    );
 
     if(error) throw error;
 
@@ -605,6 +641,7 @@ async function loadAllSharedData(){
     leaves = map.leaves || leaves;
     holidays = map.holidays || holidays;
     eventExclusions = map.eventExclusions || eventExclusions;
+    dutyRestrictions = map.dutyRestrictions || dutyRestrictions;
     savedSchedules = map.savedSchedules || savedSchedules;
     eveningManagerCounts = map.eveningManagerCounts || eveningManagerCounts;
 
@@ -613,17 +650,18 @@ async function loadAllSharedData(){
     renderLeaves();
     renderHolidays();
     renderEventExclusions();
+    renderDutyRestrictions();
     renderSavedScheduleList();
 
     saveLocalCache();
-    setConnectionStatus("공용 서버 연결됨 · 다른 컴퓨터와 데이터가 공유됩니다.", "online");
+    setConnectionStatus("공용 저장소 연결됨 · 다른 컴퓨터와 데이터가 공유됩니다.", "online");
   }catch(error){
     console.error("공용 데이터 불러오기 실패:", error);
 
     const message =
       error?.name === "AbortError"
-        ? "공용 서버 응답이 늦어 현재 기기 데이터로 실행 중입니다."
-        : "공용 서버 연결 실패 · 현재 기기 데이터로 실행 중입니다.";
+        ? "공용 저장소 응답이 늦어 현재 기기 데이터로 실행 중입니다."
+        : "공용 저장소 연결 실패 · 현재 기기 데이터로 실행 중입니다.";
 
     setConnectionStatus(
       message + " 필요할 때 페이지를 새로고침하거나 저장목록 새로고침을 눌러주세요.",
@@ -684,8 +722,29 @@ function updateTeacherSelect(){
     });
   }
 
+  const ruleTeacherEl=document.getElementById("ruleTeacher");
+  if(ruleTeacherEl){
+    ruleTeacherEl.innerHTML="";
+    teachers.forEach(t=>{
+      const op=document.createElement("option");
+      op.value=t.name;
+      op.textContent=`${t.name} (${t.age} ${t.room}${t.status==="신입" ? ", 신입" : ""})`;
+      ruleTeacherEl.appendChild(op);
+    });
+  }
+
   renderLeaveTeacherChecks();
 }
+
+function openLeaveModal(){
+  const date=document.getElementById("leaveDate").value;
+  if(!date) return alert("먼저 연차 날짜를 선택해주세요.");
+  document.getElementById("leaveModalDateText").textContent=date;
+  renderLeaveTeacherChecks();
+  document.getElementById("leaveModal").classList.remove("hidden");
+}
+function closeLeaveModal(){document.getElementById("leaveModal").classList.add("hidden")}
+function closeLeaveModalByBackdrop(event){if(event.target.id==="leaveModal") closeLeaveModal()}
 
 function renderLeaveTeacherChecks(){
   const container = document.getElementById("leaveTeacherChecks");
@@ -740,83 +799,41 @@ function setLeaveSaveStatus(message, type=""){
   if(type==="error") el.classList.add("status-error");
 }
 
-function addMultipleLeaves(){
-  const date = leaveDate.value;
-  const checked = [...document.querySelectorAll(".leave-teacher-check:checked")];
-  const names = checked.map(cb=>cb.value);
-
+async function addMultipleLeaves(){
+  const date=leaveDate.value;
+  const names=[...document.querySelectorAll(".leave-teacher-check:checked")].map(cb=>cb.value);
   if(!date) return alert("연차 날짜를 선택해줘.");
-  if(names.length===0) return alert("연차 교사를 한 명 이상 체크해줘.");
+  if(!names.length) return alert("연차 교사를 한 명 이상 체크해줘.");
 
-  let addedCount = 0;
-  let duplicateCount = 0;
-
+  let added=0,duplicate=0;
   names.forEach(name=>{
-    const exists = leaves.some(l=>l.date===date && l.teacher===name);
-
-    if(exists){
-      duplicateCount++;
-      return;
-    }
-
-    leaves.push({date, teacher:name});
-    addedCount++;
+    if(leaves.some(l=>l.date===date&&l.teacher===name)){duplicate++;return;}
+    leaves.push({date,teacher:name});added++;
   });
-
-  leaves.sort((a,b)=>
-    a.date.localeCompare(b.date) ||
-    a.teacher.localeCompare(b.teacher, "ko")
-  );
-
-  renderLeaves();
-  saveLocalCache();
-  selectAllLeaveTeachers(false);
-
-  setLeaveSaveStatus(
-    `화면에 ${addedCount}명 추가됨${duplicateCount ? ` · 중복 ${duplicateCount}명 제외` : ""}. 서버 저장 버튼을 눌러주세요.`,
-    "saving"
-  );
-}
-
-async function saveLeavesToServer(){
-  const button = event && event.target ? event.target : null;
-  const originalText = button ? button.textContent : "";
+  leaves.sort((a,b)=>a.date.localeCompare(b.date)||a.teacher.localeCompare(b.teacher,"ko"));
+  renderLeaves();saveLocalCache();selectAllLeaveTeachers(false);closeLeaveModal();
 
   try{
-    if(button){
-      button.disabled = true;
-      button.textContent = "저장 중...";
-    }
-
-    setLeaveSaveStatus("연차 목록을 서버에 저장하고 있습니다...", "saving");
-    await saveAppData("leaves", leaves);
-    setLeaveSaveStatus(`연차 ${leaves.length}건이 서버에 저장되었습니다.`, "saved");
-    alert("연차 목록이 공용 서버에 저장되었습니다.");
+    setLeaveSaveStatus("공용 저장소에 자동 저장 중...","saving");
+    await saveAppData("leaves",leaves);
+    setLeaveSaveStatus(`연차 ${added}명 등록·저장 완료${duplicate?` · 중복 ${duplicate}명 제외`:""}.`,"saved");
   }catch(error){
-    console.error("연차 저장 실패:", error);
-    setLeaveSaveStatus("연차 서버 저장에 실패했습니다.", "error");
-    alert("연차 목록을 저장하지 못했습니다. 인터넷 연결 또는 Supabase 설정을 확인해 주세요.");
-  }finally{
-    if(button){
-      button.disabled = false;
-      button.textContent = originalText;
-    }
+    setLeaveSaveStatus("현재 기기에는 저장되었지만 공용 저장에 실패했습니다.","error");
   }
 }
 
-function removeLeave(i){
-  leaves.splice(i,1);
-  renderLeaves();
-  saveLocalCache();
-  setLeaveSaveStatus("연차 목록이 변경되었습니다. 서버 저장 버튼을 눌러주세요.", "saving");
+
+async function removeLeave(i){
+  leaves.splice(i,1);renderLeaves();saveLocalCache();
+  try{setLeaveSaveStatus("변경 내용을 자동 저장 중...","saving");await saveAppData("leaves",leaves);setLeaveSaveStatus("변경 내용이 저장되었습니다.","saved");}
+  catch(error){setLeaveSaveStatus("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.","error");}
 }
 
-function clearLeaves(){
+async function clearLeaves(){
   if(!confirm("연차를 모두 삭제할까요?")) return;
-  leaves=[];
-  renderLeaves();
-  saveLocalCache();
-  setLeaveSaveStatus("연차 목록이 모두 삭제되었습니다. 서버 저장 버튼을 눌러야 공용 데이터에 반영됩니다.", "saving");
+  leaves=[];renderLeaves();saveLocalCache();
+  try{setLeaveSaveStatus("삭제 내용을 자동 저장 중...","saving");await saveAppData("leaves",leaves);setLeaveSaveStatus("연차 목록 삭제가 저장되었습니다.","saved");}
+  catch(error){setLeaveSaveStatus("현재 기기에서는 삭제되었지만 공용 저장에 실패했습니다.","error");}
 }
 
 function renderLeaves(){
@@ -898,6 +915,43 @@ function renderEventExclusions(){
 
   html += "</table>";
   eventExclusionList.innerHTML = html;
+}
+
+function restrictionScopeLabel(scope){
+  return scope==="morning"?"오전 제외":scope==="afternoon"?"오후 제외":"오전·오후 전체 제외";
+}
+async function addDutyRestriction(){
+  const date=ruleDate.value,teacher=ruleTeacher.value,scope=ruleScope.value,reason=ruleReason.value.trim();
+  if(!date||!teacher) return alert("날짜와 교사를 선택해주세요.");
+  if(dutyRestrictions.some(r=>r.date===date&&r.teacher===teacher&&r.scope===scope)) return alert("이미 등록된 제한입니다.");
+  dutyRestrictions.push({date,teacher,scope,reason});
+  dutyRestrictions.sort((a,b)=>a.date.localeCompare(b.date)||a.teacher.localeCompare(b.teacher,"ko"));
+  renderDutyRestrictions();saveLocalCache();
+  try{await saveAppData("dutyRestrictions",dutyRestrictions);ruleReason.value="";}catch(e){alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");}
+}
+async function removeDutyRestriction(i){
+  dutyRestrictions.splice(i,1);renderDutyRestrictions();saveLocalCache();
+  try{await saveAppData("dutyRestrictions",dutyRestrictions);}catch(e){alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");}
+}
+async function clearDutyRestrictions(){
+  if(!confirm("날짜별 개별 당직 제한을 모두 삭제할까요?")) return;
+  dutyRestrictions=[];renderDutyRestrictions();saveLocalCache();
+  try{await saveAppData("dutyRestrictions",dutyRestrictions);}catch(e){alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");}
+}
+function renderDutyRestrictions(){
+  const area=document.getElementById("dutyRestrictionList");if(!area)return;
+  let h="<table><tr><th>날짜</th><th>교사</th><th>제한</th><th>사유</th><th>삭제</th></tr>";
+  dutyRestrictions.forEach((r,i)=>h+=`<tr><td>${r.date}</td><td>${r.teacher}</td><td>${restrictionScopeLabel(r.scope)}</td><td>${r.reason||""}</td><td><button class="red" onclick="removeDutyRestriction(${i})">삭제</button></td></tr>`);
+  area.innerHTML=h+"</table>";
+}
+function isTeacherRestricted(dateStr,teacherName,slot){
+  return dutyRestrictions.some(r=>{
+    if(r.date!==dateStr||r.teacher!==teacherName)return false;
+    if(r.scope==="all")return true;
+    if(r.scope==="morning")return slot.part==="morning"||slot.part==="flex";
+    if(r.scope==="afternoon")return slot.part==="afternoon";
+    return false;
+  });
 }
 
 function getWeekday(date){
@@ -992,6 +1046,7 @@ function chooseTeacher(teachers, slot, dateStr){
   let candidates = teachers.filter(t=>{
     if(unavailable.includes(t.name)) return false;
     if(eventUnavailable.includes(t.name)) return false;
+    if(isTeacherRestricted(dateStr,t.name,slot)) return false;
     if(t.assignedDates.includes(dateStr)) return false;
 
     if(t.assignedDates.includes(prevWorkDate)) return false;
@@ -1016,6 +1071,7 @@ function chooseTeacher(teachers, slot, dateStr){
     candidates = teachers.filter(t=>{
       if(unavailable.includes(t.name)) return false;
       if(eventUnavailable.includes(t.name)) return false;
+      if(isTeacherRestricted(dateStr,t.name,slot)) return false;
       if(t.assignedDates.includes(dateStr)) return false;
 
       if(slot.type==="eveningManager" && t.eveningManagerCountThisMonth >= 1) return false;
@@ -1334,7 +1390,7 @@ async function saveCurrentSchedule(){
     renderSavedScheduleList();
     savedScheduleSelect.value = month;
 
-    alert(`${month} 당직표가 공용 서버에 저장되었습니다.`);
+    alert(`${month} 당직표가 공용 저장소에 저장되었습니다.`);
   }catch(error){
     console.error("당직표 저장 실패:", error);
     alert("당직표가 서버에 저장되지 않았습니다. 인터넷 연결 또는 Supabase 권한을 확인해 주세요.");
