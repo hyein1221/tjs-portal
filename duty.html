@@ -615,31 +615,72 @@ function setConnectionStatus(message, status=""){
   if(status==="offline") el.classList.add("offline");
 }
 
-async function saveAppData(key, value){
+const SHARED_ARRAY_KEYS = new Set(["leaves","holidays","eventExclusions","dutyRestrictions","teacherStartDates"]);
+
+function sharedItemKey(key,item){
+  if(key==="leaves") return `${item.date}|${item.teacher}`;
+  if(key==="holidays") return `${item.date}|${item.reason||""}`;
+  if(key==="eventExclusions") return `${item.date}|${item.teacher}|${item.reason||""}`;
+  if(key==="dutyRestrictions") return `${item.startDate||item.date}|${item.endDate||item.date}|${item.teacher}|${item.scope}`;
+  if(key==="teacherStartDates") return `${item.month||(item.startDate||"").slice(0,7)}|${item.teacher}`;
+  return JSON.stringify(item);
+}
+
+function mergeSharedArrays(key,serverValue,localValue){
+  const map=new Map();
+  (Array.isArray(serverValue)?serverValue:[]).forEach(x=>map.set(sharedItemKey(key,x),x));
+  (Array.isArray(localValue)?localValue:[]).forEach(x=>map.set(sharedItemKey(key,x),x));
+  return [...map.values()];
+}
+
+async function saveAppData(key, value, options={}){
+  let valueToSave=value;
+  // 여러 컴퓨터에서 동시에 '추가'할 때 기존 서버 자료가 사라지지 않도록
+  // 저장 직전에 최신 서버 값을 다시 읽고 합친 뒤 저장합니다.
+  if(SHARED_ARRAY_KEYS.has(key) && !options.replace){
+    try{
+      const latest=await loadAppData(key);
+      valueToSave=mergeSharedArrays(key,latest,value);
+      if(key==="leaves") leaves=valueToSave;
+      if(key==="holidays") holidays=valueToSave;
+      if(key==="eventExclusions") eventExclusions=valueToSave;
+      if(key==="dutyRestrictions") dutyRestrictions=valueToSave;
+      if(key==="teacherStartDates") teacherStartDates=valueToSave;
+    }catch(e){ console.warn("최신 서버값 병합 실패, 현재 값으로 저장 시도:",e); }
+  }
+
   const { error } = await supabaseTimeout(
-    supabaseClient
-    .from("duty_app_data")
-    .upsert(
-      {
-        id:key,
-        data:value,
-        updated_at:new Date().toISOString(),
-        updated_by:dutyCurrentAdmin?.id || null,
-        updated_by_name:dutyCurrentAdmin?.name || dutyCurrentAdmin?.username || null
-      },
-      {onConflict:"id"}
-    ),8000
-  );
+    supabaseClient.from("duty_app_data").upsert({
+      id:key, data:valueToSave, updated_at:new Date().toISOString(),
+      updated_by:dutyCurrentAdmin?.id || null,
+      updated_by_name:dutyCurrentAdmin?.name || dutyCurrentAdmin?.username || null
+    },{onConflict:"id"}),8000);
 
   if(error){
     setConnectionStatus("공용 저장소 저장 실패 · 현재 기기에만 임시 보관됩니다.", "offline");
-    console.error("Supabase 저장 오류:", error);
-    throw error;
+    console.error("Supabase 저장 오류:", error); throw error;
   }
-
   saveLocalCache();
   setConnectionStatus("공용 저장소 연결됨 · 다른 컴퓨터와 데이터가 공유됩니다.", "online");
-  return true;
+  return valueToSave;
+}
+
+async function deleteSharedItem(key,item){
+  const latest=await loadAppData(key);
+  const target=sharedItemKey(key,item);
+  const next=(Array.isArray(latest)?latest:[]).filter(x=>sharedItemKey(key,x)!==target);
+  await saveAppData(key,next,{replace:true});
+  return next;
+}
+
+async function deleteSharedMonth(key,monthValue){
+  const latest=await loadAppData(key);
+  const next=(Array.isArray(latest)?latest:[]).filter(x=>{
+    if(key==="teacherStartDates") return (x.month||(x.startDate||"").slice(0,7))!==monthValue;
+    return !String(x.date||x.startDate||"").startsWith(monthValue);
+  });
+  await saveAppData(key,next,{replace:true});
+  return next;
 }
 
 async function loadAppData(key){
@@ -979,9 +1020,9 @@ async function addMultipleLeaves(){
 
 
 async function removeLeave(i){
-  leaves.splice(i,1);renderLeaves();saveLocalCache();
-  try{setLeaveSaveStatus("변경 내용을 자동 저장 중...","saving");await saveAppData("leaves",leaves);setLeaveSaveStatus("변경 내용이 저장되었습니다.","saved");}
-  catch(error){setLeaveSaveStatus("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.","error");}
+  const target=leaves[i]; if(!target) return;
+  try{ setLeaveSaveStatus("변경 내용을 자동 저장 중...","saving"); leaves=await deleteSharedItem("leaves",target); renderLeaves(); saveLocalCache(); setLeaveSaveStatus("변경 내용이 저장되었습니다.","saved"); }
+  catch(error){ setLeaveSaveStatus("공용 저장 삭제에 실패했습니다. 기존 데이터는 유지됩니다.","error"); }
 }
 
 async function clearLeaves(){
@@ -1045,11 +1086,7 @@ async function addHoliday(){
   renderHolidays();
 }
 
-async function removeHoliday(i){
-  holidays.splice(i,1);
-  await saveAppData("holidays", holidays);
-  renderHolidays();
-}
+async function removeHoliday(i){ const target=holidays[i]; if(!target)return; holidays=await deleteSharedItem("holidays",target); renderHolidays(); saveLocalCache(); }
 
 async function clearHolidays(){
   const monthValue=document.getElementById("monthInput").value;
@@ -1057,8 +1094,7 @@ async function clearHolidays(){
   if(!confirm(`${formatMonthKorean(monthValue)} 공휴일/제외일을 모두 삭제할까요?`)) return;
 
   holidays=holidays.filter(h=>!h.date.startsWith(monthValue));
-  await saveAppData("holidays",holidays);
-  renderHolidays();
+  holidays=await deleteSharedMonth("holidays",monthValue); renderHolidays(); saveLocalCache();
 }
 
 function renderHolidays(){
@@ -1101,11 +1137,7 @@ async function addEventExclusion(){
   renderEventExclusions();
 }
 
-async function removeEventExclusion(i){
-  eventExclusions.splice(i,1);
-  await saveAppData("eventExclusions", eventExclusions);
-  renderEventExclusions();
-}
+async function removeEventExclusion(i){ const target=eventExclusions[i]; if(!target)return; eventExclusions=await deleteSharedItem("eventExclusions",target); renderEventExclusions(); saveLocalCache(); }
 
 async function clearEventExclusions(){
   if(!confirm("행사/지정교사 제외를 모두 삭제할까요?")) return;
@@ -1183,16 +1215,13 @@ async function addDutyRestriction(){
   saveLocalCache();
 
   try{
-    await saveAppData("dutyRestrictions",dutyRestrictions);
+    dutyRestrictions=await saveAppData("dutyRestrictions",dutyRestrictions); renderDutyRestrictions(); saveLocalCache();
     ruleReason.value="";
   }catch(e){
     alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");
   }
 }
-async function removeDutyRestriction(i){
-  dutyRestrictions.splice(i,1);renderDutyRestrictions();saveLocalCache();
-  try{await saveAppData("dutyRestrictions",dutyRestrictions);}catch(e){alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");}
-}
+async function removeDutyRestriction(i){ const target=dutyRestrictions[i]; if(!target)return; try{dutyRestrictions=await deleteSharedItem("dutyRestrictions",target);renderDutyRestrictions();saveLocalCache();}catch(e){alert("공용 저장 삭제에 실패했습니다. 기존 데이터는 유지됩니다.");} }
 async function clearDutyRestrictions(){
   const monthValue=document.getElementById("monthInput").value;
   if(!monthValue) return alert("먼저 기준 월을 선택해주세요.");
@@ -1207,7 +1236,7 @@ async function clearDutyRestrictions(){
   saveLocalCache();
 
   try{
-    await saveAppData("dutyRestrictions",dutyRestrictions);
+    dutyRestrictions=await deleteSharedMonth("dutyRestrictions",monthValue); renderDutyRestrictions(); saveLocalCache();
   }catch(e){
     alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");
   }
@@ -1322,24 +1351,14 @@ async function addTeacherStartDate(){
   saveLocalCache();
 
   try{
-    await saveAppData("teacherStartDates",teacherStartDates);
+    teacherStartDates=await saveAppData("teacherStartDates",teacherStartDates); renderTeacherStartDates(); saveLocalCache();
     document.getElementById("startDateReason").value="";
   }catch(error){
     alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");
   }
 }
 
-async function removeTeacherStartDate(i){
-  teacherStartDates.splice(i,1);
-  renderTeacherStartDates();
-  saveLocalCache();
-
-  try{
-    await saveAppData("teacherStartDates",teacherStartDates);
-  }catch(error){
-    alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");
-  }
-}
+async function removeTeacherStartDate(i){ const target=teacherStartDates[i]; if(!target)return; try{teacherStartDates=await deleteSharedItem("teacherStartDates",target);renderTeacherStartDates();saveLocalCache();}catch(error){alert("공용 저장 삭제에 실패했습니다. 기존 데이터는 유지됩니다.");} }
 
 async function clearTeacherStartDates(){
   const monthValue=document.getElementById("monthInput").value;
@@ -1356,7 +1375,7 @@ async function clearTeacherStartDates(){
   saveLocalCache();
 
   try{
-    await saveAppData("teacherStartDates",teacherStartDates);
+    teacherStartDates=await deleteSharedMonth("teacherStartDates",monthValue); renderTeacherStartDates(); saveLocalCache();
   }catch(error){
     alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");
   }
