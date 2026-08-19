@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v25 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v26 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -1926,7 +1926,6 @@ async function generateSchedule(){
           teacher.dutyDates.push(`${day.day}일(${day.weekday}) 탄력`);
         }else{
           teacher.dutyDates.push(`${day.day}일(${day.weekday}) ${cleanTime} ${cleanRole}`);
-        }일(${day.weekday}) ${cleanTime} ${cleanRole}`);
         }
 
         if(slot.type==="early7" || slot.type==="morningManager"){
