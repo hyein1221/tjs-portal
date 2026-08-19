@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v21 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v23 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -288,14 +288,14 @@ line-height:1.5;
 </div>
 
 <div class="box">
-<h2>7. 교사별 당직 시작일 <span style="font-size:13px;color:#777;font-weight:normal">(공통 설정)</span></h2>
-<p class="small">이 설정은 월별 데이터가 아니라 계속 유지되는 공통 설정입니다. 신입·중도입사 교사가 특정 날짜 이후부터 당직에 배정되도록 설정할 수 있습니다. 해당 월의 실제 당직 가능 기간에 비례하여 총시간·횟수도 자동 조정되며, 오후당직과 오후책임교사는 전체 교사에게 월 1회씩 우선 배정됩니다.</p>
+<h2>7. 교사별 당직 시작일</h2>
+<p class="small">신입·중도입사 교사가 해당 월의 특정 날짜 이후부터 당직에 배정되도록 설정합니다. 이 설정은 선택한 월에만 적용되며 다른 달의 당직표에는 영향을 주지 않습니다. 해당 월의 실제 당직 가능 기간에 비례하여 총시간·횟수도 자동 조정됩니다.</p>
 <div class="rule-toolbar">
   <select id="startDateTeacher"></select>
   <input type="date" id="startDateValue">
   <input type="text" id="startDateReason" placeholder="예: 신입교사 적응기간">
   <button onclick="addTeacherStartDate()">추가 및 저장</button>
-  <button class="red" onclick="clearTeacherStartDates()">전체 삭제</button>
+  <button class="red" onclick="clearTeacherStartDates()">현재 월 전체 삭제</button>
 </div>
 <div id="teacherStartDateList"></div>
 </div>
@@ -834,7 +834,7 @@ function handleBaseMonthChange(){
   const workspace=document.getElementById("monthlyWorkspace");
   const workspaceTitle=document.getElementById("workspaceMonthTitle");
 
-  const dateIds=["leaveDate","holidayDate","ruleStartDate","ruleEndDate"];
+  const dateIds=["leaveDate","holidayDate","ruleStartDate","ruleEndDate","startDateValue"];
 
   if(!monthValue){
     if(baseInfo) baseInfo.textContent="기준 월을 선택해주세요.";
@@ -1267,13 +1267,20 @@ function isTeacherRestricted(dateStr,teacherName,slot){
   });
 }
 
-function getTeacherStartDate(teacherName){
-  const row=teacherStartDates.find(x=>x.teacher===teacherName);
+function getTeacherStartDate(teacherName, monthValue=null){
+  const targetMonth = monthValue || document.getElementById("monthInput")?.value || "";
+
+  const row=teacherStartDates.find(x=>{
+    const rowMonth=x.month || (x.startDate ? x.startDate.slice(0,7) : "");
+    return x.teacher===teacherName && rowMonth===targetMonth;
+  });
+
   return row?.startDate || "";
 }
 
 function isBeforeTeacherStartDate(dateStr,teacherName){
-  const startDate=getTeacherStartDate(teacherName);
+  const monthValue=dateStr.slice(0,7);
+  const startDate=getTeacherStartDate(teacherName, monthValue);
   return !!startDate && dateStr<startDate;
 }
 
@@ -1281,11 +1288,21 @@ async function addTeacherStartDate(){
   const teacher=document.getElementById("startDateTeacher").value;
   const startDate=document.getElementById("startDateValue").value;
   const reason=document.getElementById("startDateReason").value.trim();
+  const monthValue=document.getElementById("monthInput").value;
 
+  if(!monthValue) return alert("먼저 기준 월을 선택해주세요.");
   if(!teacher || !startDate) return alert("교사와 당직 가능 시작일을 선택해주세요.");
 
-  const existingIndex=teacherStartDates.findIndex(x=>x.teacher===teacher);
-  const row={teacher,startDate,reason};
+  if(!startDate.startsWith(monthValue)){
+    return alert(`${formatMonthKorean(monthValue)} 안의 날짜만 설정할 수 있습니다.`);
+  }
+
+  const existingIndex=teacherStartDates.findIndex(x=>{
+    const rowMonth=x.month || (x.startDate ? x.startDate.slice(0,7) : "");
+    return x.teacher===teacher && rowMonth===monthValue;
+  });
+
+  const row={month:monthValue,teacher,startDate,reason};
 
   if(existingIndex>=0){
     teacherStartDates[existingIndex]=row;
@@ -1293,7 +1310,14 @@ async function addTeacherStartDate(){
     teacherStartDates.push(row);
   }
 
-  teacherStartDates.sort((a,b)=>a.startDate.localeCompare(b.startDate)||a.teacher.localeCompare(b.teacher,"ko"));
+  teacherStartDates.sort((a,b)=>{
+    const am=a.month || (a.startDate ? a.startDate.slice(0,7) : "");
+    const bm=b.month || (b.startDate ? b.startDate.slice(0,7) : "");
+    return am.localeCompare(bm)
+      || a.startDate.localeCompare(b.startDate)
+      || a.teacher.localeCompare(b.teacher,"ko");
+  });
+
   renderTeacherStartDates();
   saveLocalCache();
 
@@ -1318,9 +1342,16 @@ async function removeTeacherStartDate(i){
 }
 
 async function clearTeacherStartDates(){
-  if(!confirm("교사별 당직 시작일 설정을 모두 삭제할까요?")) return;
+  const monthValue=document.getElementById("monthInput").value;
+  if(!monthValue) return alert("먼저 기준 월을 선택해주세요.");
 
-  teacherStartDates=[];
+  if(!confirm(`${formatMonthKorean(monthValue)} 당직 시작일 설정을 모두 삭제할까요?`)) return;
+
+  teacherStartDates=teacherStartDates.filter(r=>{
+    const rowMonth=r.month || (r.startDate ? r.startDate.slice(0,7) : "");
+    return rowMonth!==monthValue;
+  });
+
   renderTeacherStartDates();
   saveLocalCache();
 
@@ -1335,16 +1366,30 @@ function renderTeacherStartDates(){
   const area=document.getElementById("teacherStartDateList");
   if(!area) return;
 
+  const monthValue=document.getElementById("monthInput")?.value || "";
+
+  const filtered=teacherStartDates
+    .map((row,index)=>({row,index}))
+    .filter(item=>{
+      const rowMonth=item.row.month || (item.row.startDate ? item.row.startDate.slice(0,7) : "");
+      return !monthValue || rowMonth===monthValue;
+    });
+
   let html="<table><tr><th>교사</th><th>당직 가능 시작일</th><th>사유</th><th>삭제</th></tr>";
 
-  teacherStartDates.forEach((r,i)=>{
-    html+=`<tr>
-      <td>${r.teacher}</td>
-      <td>${r.startDate}</td>
-      <td>${r.reason||""}</td>
-      <td><button class="red" onclick="removeTeacherStartDate(${i})">삭제</button></td>
-    </tr>`;
-  });
+  if(filtered.length===0){
+    html+=`<tr><td colspan="4">${monthValue ? `${formatMonthKorean(monthValue)}에 등록된 당직 시작일 설정이 없습니다.` : "등록된 당직 시작일 설정이 없습니다."}</td></tr>`;
+  }else{
+    filtered.forEach(item=>{
+      const r=item.row;
+      html+=`<tr>
+        <td>${r.teacher}</td>
+        <td>${r.startDate}</td>
+        <td>${r.reason||"-"}</td>
+        <td><button class="red" onclick="removeTeacherStartDate(${item.index})">삭제</button></td>
+      </tr>`;
+    });
+  }
 
   html+="</table>";
   area.innerHTML=html;
@@ -1457,7 +1502,8 @@ function applyTeacherAvailabilityRatios(teachers, dates){
   const totalWorkDays = workDates.length;
 
   teachers.forEach(t=>{
-    const startDate = getTeacherStartDate(t.name);
+    const monthValue = workDates[0]?.slice(0,7) || document.getElementById("monthInput")?.value || "";
+    const startDate = getTeacherStartDate(t.name, monthValue);
     const availableDates = startDate
       ? workDates.filter(dateStr=>dateStr>=startDate)
       : workDates;
