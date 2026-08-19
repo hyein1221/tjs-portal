@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v23 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v25 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -577,7 +577,7 @@ const slots = [
 {key:"m12", room:"새빛", time:"08:30~17:30", role:"탄력", hours:0, part:"flex", type:"flex"},
 
 {key:"m13", room:"꽃빛", time:"07:30~09:00<br>(1.5h)", role:"", hours:1.5, part:"morning", type:"morning730"},
-{key:"m14", room:"윤빛", time:"08:30~09:00<br>(0.5h)", role:"", hours:0.5, part:"morning", type:"morning830"},
+{key:"m14", room:"윤빛", time:"08:30~09:00", role:"탄력", hours:0, part:"flex", type:"flex"},
 
 {key:"m15", room:"솔빛", time:"08:00~09:00<br>(1h)", role:"", hours:1, part:"morning", type:"morning8"},
 {key:"m16", room:"들빛", time:"08:30~09:00", role:"탄력", hours:0, part:"flex", type:"flex"},
@@ -1780,7 +1780,7 @@ function chooseTeacher(teachers, slot, dateStr){
     aScore += getSlotMatchScore(a, slot);
     bScore += getSlotMatchScore(b, slot);
 
-    // 0.5시간·1시간·1.5시간·2시간 당직이 특정 교사에게 몰리지 않도록 분산한다.
+    // 1시간·1.5시간·2시간 당직이 특정 교사에게 몰리지 않도록 분산한다.
     aScore += getDurationBalanceScore(a, slot);
     bScore += getDurationBalanceScore(b, slot);
 
@@ -1926,6 +1926,7 @@ async function generateSchedule(){
           teacher.dutyDates.push(`${day.day}일(${day.weekday}) 탄력`);
         }else{
           teacher.dutyDates.push(`${day.day}일(${day.weekday}) ${cleanTime} ${cleanRole}`);
+        }일(${day.weekday}) ${cleanTime} ${cleanRole}`);
         }
 
         if(slot.type==="early7" || slot.type==="morningManager"){
