@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v20 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v21 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -201,15 +201,15 @@ line-height:1.5;
 <h2>1. 기준 월 선택</h2>
 <p class="small">선택한 월을 기준으로 연차 목록을 조회하고 당직표 생성 대상 월을 설정합니다.</p>
 <input type="month" id="monthInput" onchange="handleBaseMonthChange()">
-<div id="baseMonthInfo" class="small" style="margin-top:8px;font-weight:bold;color:#2f4f7f"></div>
+<div id="baseMonthInfo" class="small" style="margin-top:10px;font-weight:bold;color:#2f4f7f"></div>
+</div>
 
 <div class="box">
-<h2>저장된 당직표 조회</h2>
+<h2>2. 저장된 당직표 조회</h2>
 <select id="savedScheduleSelect"></select>
 <button onclick="loadSavedSchedule()">불러오기</button>
 <button class="gray" onclick="refreshSavedSchedules(true)">목록 새로고침</button>
 <button class="red" onclick="deleteSavedSchedule()">삭제</button>
-</div>
 </div>
 
 <div id="monthlyWorkspace" class="hidden">
@@ -218,7 +218,7 @@ line-height:1.5;
   <div class="small" style="margin-top:5px">이 아래 설정과 목록은 선택한 기준 월을 중심으로 표시됩니다.</div>
 </div>
 <div class="box">
-<h2>2. 교사명단</h2>
+<h2>3. 교사명단</h2>
 <p class="small">형식: 연령, 반, 이름, 신입여부 / 예: 만1세, 햇빛반, 김교사, 신입</p>
 <button class="gray" onclick="toggleTeacherBox()">교사명단 열기/닫기</button>
 <button onclick="saveTeachers()">교사명단 저장</button>
@@ -228,7 +228,7 @@ line-height:1.5;
 </div>
 
 <div class="box">
-<h2>3. 연차 입력</h2>
+<h2>4. 연차 입력</h2>
 <p class="small">날짜를 선택하면 교사 선택창이 팝업으로 열립니다. 등록·삭제와 동시에 공용 저장소에 자동 저장됩니다.</p>
 <div id="leaveMonthInfo" class="small" style="margin:8px 0;font-weight:bold;color:#2f4f7f"></div>
 <div class="leave-toolbar">
@@ -259,7 +259,7 @@ line-height:1.5;
 </div>
 
 <div class="box">
-<h2>4. 공휴일 / 제외일 입력</h2>
+<h2>5. 공휴일 / 제외일 입력</h2>
 <input type="date" id="holidayDate">
 <input type="text" id="holidayReason" placeholder="예: 근로자의 날">
 <button onclick="addHoliday()">추가</button>
@@ -268,7 +268,7 @@ line-height:1.5;
 </div>
 
 <div class="box">
-<h2>5. 기간별 개별 당직 제한</h2>
+<h2>6. 기간별 개별 당직 제한</h2>
 <p class="small">특정 교사가 일정 기간 동안 오전, 오후, 탄력근무 또는 전체 당직을 하지 않도록 설정할 수 있습니다. 시작일과 종료일을 같은 날짜로 선택하면 하루만 제한됩니다.</p>
 <div class="rule-toolbar">
   <label>시작일 <input type="date" id="ruleStartDate"></label>
@@ -288,7 +288,7 @@ line-height:1.5;
 </div>
 
 <div class="box">
-<h2>6. 교사별 당직 시작일 <span style="font-size:13px;color:#777;font-weight:normal">(공통 설정)</span></h2>
+<h2>7. 교사별 당직 시작일 <span style="font-size:13px;color:#777;font-weight:normal">(공통 설정)</span></h2>
 <p class="small">이 설정은 월별 데이터가 아니라 계속 유지되는 공통 설정입니다. 신입·중도입사 교사가 특정 날짜 이후부터 당직에 배정되도록 설정할 수 있습니다. 해당 월의 실제 당직 가능 기간에 비례하여 총시간·횟수도 자동 조정되며, 오후당직과 오후책임교사는 전체 교사에게 월 1회씩 우선 배정됩니다.</p>
 <div class="rule-toolbar">
   <select id="startDateTeacher"></select>
@@ -301,7 +301,7 @@ line-height:1.5;
 </div>
 
 <div class="box">
-<h2>7. 당직표 생성</h2>
+<h2>8. 당직표 생성</h2>
 <p class="small">위에서 선택한 기준 월의 연차·공휴일·당직 제한·당직 시작일을 반영하여 당직표를 생성합니다.</p>
 <div id="generationMonthInfo" style="font-weight:bold;color:#2f4f7f;margin:8px 0 12px"></div>
 <button onclick="generateSchedule()">당직표 생성</button>
