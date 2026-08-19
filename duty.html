@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v19 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v20 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -202,8 +202,21 @@ line-height:1.5;
 <p class="small">선택한 월을 기준으로 연차 목록을 조회하고 당직표 생성 대상 월을 설정합니다.</p>
 <input type="month" id="monthInput" onchange="handleBaseMonthChange()">
 <div id="baseMonthInfo" class="small" style="margin-top:8px;font-weight:bold;color:#2f4f7f"></div>
+
+<div class="box">
+<h2>저장된 당직표 조회</h2>
+<select id="savedScheduleSelect"></select>
+<button onclick="loadSavedSchedule()">불러오기</button>
+<button class="gray" onclick="refreshSavedSchedules(true)">목록 새로고침</button>
+<button class="red" onclick="deleteSavedSchedule()">삭제</button>
+</div>
 </div>
 
+<div id="monthlyWorkspace" class="hidden">
+<div class="box" style="background:#eef4ff;border:1px solid #cddbf6">
+  <strong id="workspaceMonthTitle"></strong>
+  <div class="small" style="margin-top:5px">이 아래 설정과 목록은 선택한 기준 월을 중심으로 표시됩니다.</div>
+</div>
 <div class="box">
 <h2>2. 교사명단</h2>
 <p class="small">형식: 연령, 반, 이름, 신입여부 / 예: 만1세, 햇빛반, 김교사, 신입</p>
@@ -221,7 +234,7 @@ line-height:1.5;
 <div class="leave-toolbar">
   <input type="date" id="leaveDate" onchange="openLeaveModal()">
   <button onclick="openLeaveModal()">교사 선택</button>
-  <button class="red" onclick="clearLeaves()">전체 삭제</button>
+  <button class="red" onclick="clearLeaves()">현재 월 전체 삭제</button>
 </div>
 <div id="leaveSaveStatus" class="small"></div>
 <div id="leaveList"></div>
@@ -250,7 +263,7 @@ line-height:1.5;
 <input type="date" id="holidayDate">
 <input type="text" id="holidayReason" placeholder="예: 근로자의 날">
 <button onclick="addHoliday()">추가</button>
-<button class="red" onclick="clearHolidays()">전체 삭제</button>
+<button class="red" onclick="clearHolidays()">현재 월 전체 삭제</button>
 <div id="holidayList"></div>
 </div>
 
@@ -269,14 +282,14 @@ line-height:1.5;
   </select>
   <input type="text" id="ruleReason" placeholder="예: 신입교사 적응기간, 외부교육">
   <button onclick="addDutyRestriction()">추가 및 저장</button>
-  <button class="red" onclick="clearDutyRestrictions()">전체 삭제</button>
+  <button class="red" onclick="clearDutyRestrictions()">현재 월 전체 삭제</button>
 </div>
 <div id="dutyRestrictionList"></div>
 </div>
 
 <div class="box">
-<h2>6. 교사별 당직 시작일</h2>
-<p class="small">신입·중도입사 교사가 특정 날짜 이후부터 당직에 배정되도록 설정할 수 있습니다. 해당 월의 실제 당직 가능 기간에 비례하여 총시간·횟수도 자동 조정되며, 오후당직과 오후책임교사는 전체 교사에게 월 1회씩 우선 배정됩니다.</p>
+<h2>6. 교사별 당직 시작일 <span style="font-size:13px;color:#777;font-weight:normal">(공통 설정)</span></h2>
+<p class="small">이 설정은 월별 데이터가 아니라 계속 유지되는 공통 설정입니다. 신입·중도입사 교사가 특정 날짜 이후부터 당직에 배정되도록 설정할 수 있습니다. 해당 월의 실제 당직 가능 기간에 비례하여 총시간·횟수도 자동 조정되며, 오후당직과 오후책임교사는 전체 교사에게 월 1회씩 우선 배정됩니다.</p>
 <div class="rule-toolbar">
   <select id="startDateTeacher"></select>
   <input type="date" id="startDateValue">
@@ -295,13 +308,7 @@ line-height:1.5;
 <button class="green" onclick="saveCurrentSchedule()">당직표 저장</button>
 </div>
 
-<div class="box">
-<h2>8. 저장된 당직표 조회</h2>
-<select id="savedScheduleSelect"></select>
-<button onclick="loadSavedSchedule()">불러오기</button>
-<button class="gray" onclick="refreshSavedSchedules(true)">목록 새로고침</button>
-<button class="red" onclick="deleteSavedSchedule()">삭제</button>
-</div>
+
 
 <div class="box">
 <h2>배정 우선순위 안내</h2>
@@ -319,6 +326,8 @@ line-height:1.5;
 <button onclick="downloadStatsExcel()">엑셀 다운로드</button>
 <div id="statsResult"></div>
 </div>
+</div>
+
 
 <script>
 const SUPABASE_URL = "https://vohcugxfwxdvkbcpjcgl.supabase.co";
@@ -578,15 +587,13 @@ const slots = [
 ];
 
 async function initializeDutyPage(){
-  const monthEl=document.getElementById("monthInput");
-  if(monthEl && !monthEl.value){
-    const now=new Date();
-    monthEl.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
-  }
-
   const allowed=await verifyAdminAccess();
   if(allowed){
     await loadAllSharedData();
+
+    const monthEl=document.getElementById("monthInput");
+    if(monthEl) monthEl.value="";
+
     handleBaseMonthChange();
   }
 }
@@ -824,17 +831,26 @@ function handleBaseMonthChange(){
   const baseInfo=document.getElementById("baseMonthInfo");
   const leaveInfo=document.getElementById("leaveMonthInfo");
   const generationInfo=document.getElementById("generationMonthInfo");
-  const leaveDateEl=document.getElementById("leaveDate");
+  const workspace=document.getElementById("monthlyWorkspace");
+  const workspaceTitle=document.getElementById("workspaceMonthTitle");
+
+  const dateIds=["leaveDate","holidayDate","ruleStartDate","ruleEndDate"];
 
   if(!monthValue){
     if(baseInfo) baseInfo.textContent="기준 월을 선택해주세요.";
-    if(leaveInfo) leaveInfo.textContent="기준 월을 선택하면 해당 월의 연차만 표시됩니다.";
-    if(generationInfo) generationInfo.textContent="생성 대상 월을 선택해주세요.";
-    if(leaveDateEl){
-      leaveDateEl.removeAttribute("min");
-      leaveDateEl.removeAttribute("max");
-    }
-    renderLeaves();
+    if(leaveInfo) leaveInfo.textContent="";
+    if(generationInfo) generationInfo.textContent="";
+    if(workspaceTitle) workspaceTitle.textContent="";
+    if(workspace) workspace.classList.add("hidden");
+
+    dateIds.forEach(id=>{
+      const el=document.getElementById(id);
+      if(el){
+        el.removeAttribute("min");
+        el.removeAttribute("max");
+      }
+    });
+
     return;
   }
 
@@ -847,16 +863,25 @@ function handleBaseMonthChange(){
   if(baseInfo) baseInfo.textContent=`현재 기준 월: ${label}`;
   if(leaveInfo) leaveInfo.textContent=`${label} 연차만 표시하고 있습니다.`;
   if(generationInfo) generationInfo.textContent=`생성 대상: ${label}`;
+  if(workspaceTitle) workspaceTitle.textContent=`${label} 당직표 작업`;
+  if(workspace) workspace.classList.remove("hidden");
 
-  if(leaveDateEl){
-    leaveDateEl.min=firstDate;
-    leaveDateEl.max=lastDate;
-    if(leaveDateEl.value && !leaveDateEl.value.startsWith(monthValue)){
-      leaveDateEl.value="";
+  dateIds.forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+
+    el.min=firstDate;
+    el.max=lastDate;
+
+    if(el.value && !el.value.startsWith(monthValue)){
+      el.value="";
     }
-  }
+  });
 
   renderLeaves();
+  renderHolidays();
+  renderDutyRestrictions();
+  renderTeacherStartDates();
 }
 
 function openLeaveModal(){
@@ -960,10 +985,21 @@ async function removeLeave(i){
 }
 
 async function clearLeaves(){
-  if(!confirm("연차를 모두 삭제할까요?")) return;
-  leaves=[];renderLeaves();saveLocalCache();
-  try{setLeaveSaveStatus("삭제 내용을 자동 저장 중...","saving");await saveAppData("leaves",leaves);setLeaveSaveStatus("연차 목록 삭제가 저장되었습니다.","saved");}
-  catch(error){setLeaveSaveStatus("현재 기기에서는 삭제되었지만 공용 저장에 실패했습니다.","error");}
+  const monthValue=document.getElementById("monthInput").value;
+  if(!monthValue) return alert("먼저 기준 월을 선택해주세요.");
+  if(!confirm(`${formatMonthKorean(monthValue)} 연차를 모두 삭제할까요?`)) return;
+
+  leaves=leaves.filter(l=>!l.date.startsWith(monthValue));
+  renderLeaves();
+  saveLocalCache();
+
+  try{
+    setLeaveSaveStatus("삭제 내용을 자동 저장 중...","saving");
+    await saveAppData("leaves",leaves);
+    setLeaveSaveStatus(`${formatMonthKorean(monthValue)} 연차가 모두 삭제되었습니다.`,"saved");
+  }catch(error){
+    setLeaveSaveStatus("현재 기기에서는 삭제되었지만 공용 저장에 실패했습니다.","error");
+  }
 }
 
 function renderLeaves(){
@@ -997,7 +1033,13 @@ function renderLeaves(){
 async function addHoliday(){
   const date = holidayDate.value;
   const reason = holidayReason.value;
+  const monthValue=document.getElementById("monthInput").value;
+
+  if(!monthValue) return alert("먼저 기준 월을 선택해줘.");
   if(!date) return alert("날짜를 선택해줘.");
+  if(!date.startsWith(monthValue)){
+    return alert(`${formatMonthKorean(monthValue)} 날짜만 입력할 수 있습니다.`);
+  }
   holidays.push({date, reason});
   await saveAppData("holidays", holidays);
   renderHolidays();
@@ -1010,19 +1052,41 @@ async function removeHoliday(i){
 }
 
 async function clearHolidays(){
-  if(!confirm("공휴일/제외일을 모두 삭제할까요?")) return;
-  holidays=[];
-  await saveAppData("holidays", holidays);
+  const monthValue=document.getElementById("monthInput").value;
+  if(!monthValue) return alert("먼저 기준 월을 선택해주세요.");
+  if(!confirm(`${formatMonthKorean(monthValue)} 공휴일/제외일을 모두 삭제할까요?`)) return;
+
+  holidays=holidays.filter(h=>!h.date.startsWith(monthValue));
+  await saveAppData("holidays",holidays);
   renderHolidays();
 }
 
 function renderHolidays(){
+  const area=document.getElementById("holidayList");
+  if(!area) return;
+
+  const monthValue=document.getElementById("monthInput")?.value || "";
+  const filtered=holidays
+    .map((holiday,index)=>({holiday,index}))
+    .filter(item=>!monthValue || item.holiday.date.startsWith(monthValue));
+
   let html="<table><tr><th>날짜</th><th>사유</th><th>삭제</th></tr>";
-  holidays.forEach((h,i)=>{
-    html+=`<tr><td>${h.date}</td><td>${h.reason||""}</td><td><button class="red" onclick="removeHoliday(${i})">삭제</button></td></tr>`;
-  });
+
+  if(filtered.length===0){
+    html+=`<tr><td colspan="3">${monthValue ? `${formatMonthKorean(monthValue)}에 등록된 공휴일/제외일이 없습니다.` : "등록된 공휴일/제외일이 없습니다."}</td></tr>`;
+  }else{
+    filtered.forEach(item=>{
+      const h=item.holiday;
+      html+=`<tr>
+        <td>${h.date}</td>
+        <td>${h.reason||""}</td>
+        <td><button class="red" onclick="removeHoliday(${item.index})">삭제</button></td>
+      </tr>`;
+    });
+  }
+
   html+="</table>";
-  holidayList.innerHTML=html;
+  area.innerHTML=html;
 }
 
 async function addEventExclusion(){
@@ -1082,8 +1146,16 @@ async function addDutyRestriction(){
   const scope=ruleScope.value;
   const reason=ruleReason.value.trim();
 
+  const monthValue=document.getElementById("monthInput").value;
+
+  if(!monthValue) return alert("먼저 기준 월을 선택해주세요.");
+
   if(!startDate || !endDate || !teacher){
     return alert("시작일, 종료일, 교사를 모두 선택해주세요.");
+  }
+
+  if(!startDate.startsWith(monthValue) || !endDate.startsWith(monthValue)){
+    return alert(`당직 제한은 ${formatMonthKorean(monthValue)} 안에서만 설정해주세요.`);
   }
 
   if(endDate < startDate){
@@ -1122,29 +1194,58 @@ async function removeDutyRestriction(i){
   try{await saveAppData("dutyRestrictions",dutyRestrictions);}catch(e){alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");}
 }
 async function clearDutyRestrictions(){
-  if(!confirm("기간별 개별 당직 제한을 모두 삭제할까요?")) return;
-  dutyRestrictions=[];renderDutyRestrictions();saveLocalCache();
-  try{await saveAppData("dutyRestrictions",dutyRestrictions);}catch(e){alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");}
+  const monthValue=document.getElementById("monthInput").value;
+  if(!monthValue) return alert("먼저 기준 월을 선택해주세요.");
+  if(!confirm(`${formatMonthKorean(monthValue)} 당직 제한을 모두 삭제할까요?`)) return;
+
+  dutyRestrictions=dutyRestrictions.filter(r=>{
+    const startDate=r.startDate || r.date || "";
+    return !startDate.startsWith(monthValue);
+  });
+
+  renderDutyRestrictions();
+  saveLocalCache();
+
+  try{
+    await saveAppData("dutyRestrictions",dutyRestrictions);
+  }catch(e){
+    alert("현재 기기에는 반영되었지만 공용 저장에 실패했습니다.");
+  }
 }
 function renderDutyRestrictions(){
   const area=document.getElementById("dutyRestrictionList");
   if(!area) return;
 
+  const monthValue=document.getElementById("monthInput")?.value || "";
+
+  const filtered=dutyRestrictions
+    .map((restriction,index)=>({restriction,index}))
+    .filter(item=>{
+      const r=item.restriction;
+      const startDate=r.startDate || r.date || "";
+      return !monthValue || startDate.startsWith(monthValue);
+    });
+
   let h="<table><tr><th>기간</th><th>교사</th><th>제한</th><th>사유</th><th>삭제</th></tr>";
 
-  dutyRestrictions.forEach((r,i)=>{
-    const startDate=r.startDate || r.date || "";
-    const endDate=r.endDate || r.date || "";
-    const period=startDate===endDate ? startDate : `${startDate} ~ ${endDate}`;
+  if(filtered.length===0){
+    h+=`<tr><td colspan="5">${monthValue ? `${formatMonthKorean(monthValue)}에 등록된 당직 제한이 없습니다.` : "등록된 당직 제한이 없습니다."}</td></tr>`;
+  }else{
+    filtered.forEach(item=>{
+      const r=item.restriction;
+      const startDate=r.startDate || r.date || "";
+      const endDate=r.endDate || r.date || "";
+      const period=startDate===endDate ? startDate : `${startDate} ~ ${endDate}`;
 
-    h+=`<tr>
-      <td>${period}</td>
-      <td>${r.teacher}</td>
-      <td>${restrictionScopeLabel(r.scope)}</td>
-      <td>${r.reason||""}</td>
-      <td><button class="red" onclick="removeDutyRestriction(${i})">삭제</button></td>
-    </tr>`;
-  });
+      h+=`<tr>
+        <td>${period}</td>
+        <td>${r.teacher}</td>
+        <td>${restrictionScopeLabel(r.scope)}</td>
+        <td>${r.reason||""}</td>
+        <td><button class="red" onclick="removeDutyRestriction(${item.index})">삭제</button></td>
+      </tr>`;
+    });
+  }
 
   area.innerHTML=h+"</table>";
 }
