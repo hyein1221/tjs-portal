@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v28 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v29 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -313,7 +313,7 @@ line-height:1.5;
 
 <div class="box">
 <h2>배정 우선순위 안내</h2>
-<p class="small">전체 당직이 특정 교사에게 1~2주 또는 특정 주차에 몰리지 않도록 주차별 당직 횟수를 함께 비교하여 분산합니다. 총시간과 1시간·1.5시간·2시간 당직 횟수도 고르게 맞추고, 탄력은 가능한 교사 중 탄력 횟수가 가장 적은 사람을 우선하여 월 2회 전후로 균등하게 배정합니다. 같은 반 교사끼리는 같은 날 당직에 배정하지 않으며, 같은 당직 반과 놀이터 시건도 특정 교사에게 반복되지 않도록 분산합니다. 같은 연령 우선 규칙은 사용하지 않고 영아·유아 그룹만 약하게 참고합니다. 연차 다음 날 당직 금지, 같은 반 연차 시 탄력 금지, 탄력 같은 주 1회·월 최대 3회 등의 기존 제한 규칙은 그대로 적용됩니다.</p>
+<p class="small">전체 당직을 주차별·총시간·당직 길이별로 고르게 분산하고, 탄력과 놀이터 시건·오후당직도 특정 교사에게 몰리지 않도록 배정합니다. 같은 반 교사끼리 같은 날 당직하는 것은 강하게 피하되, 실제 슬롯 수와 제한조건 때문에 배정할 사람이 없는 경우에만 단계적으로 완화하여 '배정불가'를 최소화합니다. 같은 연령 우선은 사용하지 않고 영아·유아 그룹만 약하게 참고합니다. 연차 당일·연차 다음 날, 개별 당직 제한, 당직 시작일, 탄력 같은 주 1회·월 최대 3회, 같은 반 연차 시 탄력 금지 등의 핵심 제한은 계속 유지됩니다.</p>
 </div>
 
 <div class="box">
@@ -1722,46 +1722,51 @@ function chooseTeacher(teachers, slot, dateStr){
   const leaveRooms = getLeaveRoomsOnDate(dateStr, teachers);
   const prevWorkDate = getPreviousWorkDateStr(dateStr);
 
-  let candidates = teachers.filter(t=>{
+  function hardAllowed(t){
     if(unavailable.includes(t.name)) return false;
     if(eventUnavailable.includes(t.name)) return false;
     if(isTeacherRestricted(dateStr,t.name,slot)) return false;
     if(isBeforeTeacherStartDate(dateStr,t.name)) return false;
     if(getAvailabilityRatio(t)<=0) return false;
+
+    // 한 사람이 같은 날 두 개 당직을 맡는 것은 금지
     if(t.assignedDates.includes(dateStr)) return false;
 
-    // 같은 반 교사끼리는 같은 날 당직에 배정하지 않는다.
-    if(alreadyAssignedToday.some(x=>x.room===t.room)) return false;
-
-    // 연차 바로 다음 날에는 어떤 당직도 배정하지 않는다.
+    // 연차 다음 날 당직 금지
     if(wasTeacherOnLeavePreviousCalendarDay(dateStr,t.name)) return false;
 
-    if(t.assignedDates.includes(prevWorkDate)) return false;
-
     if(slot.type==="flex"){
-      // 탄력은 월 최대 3회(=4회 이상 금지)
+      // 탄력 핵심 규칙은 완화하지 않음
       if(t.flexCount >= 3) return false;
-
-      // 같은 주에 탄력 2회 이상 금지
+      if(leaveRooms.includes(t.room)) return false;
       if(hasFlexInSameWeek(t,dateStr)) return false;
-
-      // 금요일→월요일을 포함하여 직전 근무일과 연속 탄력 금지
       if(hasFlexOnPreviousWorkday(t,dateStr)) return false;
-
-      // 같은 반 교사 2명이 같은 날 동시에 탄력 금지
       if(hasSameRoomFlexToday(teachers,t,dateStr)) return false;
     }
 
-    // 놀이터 시건은 기본적으로 교사 1명당 월 1회까지만 우선 배정한다.
-    if(isPlaygroundLockSlot(slot) && (t.playgroundLockCount || 0) >= 1) return false;
-
-    // 오후당직·오후책임교사는 기본적으로 교사 1명당 월 1회만 배정한다.
-    if(slot.part==="afternoon" && t.afternoonCount >= 1) return false;
-
-    // 오후책임교사도 월 1회를 초과하지 않는다.
+    // 오후책임교사는 월 1회 초과 금지
     if(slot.type==="eveningManager" && t.eveningManagerCountThisMonth >= 1) return false;
 
-    if(slot.type==="flex" && leaveRooms.includes(t.room)) return false;
+    return true;
+  }
+
+  let pool = teachers.filter(hardAllowed);
+
+  if(pool.length===0) return null;
+
+  // 1단계: 가장 이상적인 후보
+  // - 전 근무일 당직 없음
+  // - 같은 반 교사가 오늘 아직 당직하지 않음
+  // - 놀이터 시건 1회 미만
+  // - 오후당직 1회 미만
+  let candidates = pool.filter(t=>{
+    if(t.assignedDates.includes(prevWorkDate)) return false;
+
+    if(alreadyAssignedToday.some(x=>x.room===t.room)) return false;
+
+    if(isPlaygroundLockSlot(slot) && (t.playgroundLockCount || 0) >= 1) return false;
+
+    if(slot.part==="afternoon" && t.afternoonCount >= 1) return false;
 
     if(slot.type==="early7" || slot.type==="morningManager"){
       const sameRoomEarly = alreadyAssignedToday.some(x =>
@@ -1773,39 +1778,46 @@ function chooseTeacher(teachers, slot, dateStr){
     return true;
   });
 
+  // 2단계: 같은 반 동시 당직만 완화
+  // 실제 슬롯 수가 반 수보다 많기 때문에 이 규칙을 절대조건으로 두면 배정불가가 생길 수 있음.
   if(candidates.length===0){
-    candidates = teachers.filter(t=>{
-      if(unavailable.includes(t.name)) return false;
-      if(eventUnavailable.includes(t.name)) return false;
-      if(isTeacherRestricted(dateStr,t.name,slot)) return false;
-      if(isBeforeTeacherStartDate(dateStr,t.name)) return false;
-      if(getAvailabilityRatio(t)<=0) return false;
-      if(t.assignedDates.includes(dateStr)) return false;
+    candidates = pool.filter(t=>{
+      if(t.assignedDates.includes(prevWorkDate)) return false;
 
-      // 대체 후보에서도 같은 반 교사끼리 같은 날 당직 금지
-      if(alreadyAssignedToday.some(x=>x.room===t.room)) return false;
+      if(isPlaygroundLockSlot(slot) && (t.playgroundLockCount || 0) >= 1) return false;
 
-      // 연차 바로 다음 날에는 대체 후보에서도 당직 배정 금지
-      if(wasTeacherOnLeavePreviousCalendarDay(dateStr,t.name)) return false;
+      if(slot.part==="afternoon" && t.afternoonCount >= 1) return false;
 
-      if(slot.type==="flex"){
-        // 대체 후보에서도 탄력 핵심 규칙은 절대 완화하지 않는다.
-        if(t.flexCount >= 3) return false;
-        if(leaveRooms.includes(t.room)) return false;
-        if(hasFlexInSameWeek(t,dateStr)) return false;
-        if(hasFlexOnPreviousWorkday(t,dateStr)) return false;
-        if(hasSameRoomFlexToday(teachers,t,dateStr)) return false;
+      if(slot.type==="early7" || slot.type==="morningManager"){
+        const sameRoomEarly = alreadyAssignedToday.some(x =>
+          x.room===t.room && x.assignedEarly7Today===dateStr
+        );
+        if(sameRoomEarly) return false;
       }
 
-      // 인원 부족 시에도 놀이터 시건은 월 2회를 넘지 않도록 한다.
+      return true;
+    });
+  }
+
+  // 3단계: 놀이터 시건/오후 1회 제한을 완화하되 최대 2회까지만
+  if(candidates.length===0){
+    candidates = pool.filter(t=>{
+      if(t.assignedDates.includes(prevWorkDate)) return false;
+
       if(isPlaygroundLockSlot(slot) && (t.playgroundLockCount || 0) >= 2) return false;
 
-      // 연차·제한 등으로 1회 배정이 불가능한 경우에만 오후당직 2회까지 허용한다.
       if(slot.part==="afternoon" && t.afternoonCount >= 2) return false;
 
-      // 오후책임교사는 대체 후보에서도 월 1회만 허용한다.
-      if(slot.type==="eveningManager" && t.eveningManagerCountThisMonth >= 1) return false;
+      return true;
+    });
+  }
 
+  // 4단계: 정말 필요한 경우에만 '전 근무일 당직' 규칙 완화
+  // 단, 연차/개별제한/탄력 핵심규칙/같은날 중복은 여전히 금지.
+  if(candidates.length===0){
+    candidates = pool.filter(t=>{
+      if(isPlaygroundLockSlot(slot) && (t.playgroundLockCount || 0) >= 2) return false;
+      if(slot.part==="afternoon" && t.afternoonCount >= 2) return false;
       return true;
     });
   }
@@ -1813,12 +1825,11 @@ function chooseTeacher(teachers, slot, dateStr){
   if(candidates.length===0) return null;
 
   if(slot.type==="flex"){
-    // 탄력은 가능한 후보 중 '현재 탄력 횟수가 가장 적은 그룹'을 먼저 사용한다.
-    // 1회인 사람이 남아 있는데 3회인 사람에게 추가 배정되는 현상을 막는다.
+    // 가능한 후보 중 탄력 횟수가 가장 적은 사람부터 사용
     const minFlexCount=Math.min(...candidates.map(t=>t.flexCount));
     let flexCandidates=candidates.filter(t=>t.flexCount===minFlexCount);
 
-    // 연차 전날 탄력 우선 규칙은 같은 최소 횟수 그룹 안에서만 적용한다.
+    // 연차 전날 탄력 우선은 동일 최소횟수 그룹 안에서만
     const preferred=flexCandidates.filter(t=>flexMap[`${dateStr}_${t.name}`]);
     if(preferred.length>0){
       flexCandidates=preferred;
@@ -1828,30 +1839,25 @@ function chooseTeacher(teachers, slot, dateStr){
       let aScore=0;
       let bScore=0;
 
-      // 같은 반월(1~15일 / 16일~말일)에 탄력이 몰리지 않도록 분산
-      aScore += countFlexInSameHalf(a,dateStr)*500;
-      bScore += countFlexInSameHalf(b,dateStr)*500;
-
-      // 직전 탄력 주차와 가까울수록 후순위
-      const aGap=getLastFlexWeekDistance(a,dateStr);
-      const bGap=getLastFlexWeekDistance(b,dateStr);
-
-      if(aGap===1) aScore+=450;
-      if(bGap===1) bScore+=450;
-      if(aGap>=2) aScore-=Math.min(aGap,4)*40;
-      if(bGap>=2) bScore-=Math.min(bGap,4)*40;
-
-      // 전체 당직 횟수와 시간도 함께 고려
-      aScore += getNormalizedValue(a.totalCount,a)*25 + getNormalizedValue(a.totalHours,a)*18;
-      bScore += getNormalizedValue(b.totalCount,b)*25 + getNormalizedValue(b.totalHours,b)*18;
-
-      // 탄력도 포함하여 전체 당직이 특정 주차에 몰리지 않도록 분산
+      // 전체 당직 주차 분산
       aScore += getTotalDutyWeekSpreadScore(a,dateStr);
       bScore += getTotalDutyWeekSpreadScore(b,dateStr);
+
+      // 같은 반월에 탄력이 몰리지 않도록 약하게 참고
+      aScore += countFlexInSameHalf(a,dateStr)*120;
+      bScore += countFlexInSameHalf(b,dateStr)*120;
+
+      // 전체 당직 횟수/시간
+      aScore += getNormalizedValue(a.totalCount,a)*25 + getNormalizedValue(a.totalHours,a)*18;
+      bScore += getNormalizedValue(b.totalCount,b)*25 + getNormalizedValue(b.totalHours,b)*18;
 
       // 같은 당직 반 반복 방지
       aScore += getSlotMatchScore(a,slot);
       bScore += getSlotMatchScore(b,slot);
+
+      // 같은 반 교사가 이미 오늘 당직이면 후순위 (절대금지는 아님)
+      if(alreadyAssignedToday.some(x=>x.room===a.room)) aScore += 900;
+      if(alreadyAssignedToday.some(x=>x.room===b.room)) bScore += 900;
 
       aScore += nameHash(a.name + dateStr + slot.key);
       bScore += nameHash(b.name + dateStr + slot.key);
@@ -1866,21 +1872,24 @@ function chooseTeacher(teachers, slot, dateStr){
     let aScore = 0;
     let bScore = 0;
 
-    // 같은 연령 → 같은 영아·유아 그룹 → 다른 그룹 순으로 우선하며,
-    // 동일한 당직 반이 한 교사에게 반복되지 않도록 조정한다.
+    // 같은 연령 우선 없음. 영아/유아 그룹만 약하게 참고.
     aScore += getSlotMatchScore(a, slot);
     bScore += getSlotMatchScore(b, slot);
 
-    // 전체 당직이 특정 주차에 몰리지 않도록 주차별 횟수를 강하게 분산한다.
+    // 같은 반 교사가 이미 오늘 당직이면 매우 강하게 후순위
+    // 단, 배정불가 방지를 위해 완전 금지는 하지 않음.
+    if(alreadyAssignedToday.some(x=>x.room===a.room)) aScore += 900;
+    if(alreadyAssignedToday.some(x=>x.room===b.room)) bScore += 900;
+
+    // 전체 당직의 주차별 균등 분산
     aScore += getTotalDutyWeekSpreadScore(a,dateStr);
     bScore += getTotalDutyWeekSpreadScore(b,dateStr);
 
-    // 1시간·1.5시간·2시간 당직이 특정 교사에게 몰리지 않도록 분산한다.
+    // 1h / 1.5h / 2h 균등
     aScore += getDurationBalanceScore(a, slot);
     bScore += getDurationBalanceScore(b, slot);
 
-    // 실제 배정량을 당직 가능 비율로 나눈 환산값을 비교한다.
-    // 예: 월 절반만 가능한 교사는 실제 3시간이 일반 교사의 6시간과 같은 수준으로 계산된다.
+    // 전체 총시간/횟수 균등
     aScore += getNormalizedValue(a.totalHours, a) * 100;
     bScore += getNormalizedValue(b.totalHours, b) * 100;
 
@@ -1896,26 +1905,13 @@ function chooseTeacher(teachers, slot, dateStr){
 
     if(slot.part==="afternoon"){
       aScore += getNormalizedValue(a.afternoonHours, a) * 25
-        + getNormalizedValue(a.afternoonCount, a) * 1200;
+        + getNormalizedValue(a.afternoonCount, a) * 1500;
       bScore += getNormalizedValue(b.afternoonHours, b) * 25
-        + getNormalizedValue(b.afternoonCount, b) * 1200;
+        + getNormalizedValue(b.afternoonCount, b) * 1500;
 
-      // 아직 오후당직을 한 번도 하지 않은 교사를 우선한다.
-      if(a.afternoonCount===0) aScore -= 500;
-      if(b.afternoonCount===0) bScore -= 500;
+      if(a.afternoonCount===0) aScore -= 600;
+      if(b.afternoonCount===0) bScore -= 600;
     }
-
-    if(slot.type==="flex"){
-      const aFlexTarget = Math.max(1, Math.round(2 * getAvailabilityRatio(a)));
-      const bFlexTarget = Math.max(1, Math.round(2 * getAvailabilityRatio(b)));
-
-      if(a.flexCount < aFlexTarget) aScore -= 300;
-      if(b.flexCount < bFlexTarget) bScore -= 300;
-
-      aScore += getNormalizedValue(a.flexCount, a) * 120;
-      bScore += getNormalizedValue(b.flexCount, b) * 120;
-    }
-
 
     if(a.status==="신입" && alreadyAssignedToday.some(x=>x.status==="신입" && x.room===a.room)) aScore += 80;
     if(b.status==="신입" && alreadyAssignedToday.some(x=>x.status==="신입" && x.room===b.room)) bScore += 80;
