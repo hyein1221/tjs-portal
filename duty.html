@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v26 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v28 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -88,11 +88,12 @@ th{background:#e8eef9}
 #statsTable th:nth-child(7), #statsTable td:nth-child(7),
 #statsTable th:nth-child(8), #statsTable td:nth-child(8),
 #statsTable th:nth-child(9), #statsTable td:nth-child(9){width:6%}
-#statsTable th:nth-child(10), #statsTable td:nth-child(10){width:8%}
+#statsTable th:nth-child(10), #statsTable td:nth-child(10){width:7%}
 #statsTable th:nth-child(11), #statsTable td:nth-child(11){width:7%}
-#statsTable th:nth-child(12), #statsTable td:nth-child(12){width:10%}
-#statsTable th:nth-child(13), #statsTable td:nth-child(13){
-width:27%;
+#statsTable th:nth-child(12), #statsTable td:nth-child(12){width:8%}
+#statsTable th:nth-child(13), #statsTable td:nth-child(13){width:9%}
+#statsTable th:nth-child(14), #statsTable td:nth-child(14){
+width:24%;
 text-align:left;
 line-height:1.5;
 }
@@ -312,7 +313,7 @@ line-height:1.5;
 
 <div class="box">
 <h2>배정 우선순위 안내</h2>
-<p class="small">같은 연령의 당직을 가장 우선하고, 다음으로 영아반 교사는 영아 당직·유아반 교사는 유아 당직을 우선합니다. 동일한 당직 반과 놀이터 시건이 한 교사에게 반복되지 않도록 분산하며, 1시간·1.5시간·2시간 당직도 각 교사에게 고르게 돌아가도록 배정합니다. 탄력근무는 추가 근무시간이 아니므로 시간으로 계산하지 않고 횟수로만 관리합니다. 탄력은 월 최대 3회, 같은 주 1회까지만 가능하며 직전 근무일과 연속 배정하지 않습니다. 같은 반에서 연차자가 있는 날에는 그 반 교사는 탄력에 배정하지 않고, 같은 반 교사 2명이 같은 날 동시에 탄력에 배정되지 않습니다. 연차 다음 날에는 당직을 배정하지 않습니다.</p>
+<p class="small">전체 당직이 특정 교사에게 1~2주 또는 특정 주차에 몰리지 않도록 주차별 당직 횟수를 함께 비교하여 분산합니다. 총시간과 1시간·1.5시간·2시간 당직 횟수도 고르게 맞추고, 탄력은 가능한 교사 중 탄력 횟수가 가장 적은 사람을 우선하여 월 2회 전후로 균등하게 배정합니다. 같은 반 교사끼리는 같은 날 당직에 배정하지 않으며, 같은 당직 반과 놀이터 시건도 특정 교사에게 반복되지 않도록 분산합니다. 같은 연령 우선 규칙은 사용하지 않고 영아·유아 그룹만 약하게 참고합니다. 연차 다음 날 당직 금지, 같은 반 연차 시 탄력 금지, 탄력 같은 주 1회·월 최대 3회 등의 기존 제한 규칙은 그대로 적용됩니다.</p>
 </div>
 
 <div class="box">
@@ -806,7 +807,8 @@ function parseTeachers(){
       lastDutyDate:"",
       playgroundLockCount:0,
       durationCounts:{"0.5":0,"1":0,"1.5":0,"2":0},
-      flexDates:[]
+      flexDates:[],
+      dutyWeekCounts:{}
     };
   }).filter(t=>t.name);
 }
@@ -1470,6 +1472,59 @@ function hasFlexOnPreviousWorkday(teacher, dateStr){
   return (teacher.flexDates || []).includes(prevWorkDate);
 }
 
+function getMonthHalf(dateStr){
+  const day=Number(dateStr.slice(8,10));
+  return day<=15 ? 1 : 2;
+}
+
+function countFlexInSameHalf(teacher,dateStr){
+  const half=getMonthHalf(dateStr);
+  return (teacher.flexDates || []).filter(d=>
+    d.slice(0,7)===dateStr.slice(0,7) && getMonthHalf(d)===half
+  ).length;
+}
+
+function getWeekIndexInMonth(dateStr){
+  const d=new Date(`${dateStr}T00:00:00`);
+  const first=new Date(d.getFullYear(),d.getMonth(),1);
+  const offset=(first.getDay()+6)%7;
+  return Math.floor((d.getDate()+offset-1)/7)+1;
+}
+
+function getDutyWeekCount(teacher,dateStr){
+  const week=getWeekIndexInMonth(dateStr);
+  return teacher.dutyWeekCounts?.[week] || 0;
+}
+
+function getTotalDutyWeekSpreadScore(teacher,dateStr){
+  const currentWeek=getWeekIndexInMonth(dateStr);
+  const currentCount=teacher.dutyWeekCounts?.[currentWeek] || 0;
+
+  let score=currentCount*420;
+
+  const weekCounts=[1,2,3,4,5].map(w=>teacher.dutyWeekCounts?.[w] || 0);
+  const minCount=Math.min(...weekCounts);
+
+  if(currentCount>minCount){
+    score+=(currentCount-minCount)*180;
+  }
+
+  if(currentCount===0){
+    score-=120;
+  }
+
+  return score;
+}
+
+function getLastFlexWeekDistance(teacher,dateStr){
+  const sameMonth=(teacher.flexDates || []).filter(d=>d.slice(0,7)===dateStr.slice(0,7));
+  if(!sameMonth.length) return 99;
+
+  const currentWeek=getWeekIndexInMonth(dateStr);
+  const lastWeek=Math.max(...sameMonth.map(getWeekIndexInMonth));
+  return currentWeek-lastWeek;
+}
+
 function hasSameRoomFlexToday(teachers, teacher, dateStr){
   return teachers.some(other=>
     other.name!==teacher.name &&
@@ -1603,31 +1658,26 @@ function getSlotMatchScore(teacher, slot){
 
   let score=0;
 
-  // 같은 연령 당직을 가장 우선한다.
-  if(teacher.age===dutyAge){
-    score-=220;
-  }else if(teacherGroup===dutyGroup){
-    // 같은 영아·유아 그룹이면 두 번째 우선순위
-    score-=80;
+  // 같은 연령 자체는 우선하지 않는다.
+  // 영아 교사는 영아 당직, 유아 교사는 유아 당직을 약하게 우선한다.
+  if(teacherGroup===dutyGroup){
+    score-=35;
   }else{
-    // 영아 교사가 유아 당직, 유아 교사가 영아 당직인 경우 후순위
-    score+=260;
+    score+=35;
   }
 
   // 같은 당직 반이 한 사람에게 반복되지 않도록 누적 횟수만큼 불이익
   const sameRoomCount=teacher.dutyRoomCounts?.[slot.room] || 0;
-  score+=sameRoomCount*140;
+  score+=sameRoomCount*180;
 
   // 직전 배정과 같은 반이면 추가 불이익
   if(teacher.lastDutyRoom===slot.room){
-    score+=220;
+    score+=260;
   }
 
-  // 놀이터 시건이 특정 교사에게 반복되지 않도록 강하게 분산한다.
+  // 놀이터 시건이 특정 교사에게 반복되지 않도록 강하게 분산
   if(isPlaygroundLockSlot(slot)){
     score += (teacher.playgroundLockCount || 0) * 900;
-
-    // 아직 놀이터 시건을 하지 않은 교사를 우선한다.
     if((teacher.playgroundLockCount || 0)===0){
       score -= 450;
     }
@@ -1680,6 +1730,9 @@ function chooseTeacher(teachers, slot, dateStr){
     if(getAvailabilityRatio(t)<=0) return false;
     if(t.assignedDates.includes(dateStr)) return false;
 
+    // 같은 반 교사끼리는 같은 날 당직에 배정하지 않는다.
+    if(alreadyAssignedToday.some(x=>x.room===t.room)) return false;
+
     // 연차 바로 다음 날에는 어떤 당직도 배정하지 않는다.
     if(wasTeacherOnLeavePreviousCalendarDay(dateStr,t.name)) return false;
 
@@ -1729,6 +1782,9 @@ function chooseTeacher(teachers, slot, dateStr){
       if(getAvailabilityRatio(t)<=0) return false;
       if(t.assignedDates.includes(dateStr)) return false;
 
+      // 대체 후보에서도 같은 반 교사끼리 같은 날 당직 금지
+      if(alreadyAssignedToday.some(x=>x.room===t.room)) return false;
+
       // 연차 바로 다음 날에는 대체 후보에서도 당직 배정 금지
       if(wasTeacherOnLeavePreviousCalendarDay(dateStr,t.name)) return false;
 
@@ -1757,18 +1813,53 @@ function chooseTeacher(teachers, slot, dateStr){
   if(candidates.length===0) return null;
 
   if(slot.type==="flex"){
-    const preferred = candidates.filter(t =>
-      flexMap[`${dateStr}_${t.name}`] &&
-      t.flexCount < 3 &&
-      !hasFlexInSameWeek(t,dateStr) &&
-      !hasFlexOnPreviousWorkday(t,dateStr) &&
-      !hasSameRoomFlexToday(teachers,t,dateStr)
-    );
+    // 탄력은 가능한 후보 중 '현재 탄력 횟수가 가장 적은 그룹'을 먼저 사용한다.
+    // 1회인 사람이 남아 있는데 3회인 사람에게 추가 배정되는 현상을 막는다.
+    const minFlexCount=Math.min(...candidates.map(t=>t.flexCount));
+    let flexCandidates=candidates.filter(t=>t.flexCount===minFlexCount);
 
+    // 연차 전날 탄력 우선 규칙은 같은 최소 횟수 그룹 안에서만 적용한다.
+    const preferred=flexCandidates.filter(t=>flexMap[`${dateStr}_${t.name}`]);
     if(preferred.length>0){
-      preferred.sort((a,b)=>a.flexCount-b.flexCount || a.totalHours-b.totalHours);
-      return preferred[0];
+      flexCandidates=preferred;
     }
+
+    flexCandidates.sort((a,b)=>{
+      let aScore=0;
+      let bScore=0;
+
+      // 같은 반월(1~15일 / 16일~말일)에 탄력이 몰리지 않도록 분산
+      aScore += countFlexInSameHalf(a,dateStr)*500;
+      bScore += countFlexInSameHalf(b,dateStr)*500;
+
+      // 직전 탄력 주차와 가까울수록 후순위
+      const aGap=getLastFlexWeekDistance(a,dateStr);
+      const bGap=getLastFlexWeekDistance(b,dateStr);
+
+      if(aGap===1) aScore+=450;
+      if(bGap===1) bScore+=450;
+      if(aGap>=2) aScore-=Math.min(aGap,4)*40;
+      if(bGap>=2) bScore-=Math.min(bGap,4)*40;
+
+      // 전체 당직 횟수와 시간도 함께 고려
+      aScore += getNormalizedValue(a.totalCount,a)*25 + getNormalizedValue(a.totalHours,a)*18;
+      bScore += getNormalizedValue(b.totalCount,b)*25 + getNormalizedValue(b.totalHours,b)*18;
+
+      // 탄력도 포함하여 전체 당직이 특정 주차에 몰리지 않도록 분산
+      aScore += getTotalDutyWeekSpreadScore(a,dateStr);
+      bScore += getTotalDutyWeekSpreadScore(b,dateStr);
+
+      // 같은 당직 반 반복 방지
+      aScore += getSlotMatchScore(a,slot);
+      bScore += getSlotMatchScore(b,slot);
+
+      aScore += nameHash(a.name + dateStr + slot.key);
+      bScore += nameHash(b.name + dateStr + slot.key);
+
+      return aScore-bScore;
+    });
+
+    return flexCandidates[0] || null;
   }
 
   candidates.sort((a,b)=>{
@@ -1779,6 +1870,10 @@ function chooseTeacher(teachers, slot, dateStr){
     // 동일한 당직 반이 한 교사에게 반복되지 않도록 조정한다.
     aScore += getSlotMatchScore(a, slot);
     bScore += getSlotMatchScore(b, slot);
+
+    // 전체 당직이 특정 주차에 몰리지 않도록 주차별 횟수를 강하게 분산한다.
+    aScore += getTotalDutyWeekSpreadScore(a,dateStr);
+    bScore += getTotalDutyWeekSpreadScore(b,dateStr);
 
     // 1시간·1.5시간·2시간 당직이 특정 교사에게 몰리지 않도록 분산한다.
     aScore += getDurationBalanceScore(a, slot);
@@ -1821,11 +1916,6 @@ function chooseTeacher(teachers, slot, dateStr){
       bScore += getNormalizedValue(b.flexCount, b) * 120;
     }
 
-    if(alreadyAssignedToday.some(x=>x.room===a.room)) aScore += 15;
-    if(alreadyAssignedToday.some(x=>x.room===b.room)) bScore += 15;
-
-    if(alreadyAssignedToday.some(x=>x.age===a.age)) aScore += 5;
-    if(alreadyAssignedToday.some(x=>x.age===b.age)) bScore += 5;
 
     if(a.status==="신입" && alreadyAssignedToday.some(x=>x.status==="신입" && x.room===a.room)) aScore += 80;
     if(b.status==="신입" && alreadyAssignedToday.some(x=>x.status==="신입" && x.room===b.room)) bScore += 80;
@@ -1902,6 +1992,10 @@ async function generateSchedule(){
         }
 
         teacher.assignedDates.push(day.dateStr);
+
+        const dutyWeek=getWeekIndexInMonth(day.dateStr);
+        teacher.dutyWeekCounts[dutyWeek] =
+          (teacher.dutyWeekCounts[dutyWeek] || 0) + 1;
 
         teacher.dutyRoomCounts[slot.room] =
           (teacher.dutyRoomCounts[slot.room] || 0) + 1;
@@ -2061,6 +2155,7 @@ function renderStats(teachers){
 <th>탄력 횟수</th>
 <th>놀이터 시건</th>
 <th>시간별 횟수</th>
+<th>주차별 횟수</th>
 <th>총 시간</th>
 <th>당직 가능 비율</th>
 <th>배정 날짜</th>
@@ -2070,7 +2165,7 @@ function renderStats(teachers){
   sorted.forEach(t=>{
     if(currentAge!==t.age){
       currentAge=t.age;
-      html += `<tr><td colspan="13" class="group">${t.age}</td></tr>`;
+      html += `<tr><td colspan="14" class="group">${t.age}</td></tr>`;
     }
 
     html += `<tr>
@@ -2087,6 +2182,13 @@ function renderStats(teachers){
 1h ${t.durationCounts?.["1"]||0}회<br>
 1.5h ${t.durationCounts?.["1.5"]||0}회<br>
 2h ${t.durationCounts?.["2"]||0}회
+</td>
+<td>
+1주 ${t.dutyWeekCounts?.[1]||0}회<br>
+2주 ${t.dutyWeekCounts?.[2]||0}회<br>
+3주 ${t.dutyWeekCounts?.[3]||0}회<br>
+4주 ${t.dutyWeekCounts?.[4]||0}회<br>
+5주 ${t.dutyWeekCounts?.[5]||0}회
 </td>
 <td>${t.totalHours}</td>
 <td>${Math.round((t.availabilityRatio||0)*100)}% (${t.availableWorkDays}/${t.totalWorkDays}일)</td>
