@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v17 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v18 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -296,7 +296,7 @@ line-height:1.5;
 
 <div class="box">
 <h2>배정 우선순위 안내</h2>
-<p class="small">같은 연령의 당직을 가장 우선하고, 다음으로 영아반 교사는 영아 당직·유아반 교사는 유아 당직을 우선합니다. 동일한 당직 반과 놀이터 시건이 한 교사에게 반복되지 않도록 분산하며, 1시간·1.5시간·2시간 당직도 각 교사에게 고르게 돌아가도록 배정합니다. 탄력근무는 추가 근무시간이 아니므로 시간별 통계에서는 제외하고 탄력 횟수로만 관리합니다. 놀이터 시건은 월 1회씩 우선 배정하고 인원 부족 시에만 최대 2회까지 허용합니다. 연차·제한·인원 부족 시에는 다른 연령 또는 다른 그룹으로 배정될 수 있습니다.</p>
+<p class="small">같은 연령의 당직을 가장 우선하고, 다음으로 영아반 교사는 영아 당직·유아반 교사는 유아 당직을 우선합니다. 동일한 당직 반과 놀이터 시건이 한 교사에게 반복되지 않도록 분산하며, 1시간·1.5시간·2시간 당직도 각 교사에게 고르게 돌아가도록 배정합니다. 탄력근무는 추가 근무시간이 아니므로 시간으로 계산하지 않고 횟수로만 관리합니다. 탄력은 월 최대 3회, 같은 주 1회까지만 가능하며 직전 근무일과 연속 배정하지 않습니다. 같은 반에서 연차자가 있는 날에는 그 반 교사는 탄력에 배정하지 않고, 같은 반 교사 2명이 같은 날 동시에 탄력에 배정되지 않습니다. 연차 다음 날에는 당직을 배정하지 않습니다.</p>
 </div>
 
 <div class="box">
@@ -562,7 +562,7 @@ const slots = [
 {key:"m14", room:"윤빛", time:"08:30~09:00<br>(0.5h)", role:"", hours:0.5, part:"morning", type:"morning830"},
 
 {key:"m15", room:"솔빛", time:"08:00~09:00<br>(1h)", role:"", hours:1, part:"morning", type:"morning8"},
-{key:"m16", room:"들빛", time:"08:30~09:00<br>(0.5h)", role:"탄력", hours:0, part:"flex", type:"flex"},
+{key:"m16", room:"들빛", time:"08:30~09:00", role:"탄력", hours:0, part:"flex", type:"flex"},
 
 {key:"a1", room:"햇빛", time:"18:00~19:00<br>(1h)", role:"영아 오후당직", hours:1, part:"afternoon", type:"evening"},
 {key:"a2", room:"예빛", time:"18:00~20:00<br>(2h)", role:"오후책임교사", hours:2, part:"afternoon", type:"eveningManager"}
@@ -739,7 +739,8 @@ function parseTeachers(){
       lastDutyRoom:"",
       lastDutyDate:"",
       playgroundLockCount:0,
-      durationCounts:{"0.5":0,"1":0,"1.5":0,"2":0}
+      durationCounts:{"0.5":0,"1":0,"1.5":0,"2":0},
+      flexDates:[]
     };
   }).filter(t=>t.name);
 }
@@ -1191,6 +1192,37 @@ function getPreviousWorkDateStr(dateStr){
   }
 }
 
+function wasTeacherOnLeavePreviousCalendarDay(dateStr, teacherName){
+  const prev = getPreviousDateStr(dateStr);
+  return leaves.some(l=>l.date===prev && l.teacher===teacherName);
+}
+
+function getWeekKey(dateStr){
+  const d = new Date(`${dateStr}T00:00:00`);
+  const day = d.getDay();
+  const mondayOffset = day===0 ? -6 : 1-day;
+  d.setDate(d.getDate()+mondayOffset);
+  return d.toISOString().slice(0,10);
+}
+
+function hasFlexInSameWeek(teacher, dateStr){
+  const currentWeek = getWeekKey(dateStr);
+  return (teacher.flexDates || []).some(d=>getWeekKey(d)===currentWeek);
+}
+
+function hasFlexOnPreviousWorkday(teacher, dateStr){
+  const prevWorkDate = getPreviousWorkDateStr(dateStr);
+  return (teacher.flexDates || []).includes(prevWorkDate);
+}
+
+function hasSameRoomFlexToday(teachers, teacher, dateStr){
+  return teachers.some(other=>
+    other.name!==teacher.name &&
+    other.room===teacher.room &&
+    (other.flexDates || []).includes(dateStr)
+  );
+}
+
 function getTeacherLeavePreviousFlexMap(){
   const map = {};
   leaves.forEach(l=>{
@@ -1392,9 +1424,24 @@ function chooseTeacher(teachers, slot, dateStr){
     if(getAvailabilityRatio(t)<=0) return false;
     if(t.assignedDates.includes(dateStr)) return false;
 
+    // 연차 바로 다음 날에는 어떤 당직도 배정하지 않는다.
+    if(wasTeacherOnLeavePreviousCalendarDay(dateStr,t.name)) return false;
+
     if(t.assignedDates.includes(prevWorkDate)) return false;
 
-    if(slot.type==="flex" && t.flexCount >= getFlexLimit(t)) return false;
+    if(slot.type==="flex"){
+      // 탄력은 월 최대 3회(=4회 이상 금지)
+      if(t.flexCount >= 3) return false;
+
+      // 같은 주에 탄력 2회 이상 금지
+      if(hasFlexInSameWeek(t,dateStr)) return false;
+
+      // 금요일→월요일을 포함하여 직전 근무일과 연속 탄력 금지
+      if(hasFlexOnPreviousWorkday(t,dateStr)) return false;
+
+      // 같은 반 교사 2명이 같은 날 동시에 탄력 금지
+      if(hasSameRoomFlexToday(teachers,t,dateStr)) return false;
+    }
 
     // 놀이터 시건은 기본적으로 교사 1명당 월 1회까지만 우선 배정한다.
     if(isPlaygroundLockSlot(slot) && (t.playgroundLockCount || 0) >= 1) return false;
@@ -1426,6 +1473,18 @@ function chooseTeacher(teachers, slot, dateStr){
       if(getAvailabilityRatio(t)<=0) return false;
       if(t.assignedDates.includes(dateStr)) return false;
 
+      // 연차 바로 다음 날에는 대체 후보에서도 당직 배정 금지
+      if(wasTeacherOnLeavePreviousCalendarDay(dateStr,t.name)) return false;
+
+      if(slot.type==="flex"){
+        // 대체 후보에서도 탄력 핵심 규칙은 절대 완화하지 않는다.
+        if(t.flexCount >= 3) return false;
+        if(leaveRooms.includes(t.room)) return false;
+        if(hasFlexInSameWeek(t,dateStr)) return false;
+        if(hasFlexOnPreviousWorkday(t,dateStr)) return false;
+        if(hasSameRoomFlexToday(teachers,t,dateStr)) return false;
+      }
+
       // 인원 부족 시에도 놀이터 시건은 월 2회를 넘지 않도록 한다.
       if(isPlaygroundLockSlot(slot) && (t.playgroundLockCount || 0) >= 2) return false;
 
@@ -1435,8 +1494,6 @@ function chooseTeacher(teachers, slot, dateStr){
       // 오후책임교사는 대체 후보에서도 월 1회만 허용한다.
       if(slot.type==="eveningManager" && t.eveningManagerCountThisMonth >= 1) return false;
 
-      if(slot.type==="flex" && t.flexCount >= getFlexLimit(t)) return false;
-
       return true;
     });
   }
@@ -1445,7 +1502,11 @@ function chooseTeacher(teachers, slot, dateStr){
 
   if(slot.type==="flex"){
     const preferred = candidates.filter(t =>
-      flexMap[`${dateStr}_${t.name}`] && t.flexCount < getFlexLimit(t)
+      flexMap[`${dateStr}_${t.name}`] &&
+      t.flexCount < 3 &&
+      !hasFlexInSameWeek(t,dateStr) &&
+      !hasFlexOnPreviousWorkday(t,dateStr) &&
+      !hasSameRoomFlexToday(teachers,t,dateStr)
     );
 
     if(preferred.length>0){
@@ -1579,6 +1640,7 @@ async function generateSchedule(){
 
         if(slot.type==="flex"){
           teacher.flexCount++;
+          teacher.flexDates.push(day.dateStr);
         }
 
         teacher.assignedDates.push(day.dateStr);
@@ -1601,7 +1663,12 @@ async function generateSchedule(){
 
         const cleanTime = slot.time.replaceAll("<br>"," ");
         const cleanRole = slot.role ? slot.role.replaceAll("<br>"," ") : slot.room;
-        teacher.dutyDates.push(`${day.day}일(${day.weekday}) ${cleanTime} ${cleanRole}`);
+
+        if(slot.type==="flex"){
+          teacher.dutyDates.push(`${day.day}일(${day.weekday}) 탄력`);
+        }else{
+          teacher.dutyDates.push(`${day.day}일(${day.weekday}) ${cleanTime} ${cleanRole}`);
+        }
 
         if(slot.type==="early7" || slot.type==="morningManager"){
           teacher.assignedEarly7Today = day.dateStr;
