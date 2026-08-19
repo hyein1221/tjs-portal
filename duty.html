@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>당직관리 시스템 v18 | 탕정삼성어린이집 통합포털</title>
+<title>당직관리 시스템 v19 | 탕정삼성어린이집 통합포털</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 
 </script>
@@ -198,10 +198,10 @@ line-height:1.5;
 <div id="connectionStatus" class="connection-status">화면 사용 가능 · 공용 저장소 연결 확인 중...</div>
 
 <div class="box">
-<h2>1. 월 선택</h2>
-<input type="month" id="monthInput">
-<button onclick="generateSchedule()">당직표 생성</button>
-<button class="green" onclick="saveCurrentSchedule()">당직표 저장</button>
+<h2>1. 기준 월 선택</h2>
+<p class="small">선택한 월을 기준으로 연차 목록을 조회하고 당직표 생성 대상 월을 설정합니다.</p>
+<input type="month" id="monthInput" onchange="handleBaseMonthChange()">
+<div id="baseMonthInfo" class="small" style="margin-top:8px;font-weight:bold;color:#2f4f7f"></div>
 </div>
 
 <div class="box">
@@ -217,6 +217,7 @@ line-height:1.5;
 <div class="box">
 <h2>3. 연차 입력</h2>
 <p class="small">날짜를 선택하면 교사 선택창이 팝업으로 열립니다. 등록·삭제와 동시에 공용 저장소에 자동 저장됩니다.</p>
+<div id="leaveMonthInfo" class="small" style="margin:8px 0;font-weight:bold;color:#2f4f7f"></div>
 <div class="leave-toolbar">
   <input type="date" id="leaveDate" onchange="openLeaveModal()">
   <button onclick="openLeaveModal()">교사 선택</button>
@@ -287,7 +288,15 @@ line-height:1.5;
 </div>
 
 <div class="box">
-<h2>7. 저장된 당직표 조회</h2>
+<h2>7. 당직표 생성</h2>
+<p class="small">위에서 선택한 기준 월의 연차·공휴일·당직 제한·당직 시작일을 반영하여 당직표를 생성합니다.</p>
+<div id="generationMonthInfo" style="font-weight:bold;color:#2f4f7f;margin:8px 0 12px"></div>
+<button onclick="generateSchedule()">당직표 생성</button>
+<button class="green" onclick="saveCurrentSchedule()">당직표 저장</button>
+</div>
+
+<div class="box">
+<h2>8. 저장된 당직표 조회</h2>
 <select id="savedScheduleSelect"></select>
 <button onclick="loadSavedSchedule()">불러오기</button>
 <button class="gray" onclick="refreshSavedSchedules(true)">목록 새로고침</button>
@@ -569,9 +578,16 @@ const slots = [
 ];
 
 async function initializeDutyPage(){
+  const monthEl=document.getElementById("monthInput");
+  if(monthEl && !monthEl.value){
+    const now=new Date();
+    monthEl.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+  }
+
   const allowed=await verifyAdminAccess();
   if(allowed){
     await loadAllSharedData();
+    handleBaseMonthChange();
   }
 }
 
@@ -648,6 +664,7 @@ async function loadAllSharedData(){
   renderDutyRestrictions();
   renderTeacherStartDates();
   renderSavedScheduleList();
+  handleBaseMonthChange();
 
   setConnectionStatus("화면 사용 가능 · 공용 저장소 연결 확인 중...");
 
@@ -691,6 +708,7 @@ async function loadAllSharedData(){
       renderDutyRestrictions();
     renderTeacherStartDates();
     renderSavedScheduleList();
+    handleBaseMonthChange();
 
     saveLocalCache();
     setConnectionStatus("공용 저장소 연결됨 · 다른 컴퓨터와 데이터가 공유됩니다.", "online");
@@ -795,9 +813,62 @@ function updateTeacherSelect(){
   renderLeaveTeacherChecks();
 }
 
+function formatMonthKorean(monthValue){
+  if(!monthValue) return "";
+  const [year,month]=monthValue.split("-");
+  return `${year}년 ${Number(month)}월`;
+}
+
+function handleBaseMonthChange(){
+  const monthValue=document.getElementById("monthInput").value;
+  const baseInfo=document.getElementById("baseMonthInfo");
+  const leaveInfo=document.getElementById("leaveMonthInfo");
+  const generationInfo=document.getElementById("generationMonthInfo");
+  const leaveDateEl=document.getElementById("leaveDate");
+
+  if(!monthValue){
+    if(baseInfo) baseInfo.textContent="기준 월을 선택해주세요.";
+    if(leaveInfo) leaveInfo.textContent="기준 월을 선택하면 해당 월의 연차만 표시됩니다.";
+    if(generationInfo) generationInfo.textContent="생성 대상 월을 선택해주세요.";
+    if(leaveDateEl){
+      leaveDateEl.removeAttribute("min");
+      leaveDateEl.removeAttribute("max");
+    }
+    renderLeaves();
+    return;
+  }
+
+  const [year,month]=monthValue.split("-").map(Number);
+  const lastDay=new Date(year,month,0).getDate();
+  const firstDate=`${year}-${String(month).padStart(2,"0")}-01`;
+  const lastDate=`${year}-${String(month).padStart(2,"0")}-${String(lastDay).padStart(2,"0")}`;
+  const label=formatMonthKorean(monthValue);
+
+  if(baseInfo) baseInfo.textContent=`현재 기준 월: ${label}`;
+  if(leaveInfo) leaveInfo.textContent=`${label} 연차만 표시하고 있습니다.`;
+  if(generationInfo) generationInfo.textContent=`생성 대상: ${label}`;
+
+  if(leaveDateEl){
+    leaveDateEl.min=firstDate;
+    leaveDateEl.max=lastDate;
+    if(leaveDateEl.value && !leaveDateEl.value.startsWith(monthValue)){
+      leaveDateEl.value="";
+    }
+  }
+
+  renderLeaves();
+}
+
 function openLeaveModal(){
   const date=document.getElementById("leaveDate").value;
+  const monthValue=document.getElementById("monthInput").value;
+
+  if(!monthValue) return alert("먼저 기준 월을 선택해주세요.");
   if(!date) return alert("먼저 연차 날짜를 선택해주세요.");
+  if(!date.startsWith(monthValue)){
+    return alert(`${formatMonthKorean(monthValue)} 날짜만 연차로 입력할 수 있습니다.`);
+  }
+
   document.getElementById("leaveModalDateText").textContent=date;
   renderLeaveTeacherChecks();
   document.getElementById("leaveModal").classList.remove("hidden");
@@ -896,12 +967,31 @@ async function clearLeaves(){
 }
 
 function renderLeaves(){
+  const area=document.getElementById("leaveList");
+  if(!area) return;
+
+  const monthValue=document.getElementById("monthInput")?.value || "";
+  const filtered=leaves
+    .map((leave,index)=>({leave,index}))
+    .filter(item=>!monthValue || item.leave.date.startsWith(monthValue));
+
   let html="<table><tr><th>날짜</th><th>교사</th><th>삭제</th></tr>";
-  leaves.forEach((l,i)=>{
-    html+=`<tr><td>${l.date}</td><td>${l.teacher}</td><td><button class="red" onclick="removeLeave(${i})">삭제</button></td></tr>`;
-  });
+
+  if(filtered.length===0){
+    html+=`<tr><td colspan="3">${monthValue ? `${formatMonthKorean(monthValue)}에 등록된 연차가 없습니다.` : "등록된 연차가 없습니다."}</td></tr>`;
+  }else{
+    filtered.forEach(item=>{
+      const l=item.leave;
+      html+=`<tr>
+        <td>${l.date}</td>
+        <td>${l.teacher}</td>
+        <td><button class="red" onclick="removeLeave(${item.index})">삭제</button></td>
+      </tr>`;
+    });
+  }
+
   html+="</table>";
-  leaveList.innerHTML=html;
+  area.innerHTML=html;
 }
 
 async function addHoliday(){
@@ -1595,7 +1685,9 @@ function chooseTeacher(teachers, slot, dateStr){
 
 async function generateSchedule(){
   const monthValue = monthInput.value;
-  if(!monthValue) return alert("월을 선택해줘.");
+  if(!monthValue) return alert("기준 월을 선택해줘.");
+
+  handleBaseMonthChange();
 
   const teachers = parseTeachers();
   const dates = getMonthDates(monthValue);
@@ -1927,6 +2019,7 @@ async function loadSavedSchedule(){
     currentStats = savedSchedules[month].stats;
 
     monthInput.value = month;
+    handleBaseMonthChange();
     renderSchedule(currentSchedule);
     renderStats(currentStats);
   }catch(error){
