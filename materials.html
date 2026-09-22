@@ -624,7 +624,7 @@
         />
 
         <p class="compact-notice">
-          필수 열: <strong>관리번호, 물품명</strong> / 선택 열: 구입일자, 구분, 분류명, 규격, 구입처, 수량, 금, 사용처, 전표(증빙번호), 사진, 비고
+          필수 열: <strong>관리번호, 물품명</strong> / 현재 등록 지원 열: 구입일자, 분류명, 수량
         </p>
 
         <div id="excel-upload-result" class="message"></div>
@@ -1139,17 +1139,9 @@ async function createExtraMaterialRental() {
     .insert([{
       "구입일자": null,
       "관리번호": materialNumber,
-      "구분": "기타대여",
       "분류명": labelLess ? "기타대여 > 라벨없는교재교구" : "기타대여",
       "물품명": materialName,
-      "규격": null,
-      "구입처": null,
       "수량": 1,
-      "금": null,
-      "사용처": null,
-      "전표증빙번호": null,
-      "사진": null,
-      "비고": labelLess ? "라벨 없는 교재교구 기타대여 등록" : "기타대여 등록",
       status: "borrowed",
       current_class: currentUser.class_name,
       current_user_id: currentUser.id,
@@ -1194,7 +1186,6 @@ async function createExtraMaterialRental() {
 
   await loadMaterials();
 }
-
 async function reserveMaterial(materialId) {
   const { error } = await supabaseClient
     .from("materials")
@@ -2271,6 +2262,7 @@ async function handleExcelUpload(event) {
     let duplicateCount = 0;
     let missingCount = 0;
     let errorCount = 0;
+    let firstErrorMessage = "";
 
     for (const row of jsonData) {
       const itemNumber = row["관리번호"]?.toString().trim();
@@ -2281,52 +2273,85 @@ async function handleExcelUpload(event) {
         continue;
       }
 
-      const { data: existing } = await supabaseClient
+      const { data: existing, error: duplicateCheckError } = await supabaseClient
         .from("materials")
         .select("id")
         .eq("관리번호", itemNumber)
-        .maybeSingle();
+        .limit(1);
 
-      if (existing) {
+      if (duplicateCheckError) {
+        errorCount++;
+        if (!firstErrorMessage) firstErrorMessage = duplicateCheckError.message;
+        continue;
+      }
+
+      if (existing && existing.length) {
         duplicateCount++;
+        continue;
+      }
+
+      const quantityRaw = row["수량"];
+      const quantity = Number(quantityRaw === undefined || quantityRaw === null || quantityRaw === "" ? 1 : quantityRaw);
+
+      if (!Number.isFinite(quantity)) {
+        errorCount++;
+        if (!firstErrorMessage) firstErrorMessage = `${itemNumber}: 수량이 숫자가 아닙니다.`;
         continue;
       }
 
       const { error } = await supabaseClient.from("materials").insert([{
         "구입일자": row["구입일자"] || null,
         "관리번호": itemNumber,
-        "구분": row["구분"] || null,
         "분류명": row["분류명"] || null,
         "물품명": itemName,
-        "규격": row["규격"] || null,
-        "구입처": row["구입처"] || null,
-        "수량": Number(row["수량"] || 1),
-        "금": row["금"] || null,
-        "사용처": row["사용처"] || null,
-        "전표증빙번호": row["전표증빙번호"] || row["전표(증빙번호)"] || null,
-        "사진": row["사진"] || null,
-        "비고": row["비고"] || null,
+        "수량": quantity,
         status: "available",
         current_class: null,
         current_user_id: null,
         is_deleted: false
       }]);
 
-      if (error) errorCount++;
-      else successCount++;
+      if (error) {
+        errorCount++;
+        if (!firstErrorMessage) firstErrorMessage = error.message;
+      } else {
+        successCount++;
+      }
     }
 
-    const resultText =
-      `엑셀 등록 완료\n성공: ${successCount}개\n중복: ${duplicateCount}개\n필수값 누락: ${missingCount}개\n기타 오류: ${errorCount}개`;
+    let resultText =
+      `엑셀 등록 완료\n` +
+      `성공: ${successCount}개\n` +
+      `중복: ${duplicateCount}개\n` +
+      `필수값 누락: ${missingCount}개\n` +
+      `기타 오류: ${errorCount}개`;
 
-    setMessage("excel-upload-result", resultText);
+    if (firstErrorMessage) {
+      resultText += `\n\n첫 번째 오류:\n${firstErrorMessage}`;
+    }
+
+    setMessage(
+      "excel-upload-result",
+      resultText,
+      errorCount > 0 ? "#b91c1c" : "#047857"
+    );
+
     alert(resultText);
-    loadMaterials();
+
+    currentPage = 1;
+    currentKeyword = "";
+    const mainSearch = document.getElementById("search");
+    if (mainSearch) mainSearch.value = "";
+
+    await loadMaterials();
+
+    if (successCount > 0) {
+      setThisMonthForMaterialSearch();
+    }
   };
 
   reader.readAsArrayBuffer(file);
 }
-
 async function searchManageMaterials() {
   const keyword = document.getElementById("manage-material-search").value.trim();
 
