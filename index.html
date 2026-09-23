@@ -284,7 +284,70 @@ function makeRightsReadonlyHtml(row,start=1,end=15){let html='<table class="righ
 function makeChecklistTable(row,start,end){return makeRightsReadonlyHtml(row,start,end)}
 async function openChildRightsPage(){if(!currentUser)return;const m=getThisMonth();document.getElementById("rights-month").value=m;document.getElementById("manager-rights-month").value=m;const canManage=isChildRightsManager();const managerTabBtn=document.getElementById("rights-manager-tab-btn");if(managerTabBtn)managerTabBtn.classList.toggle("hidden",!canManage);document.getElementById("child-rights-manager-area").classList.toggle("hidden",!canManage);const excludedArea=document.getElementById("rights-excluded-area");if(excludedArea)excludedArea.classList.toggle("hidden",!isOwnerAdmin());showOnly("child-rights-screen");switchRightsTab("rights-write-tab");setMessage("rights-message","");await loadMyRightsForMonth();await loadMyRightsHistory();if(canManage)await loadChildRightsManagerStatus()}
 async function loadMyRightsForMonth(){const month=document.getElementById("rights-month").value||getThisMonth();document.getElementById("rights-month").value=month;const{data,error}=await supabaseClient.from("child_rights_checklists").select("*").eq("user_id",currentUser.id).eq("check_month",month).or("is_deleted.is.null,is_deleted.eq.false").maybeSingle();if(error){renderRightsForm({});setMessage("rights-message","기록을 불러오지 못했습니다. child_rights_checklists 테이블이 만들어졌는지 확인해주세요.\n"+error.message,"red");return}renderRightsForm(data?.answers||{});setMessage("rights-message",data?`${month} 작성 기록을 불러왔습니다.`:`${month} 작성 기록이 없습니다. 체크 후 제출해주세요.`)}
-async function submitChildRightsChecklist(){const month=document.getElementById("rights-month").value||getThisMonth();const answers=collectRightsAnswers();const row={user_id:currentUser.id,teacher_name:currentUser.name,class_name:currentUser.class_name,check_month:month,answers,updated_at:new Date().toISOString()};const{data:existing,error:selectError}=await supabaseClient.from("child_rights_checklists").select("id").eq("user_id",currentUser.id).eq("check_month",month).or("is_deleted.is.null,is_deleted.eq.false").maybeSingle();if(selectError){setMessage("rights-message","저장 전 기존 기록 확인에 실패했습니다: "+selectError.message,"red");return}let result;if(existing?.id){result=await supabaseClient.from("child_rights_checklists").update(row).eq("id",existing.id)}else{row.submitted_at=new Date().toISOString();result=await supabaseClient.from("child_rights_checklists").insert([row])}if(result.error){setMessage("rights-message","체크리스트 저장 실패: "+result.error.message,"red");return}setMessage("rights-message",`${month} 체크리스트가 저장되었습니다.`);await loadMyRightsHistory();if(isChildRightsManager())await loadChildRightsManagerStatus()}
+async function submitChildRightsChecklist(){
+  const month=document.getElementById("rights-month").value||getThisMonth();
+  const answers=collectRightsAnswers();
+  const now=new Date().toISOString();
+
+  const row={
+    user_id:currentUser.id,
+    teacher_name:currentUser.name,
+    class_name:currentUser.class_name,
+    check_month:month,
+    answers,
+    updated_at:now
+  };
+
+  // 같은 사용자 + 같은 작성월의 기록을 삭제 여부와 관계없이 확인
+  // DB의 UNIQUE(user_id, check_month) 제약조건과 충돌하지 않도록 기존 행을 재사용함
+  const{data:existing,error:selectError}=await supabaseClient
+    .from("child_rights_checklists")
+    .select("id,is_deleted")
+    .eq("user_id",currentUser.id)
+    .eq("check_month",month)
+    .maybeSingle();
+
+  if(selectError){
+    setMessage("rights-message","저장 전 기존 기록 확인에 실패했습니다: "+selectError.message,"red");
+    return;
+  }
+
+  let result;
+
+  if(existing?.id){
+    const updateRow={
+      ...row,
+      is_deleted:false,
+      deleted_at:null,
+      deleted_by:null,
+      deleted_by_name:null
+    };
+
+    // 삭제된 기록을 다시 작성하는 경우 제출일도 현재 시각으로 갱신
+    if(existing.is_deleted===true){
+      updateRow.submitted_at=now;
+    }
+
+    result=await supabaseClient
+      .from("child_rights_checklists")
+      .update(updateRow)
+      .eq("id",existing.id);
+  }else{
+    row.submitted_at=now;
+    result=await supabaseClient
+      .from("child_rights_checklists")
+      .insert([row]);
+  }
+
+  if(result.error){
+    setMessage("rights-message","체크리스트 저장 실패: "+result.error.message,"red");
+    return;
+  }
+
+  setMessage("rights-message",`${month} 체크리스트가 저장되었습니다.`);
+  await loadMyRightsHistory();
+  if(isChildRightsManager())await loadChildRightsManagerStatus();
+}
 async function loadMyRightsHistory(){const{data,error}=await supabaseClient.from("child_rights_checklists").select("*").eq("user_id",currentUser.id).or("is_deleted.is.null,is_deleted.eq.false").order("check_month",{ascending:false});const list=document.getElementById("my-rights-history-list");list.innerHTML="";if(error){list.innerHTML='<tr><td colspan="4">내 기록을 불러오지 못했습니다.</td></tr>';return}if(!data?.length){list.innerHTML='<tr><td colspan="4">작성 기록이 없습니다.</td></tr>';return}data.forEach(row=>{const at=row.updated_at?new Date(row.updated_at).toLocaleString("ko-KR"):"-";list.innerHTML+=`<tr><td>${row.check_month}</td><td>${at}</td><td><button class="btn-blue" onclick="showRightsDetail('${row.id}','my')">보기</button></td><td><button class="btn-danger" onclick="deleteMyRightsRecord('${row.id}','${row.check_month}')">삭제</button></td></tr>`})}
 async function showRightsDetail(id,target){const{data,error}=await supabaseClient.from("child_rights_checklists").select("*").eq("id",id).or("is_deleted.is.null,is_deleted.eq.false").maybeSingle();const area=document.getElementById(target==="manager"?"rights-manager-detail-area":"my-rights-detail-area");if(error||!data){area.innerHTML='<p class="message" style="color:red">상세 내용을 불러오지 못했습니다.</p>';return}const meta=`<p class="rights-meta"><strong>작성자:</strong> ${escapeHtml(data.teacher_name)} &nbsp;&nbsp; <strong>반:</strong> ${escapeHtml(data.class_name)} &nbsp;&nbsp; <strong>작성월:</strong> ${escapeHtml(data.check_month)} &nbsp;&nbsp; <strong>작성일:</strong> ${data.updated_at?new Date(data.updated_at).toLocaleString("ko-KR"):""}</p>`;area.innerHTML=`<h3>${escapeHtml(data.check_month)} 작성 내용</h3>${rightsIntroHtml()}${meta}${makeRightsReadonlyHtml(data,1,15)}${rightsFooterHtml()}`}
 async function deleteMyRightsRecord(id,month){if(!confirm(`${month} 작성 기록을 삭제하시겠습니까?
