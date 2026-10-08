@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>교사 간식 주문 도우미 | 탕정삼성어린이집</title>
+<style>
+:root{--p:#5146dd;--pd:#3730a3;--bg:#f7f8fc;--card:#fff;--text:#182338;--muted:#68758b;--border:#e4e8f1;--ok:#15803d;--warn:#92400e;--bad:#b91c1c;--shadow:0 8px 28px rgba(19,29,61,.055)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif}
+button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:default}a{color:inherit;text-decoration:none}
+.top{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--border)}.top-in{max-width:1100px;margin:0 auto;padding:13px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px}.brand{font-size:18px;font-weight:900;letter-spacing:-.045em}
+.wrap{max-width:1100px;margin:auto;padding:0 18px 36px}.hero{padding:22px 0 5px}.hero h1{font-size:26px;letter-spacing:-.045em;margin:0}.hero p{margin:6px 0;color:var(--muted);font-size:13px}.tabs{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}.tab{padding:11px 18px;border:1px solid var(--border);border-radius:12px;background:#fff;font-weight:800;color:var(--muted)}.tab.active{color:#fff;border-color:var(--p);background:var(--p)}
+.card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}.card h2,.card h3{margin:0 0 12px}.card h2{font-size:21px}.card h3{font-size:17px}.sub{color:var(--muted);font-size:13px;margin-top:-4px}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.row{display:flex;align-items:center;gap:8px}.wraprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.between{justify-content:space-between}.grow{flex:1}
+.label{display:block;margin:0 0 6px;font-size:13px;font-weight:800}.input,.select{width:100%;border:1px solid #d1d8e5;border-radius:10px;padding:10px 12px;background:#fff;outline:none;min-width:0}.input:focus,.select:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(81,70,221,.10)}.btn{border:0;border-radius:11px;padding:10px 13px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:5px}.btn.primary{color:#fff;background:var(--p)}.btn.primary:hover{background:var(--pd)}.btn.second{background:#eef1f8;color:#31415e}.btn.ghost{background:#fff;color:#334155;border:1px solid var(--border)}.btn.green{background:#16a34a;color:#fff}.btn.danger{background:#fee2e2;color:#b91c1c}.btn.sm{font-size:12px;padding:7px 10px}.btn.full{width:100%}
+.notice{padding:11px 13px;border-radius:12px;margin:12px 0;font-size:13px;line-height:1.6}.notice.info{background:#eef2ff;color:#3730a3}.notice.ok{background:#ecfdf5;color:#166534}.notice.warn{background:#fff7ed;color:#92400e}.notice.bad{background:#fef2f2;color:#991b1b}.menu-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.menu-choice{display:flex;align-items:center;gap:9px;border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;background:#fff}.menu-choice.checked{border-color:var(--p);background:#f0efff}.menu-choice input{accent-color:var(--p);width:18px;height:18px}.menu-choice strong{flex:1;min-width:0}.empty{text-align:center;padding:30px 12px;color:var(--muted);background:#fff;border:1px dashed #cad3e2;border-radius:14px}.empty .emoji{font-size:34px}.tag{display:inline-flex;border-radius:99px;padding:4px 10px;font-size:11px;font-weight:900;background:#e0e7ff;color:#3730a3}.tag.final{background:#dcfce7;color:#166534}.tag.closed{background:#fef3c7;color:#92400e}
+.stat{padding:14px;border-radius:14px;border:1px solid var(--border);background:#fafbfe}.stat small{color:var(--muted);display:block}.stat strong{display:block;font-size:29px;letter-spacing:-.04em}.progress{height:9px;background:#edf0f5;border-radius:50px;overflow:hidden;margin:13px 0}.progress span{display:block;background:var(--p);height:100%;width:0}.tablewrap{overflow:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:570px}th,td{padding:10px 11px;border-bottom:1px solid var(--border);text-align:left;font-size:12px}th{background:#f8fafc;color:#52627b;font-weight:900}tr:last-child td{border-bottom:0}.muted{color:var(--muted)}.menu-edit{display:grid;grid-template-columns:1.5fr .8fr auto;gap:8px;margin-bottom:8px}.order-card{border:1px solid var(--border);border-radius:13px;padding:14px;margin-bottom:9px;background:#fff}.selected-order{border-color:#a5a3f9;background:#f8f7ff}.foot{padding:12px 0 20px;text-align:center;color:var(--muted);font-size:12px}.hidden{display:none!important}
+@media(max-width:720px){.top-in{flex-wrap:wrap}.brand{font-size:16px}.wrap{padding:0 11px 25px}.card{padding:14px}.hero h1{font-size:23px}.grid2,.grid3,.menu-choices{grid-template-columns:1fr}.menu-edit{grid-template-columns:1fr 115px auto}.stat strong{font-size:24px}.tabs .tab{flex:1;padding:10px 8px;font-size:13px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in"><div class="brand">☕ 교사 간식 주문 도우미</div><div class="wraprow"><button class="btn second sm" id="refreshBtn" type="button">↻ 새로고침</button><a class="btn ghost sm" href="index.html">⌂ 통합포털 홈</a></div></div></header>
+<main class="wrap">
+  <div class="hero"><h1>교사 간식 주문</h1><p>통합포털 계정으로 신청하고, 모든 선생님의 주문을 한곳에서 취합합니다.</p></div>
+  <div id="globalMessage"></div>
+  <div id="accountInfo" class="sub"></div>
+  <div class="tabs"><button id="tabTeacher" class="tab active">교사 신청</button><button id="tabManager" class="tab">담당자 관리</button><button id="tabSettings" class="tab hidden">관리자 설정</button></div>
+  <section id="teacher"></section><section id="manager" class="hidden"></section><section id="settings" class="hidden"></section>
+  <div class="foot">교사 신청 기록은 Supabase에 저장됩니다. 담당자 비밀번호는 페이지를 닫으면 다시 입력해야 합니다.</div>
+</main>
+<script>
+'use strict';
+// 통합포털(index.html)에서 이미 사용하고 있는 Supabase 프로젝트의 공개 키입니다.
+// service_role 비밀 키는 브라우저 코드에 절대 입력하지 않습니다.
+const SUPABASE_URL='https://vohcugxfwxdvkbcpjcgl.supabase.co';
+const SUPABASE_PUBLIC_KEY='sb_publishable_Q0cXaglzBaz9Py2oct_NTQ_vMHsUeSQ';
+const API_URL=SUPABASE_URL+'/functions/v1/snack-api';
+const $=(selector,root=document)=>root.querySelector(selector);
+const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const won=n=>(Number(n)||0).toLocaleString('ko-KR')+'원';
+const fmtDate=s=>s?String(s).slice(0,10).replaceAll('-','.'):'-';
+const fmtTime=s=>{if(!s)return'-';let d=new Date(s);return Number.isNaN(d.getTime())?'-':d.toLocaleString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})};
+const localDate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+const localDT=s=>{let d=new Date(s);if(Number.isNaN(d.getTime()))return'';const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`};
+const state={account:null,user:null,isAdmin:false,managerConfigured:false,orders:[],members:[],responses:[],managerPassword:'',mode:'teacher',selectedId:null,loading:false,draft:[{name:'',price:''},{name:'',price:''},{name:'',price:''},{name:'',price:''}],edit:false,editResponse:false};
+function portalAccount(){for(const k of ['libraryCurrentUser','materialsCurrentUser','consumablesCurrentUser','childRightsCurrentUser']){try{let data=JSON.parse(localStorage.getItem(k)||'null');if(data?.id&&typeof data.password==='string'&&data.password)return data}catch{}}return null}
+function showMessage(message='',kind='info'){$('#globalMessage').innerHTML=message?`<div class="notice ${kind}">${esc(message)}</div>`:''}
+async function api(action,payload={},useManager=false){
+  const account=state.account;
+  if(!account)throw Error('통합포털에 다시 로그인해주세요.');
+  const data={action,credential:{id:account.id,password:account.password},...payload};
+  if(useManager)data.managerPassword=state.managerPassword;
+  let res;
+  try{res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLIC_KEY},body:JSON.stringify(data),cache:'no-store'})}
+  catch(e){throw Error('간식 주문 서버에 연결하지 못했습니다. Edge Function 배포와 인터넷 연결을 확인해주세요.')}
+  let result;try{result=await res.json()}catch{throw Error('서버 응답을 읽을 수 없습니다. Edge Function 배포 상태를 확인해주세요.')}
+  if(!res.ok)throw Error(result?.error||`서버 오류 (${res.status})`);
+  return result;
+}
+async function loadBootstrap(silent=false){
+  if(state.loading)return;state.loading=true;
+  try{
+    const result=await api('bootstrap');
+    state.user=result.user;state.isAdmin=result.isAdmin;state.managerConfigured=result.managerConfigured;
+    state.orders=result.orders||[];
+    if(!state.selectedId||!state.orders.some(o=>o.id===state.selectedId))state.selectedId=state.orders[0]?.id||null;
+    $('#accountInfo').textContent=`신청자: ${state.user.name} / ${state.user.class_name}`;
+    $('#tabSettings').classList.toggle('hidden',!state.isAdmin);
+    if(state.managerPassword&&state.mode==='manager')await loadManagerData();
+    if(!silent)showMessage('최신 정보를 불러왔습니다.','ok');
+    render();
+  }catch(err){showMessage(err.message,'bad');if(/다시 로그인/.test(err.message)){$('#teacher').innerHTML='<div class="empty"><a class="btn primary" href="index.html">통합포털 로그인 화면으로 이동</a></div>'}}
+  finally{state.loading=false}
+}
+async function loadManagerData(){
+  if(!state.managerPassword)return;
+  try{let result=await api('manager_data',{},true);state.members=result.members||[];state.responses=result.responses||[];state.orders=result.orders||state.orders;
+    if(!state.selectedId||!state.orders.some(o=>o.id===state.selectedId))state.selectedId=state.orders[0]?.id||null;
+  }catch(e){if(/비밀번호|잠겼|설정해야/.test(e.message))state.managerPassword='';throw e}
+}
+function switchTab(mode){if(mode==='settings'&&!state.isAdmin)return;state.mode=mode;state.edit=false;state.editResponse=false;render()}
+function render(){
+  for(const name of ['teacher','manager','settings']){$('#tab'+(name==='teacher'?'Teacher':name==='manager'?'Manager':'Settings')).classList.toggle('active',state.mode===name);$('#'+name).classList.toggle('hidden',state.mode!==name)}
+  if(state.mode==='teacher')renderTeacher();if(state.mode==='manager')renderManager();if(state.mode==='settings')renderSettings();
+}
+function badge(o){return o.status==='finalized'?'<span class="tag final">주문 확정</span>':Date.now()>=new Date(o.deadline).getTime()?'<span class="tag closed">신청 마감</span>':'<span class="tag">신청 중</span>'}
+function activeTeacherOrder(){return state.orders.find(o=>o.status==='open'&&new Date(o.deadline).getTime()>Date.now())||null}
+function renderTeacher(){
+  const root=$('#teacher');const o=activeTeacherOrder();
+  if(!state.user){root.innerHTML='<div class="empty">로그인 정보를 확인하고 있습니다.</div>';return}
+  if(!o){root.innerHTML='<div class="card"><div class="empty"><div class="emoji">☕</div><h3>현재 신청 가능한 간식 주문이 없습니다.</h3><p>담당자가 주문을 시작하면 이 화면에 표시됩니다.</p></div></div>';return}
+  const isClosed=o.status!=='open'||new Date(o.deadline).getTime()<=Date.now();
+  root.innerHTML=`<div class="card"><div class="wraprow between"><div><div class="sub">${esc(o.round_label)}</div><h2 style="margin:5px 0">${esc(o.outlet)}</h2><div class="sub">배부일 ${fmtDate(o.distribution_date)}</div></div>${badge(o)}</div>
+  <div class="grid3" style="margin-top:14px"><div class="stat"><small>주문하는 곳</small><strong style="font-size:17px">${esc(o.outlet)}</strong></div><div class="stat"><small>배부일</small><strong style="font-size:17px">${fmtDate(o.distribution_date)}</strong></div><div class="stat"><small>신청 마감</small><strong style="font-size:15px">${fmtTime(o.deadline)}</strong></div></div></div>
+  <div class="card"><h3>내 간식 신청</h3><div class="notice info"><b>${esc(state.user.name)}</b> / ${esc(state.user.class_name)} 계정으로 신청합니다. 같은 계정에서 마감 전까지 변경할 수 있습니다.</div>
+  <div class="label">주문할 음료 1개를 선택해주세요</div><div class="menu-choices">${o.menus.map(m=>`<label class="menu-choice ${o.my_menu_id===m.id?'checked':''}"><input type="radio" name="teacherMenu" value="${m.id}" ${o.my_menu_id===m.id?'checked':''} ${isClosed?'disabled':''}><strong>${esc(m.name)}</strong></label>`).join('')}</div>
+  <button id="saveTeacher" class="btn primary full" style="margin-top:14px" ${isClosed?'disabled':''}>${o.my_menu_id?'선택 변경·저장':'신청하기'}</button><div id="teacherResult"></div></div>`;
+  $$('input[name="teacherMenu"]').forEach(x=>x.onchange=()=>{$$('.menu-choice').forEach(l=>l.classList.remove('checked'));x.closest('label').classList.add('checked')});
+  $('#saveTeacher').onclick=async()=>{const menuId=$('input[name="teacherMenu"]:checked')?.value;if(!menuId)return alert('음료를 선택해주세요.');
+    const b=$('#saveTeacher');b.disabled=true;try{await api('teacher_submit',{orderId:o.id,menuId});o.my_menu_id=menuId;$('#teacherResult').innerHTML='<div class="notice ok">간식 신청이 저장되었습니다. 다른 기기에서도 확인할 수 있습니다.</div>';showMessage('신청이 저장되었습니다.','ok')}
+    catch(e){showMessage(e.message,'bad')}finally{b.disabled=false}};
+}
+function renderSettings(){const root=$('#settings');if(!state.isAdmin){root.innerHTML='';return}
+  root.innerHTML=`<div class="card" style="max-width:620px"><h2>🔐 담당자 비밀번호 ${state.managerConfigured?'변경':'최초 설정'}</h2>
+  <p class="sub">통합포털 관리자만 설정·변경할 수 있습니다. 비밀번호를 아는 승인된 선생님은 담당자 관리 화면에 접근할 수 있습니다.</p>
+  ${state.managerConfigured?'<div class="notice warn">비밀번호를 변경하면 기존 비밀번호로는 담당자 화면에 들어갈 수 없습니다. 담당 선생님께 새 비밀번호를 전달해주세요.</div>':'<div class="notice info">현재 설정된 담당자 비밀번호가 없습니다. 최초 설정 후 담당자 관리가 활성화됩니다.</div>'}
+  <label class="label">새 담당자 비밀번호 (8자 이상)</label><input class="input" id="newManagerPw" type="password" autocomplete="new-password" placeholder="새 비밀번호">
+  <label class="label" style="margin-top:10px">새 비밀번호 확인</label><input class="input" id="newManagerPwAgain" type="password" autocomplete="new-password" placeholder="비밀번호 재입력">
+  <button class="btn primary" id="setManagerPw" style="margin-top:12px">${state.managerConfigured?'비밀번호 변경':'비밀번호 설정'}</button></div>`;
+  $('#setManagerPw').onclick=async()=>{const password=$('#newManagerPw').value;if(password!==$('#newManagerPwAgain').value)return alert('비밀번호 확인이 일치하지 않습니다.');if(password.length<8)return alert('8자 이상 입력해주세요.');
+    if(!confirm('담당자 비밀번호를 '+(state.managerConfigured?'변경':'설정')+'할까요?'))return;
+    const b=$('#setManagerPw');b.disabled=true;try{await api('admin_set_password',{newPassword:password});state.managerConfigured=true;state.managerPassword='';state.members=[];state.responses=[];showMessage('담당자 비밀번호가 저장되었습니다.','ok');renderSettings()}
+    catch(e){showMessage(e.message,'bad')}finally{b.disabled=false}};
+}
+function renderManager(){const root=$('#manager');if(!state.managerConfigured){root.innerHTML='<div class="card"><div class="empty"><div class="emoji">🔒</div><h3>담당자 비밀번호가 아직 설정되지 않았습니다.</h3><p>통합포털 관리자가 관리자 설정 탭에서 먼저 비밀번호를 설정해주세요.</p></div></div>';return}
+  if(!state.managerPassword){root.innerHTML=`<div class="card" style="max-width:520px;margin:0 auto"><h2>🔐 담당자 로그인</h2><p class="sub">관리자가 설정한 공유 비밀번호를 입력해주세요.</p><input class="input" id="managerLoginPw" type="password" autocomplete="off" placeholder="담당자 비밀번호"><button class="btn primary full" id="managerLoginBtn" style="margin-top:10px">담당자 관리 열기</button></div>`;
+    $('#managerLoginBtn').onclick=async()=>{let pass=$('#managerLoginPw').value;if(!pass)return;let btn=$('#managerLoginBtn');btn.disabled=true;
+      try{await api('manager_login',{managerPassword:pass});state.managerPassword=pass;await loadManagerData();showMessage('담당자 관리 화면을 열었습니다.','ok');render()}
+      catch(e){state.managerPassword='';showMessage(e.message,'bad')}finally{btn.disabled=false}};
+    $('#managerLoginPw').onkeydown=e=>{if(e.key==='Enter')$('#managerLoginBtn').click()};return}
+  const o=state.orders.find(o=>o.id===state.selectedId)||state.orders[0]||null;
+  root.innerHTML=`<div class="wraprow between" style="margin:0 0 12px"><div><h2 style="margin:0">담당자 관리</h2><div class="sub">전체 ${state.members.length}명 · Supabase 공동 저장</div></div><button id="managerLogout" class="btn second sm">담당자 화면 잠금</button></div>
+  <div class="grid2"><div class="card"><h3>① 교직원 명단</h3><div class="notice info">통합포털에서 승인된 교직원 명단을 자동으로 사용합니다. 명단 수정·계정 등록은 통합포털 관리자 페이지에서 진행해주세요.</div><div class="tablewrap" style="max-height:310px"><table style="min-width:0"><thead><tr><th>소속</th><th>이름</th></tr></thead><tbody>${state.members.map(m=>`<tr><td>${esc(m.class_name)}</td><td>${esc(m.name)}</td></tr>`).join('')||'<tr><td colspan="2">승인된 교직원이 없습니다.</td></tr>'}</tbody></table></div></div>
+  <div class="card"><h3>② 새 간식 주문 만들기</h3><label class="label">주문하는 곳</label><input id="newOutlet" class="input" placeholder="예: 읍천리 커피"><div class="grid2" style="margin-top:10px"><div><label class="label">배부일</label><input id="newDist" type="date" class="input" value="${localDate()}"></div><div><label class="label">신청 마감 날짜</label><input id="newDeadlineDate" type="date" class="input" value="${localDate()}"></div></div><div style="margin-top:10px"><label class="label">신청 마감 시간</label><input id="newDeadlineTime" type="time" class="input" value="18:00"></div><div style="margin-top:12px"><label class="label">음료 이름과 금액 (최대 5개)</label><div id="newMenuEditor"></div><button class="btn second sm" id="addMenu">+ 음료 추가</button></div><button class="btn green full" id="createOrder" style="margin-top:14px">간식 신청 시작</button></div></div>
+  <div class="card"><div class="wraprow between" style="margin-bottom:12px"><h3 style="margin:0">③ 주문 집계</h3><button class="btn second sm" id="exportCSV" ${o?'':'disabled'}>현재 주문 CSV 저장</button></div><div id="dashboard">${o?dashboard(o):'<div class="empty">주문 내역이 없습니다.</div>'}</div></div>
+  <div class="card"><h3>④ 주문 회차 내역</h3><div class="tablewrap"><table><thead><tr><th>회차</th><th>주문처</th><th>배부일</th><th>상태</th><th>신청</th><th>금액</th><th></th></tr></thead><tbody>${state.orders.map(v=>`<tr><td>${esc(v.round_label)}</td><td>${esc(v.outlet)}</td><td>${fmtDate(v.distribution_date)}</td><td>${badge(v)}</td><td>${responsesFor(v).length}명</td><td>${won(total(v))}</td><td><button class="btn ${o?.id===v.id?'primary':'second'} sm" data-select="${v.id}">열기</button></td></tr>`).join('')||'<tr><td colspan="7">주문 내역이 없습니다.</td></tr>'}</tbody></table></div></div>`;
+  $('#managerLogout').onclick=()=>{state.managerPassword='';state.members=[];state.responses=[];showMessage('담당자 화면을 잠갔습니다.','info');render()};
+  $('#addMenu').onclick=()=>{readDraft();if(state.draft.length>=5)return alert('음료는 최대 5개입니다.');state.draft.push({name:'',price:''});drawCreateMenu()};
+  drawCreateMenu();$('#createOrder').onclick=createOrder;
+  $('#exportCSV').onclick=()=>downloadCSV(o);
+  $$('[data-select]').forEach(b=>b.onclick=()=>{readDraft();state.selectedId=b.dataset.select;state.edit=false;state.editResponse=false;renderManager()});
+  if(o)bindDashboard(o);
+}
+function drawCreateMenu(){let root=$('#newMenuEditor');if(!root)return;root.innerHTML=state.draft.map((m,i)=>`<div class="menu-edit"><input class="input" data-draft-name="${i}" placeholder="음료 ${i+1} 이름" value="${esc(m.name)}"><input class="input" data-draft-price="${i}" type="number" min="0" placeholder="금액" value="${esc(m.price)}"><button class="btn ghost sm" data-rm="${i}" type="button">삭제</button></div>`).join('');$$('[data-rm]').forEach(b=>b.onclick=()=>{readDraft();if(state.draft.length===1)return alert('최소 한 개의 음료가 필요합니다.');state.draft.splice(Number(b.dataset.rm),1);drawCreateMenu()})}
+function readDraft(){if(!$('#newMenuEditor'))return;$$('[data-draft-name]').forEach(x=>{state.draft[Number(x.dataset.draftName)].name=x.value});$$('[data-draft-price]').forEach(x=>{state.draft[Number(x.dataset.draftPrice)].price=x.value})}
+async function createOrder(){readDraft();const outlet=$('#newOutlet').value.trim(),dist=$('#newDist').value,dd=$('#newDeadlineDate').value,dt=$('#newDeadlineTime').value;let menus=state.draft.filter(m=>m.name.trim()).map(m=>({name:m.name.trim(),price:Number(m.price)}));
+  if(!outlet||!dist||!dd||!dt)return alert('주문처, 배부일, 마감 시간을 입력해주세요.');if(!menus.length)return alert('음료를 한 개 이상 입력해주세요.');
+  if(!confirm('새 간식 신청을 시작할까요?'))return;let b=$('#createOrder');b.disabled=true;
+  try{let r=await api('create_order',{outlet,distributionDate:dist,deadline:new Date(`${dd}T${dt}`).toISOString(),menus},true);state.selectedId=r.orderId;state.draft=[{name:'',price:''},{name:'',price:''},{name:'',price:''},{name:'',price:''}];await loadManagerData();showMessage('새 간식 주문이 시작되었습니다.','ok');renderManager()}
+  catch(e){showMessage(e.message,'bad')}finally{b.disabled=false}}
+function responsesFor(o){return state.responses.filter(r=>r.order_id===o.id)}
+function total(o){let rs=responsesFor(o);return rs.reduce((sum,r)=>sum+(Number(o.menus.find(m=>m.id===r.menu_id)?.price)||0),0)}
+function dashboard(o){const rs=responsesFor(o),answered=state.members.filter(m=>rs.some(r=>r.user_id===m.id)).length,missing=state.members.filter(m=>!rs.some(r=>r.user_id===m.id));const pct=state.members.length?Math.round(100*answered/state.members.length):0;
+  return `<div class="wraprow between"><div><div class="sub">${esc(o.round_label)}</div><h2 style="margin:4px 0">${esc(o.outlet)}</h2><div class="sub">배부일 ${fmtDate(o.distribution_date)} · 마감 ${fmtTime(o.deadline)}</div></div>${badge(o)}</div>
+  <div class="grid3" style="margin-top:14px"><div class="stat"><small>전체 인원</small><strong>${state.members.length}명</strong></div><div class="stat"><small>신청 완료</small><strong>${answered}명</strong></div><div class="stat"><small>미응답</small><strong>${missing.length}명</strong></div></div><div class="progress"><span style="width:${pct}%"></span></div>
+  <div class="grid2"><div><h3 style="margin-top:10px">음료별 집계</h3><div class="tablewrap"><table style="min-width:0"><thead><tr><th>음료</th><th>수량</th><th>단가</th><th>금액</th></tr></thead><tbody>${o.menus.map(m=>{let count=rs.filter(r=>r.menu_id===m.id).length;return `<tr><td>${esc(m.name)}</td><td>${count}</td><td>${won(m.price)}</td><td>${won(count*m.price)}</td></tr>`}).join('')}<tr><td><b>합계</b></td><td>${rs.length}</td><td>—</td><td><b>${won(total(o))}</b></td></tr></tbody></table></div></div>
+  <div><h3 style="margin-top:10px">미응답 교직원</h3>${missing.length?`<div class="notice warn">${missing.length}명이 아직 신청하지 않았습니다. 연차·휴무 등은 담당자가 확인해주세요.</div><div class="tablewrap" style="max-height:240px"><table style="min-width:0"><thead><tr><th>소속</th><th>이름</th></tr></thead><tbody>${missing.map(m=>`<tr><td>${esc(m.class_name)}</td><td>${esc(m.name)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="notice ok">현재 명단의 모든 선생님이 신청했습니다.</div>'}</div></div>
+  <div class="wraprow" style="margin-top:15px"><button id="finalize" class="btn primary" ${o.status==='finalized'?'disabled':''}>${o.status==='finalized'?'주문 확정 완료':'주문 확정'}</button><button id="editOrder" class="btn second">주문 정보 수정</button><button id="showResponses" class="btn second">교사별 주문 확인·수정</button></div>
+  <div id="dashboardExtra">${state.edit?editOrderHtml(o):state.editResponse?editResponseHtml(o):''}</div>`;
+}
+function editOrderHtml(o){return `<div class="card" style="margin-top:14px;border-color:#b6b3ff"><h3>주문 정보 수정</h3><div class="grid2"><div><label class="label">주문처</label><input id="editOutlet" class="input" value="${esc(o.outlet)}"></div><div><label class="label">배부일</label><input id="editDist" class="input" type="date" value="${esc(o.distribution_date)}"></div></div><label class="label" style="margin-top:12px">신청 마감</label><input id="editDeadline" type="datetime-local" class="input" value="${localDT(o.deadline)}"><h3 style="margin-top:16px">메뉴 및 금액</h3>${o.menus.map((m,i)=>`<div class="menu-edit"><input class="input" data-edit-name="${esc(m.id)}" value="${esc(m.name)}"><input class="input" data-edit-price="${esc(m.id)}" type="number" min="0" value="${m.price}"><span></span></div>`).join('')}<div class="wraprow" style="margin-top:12px"><button id="saveEdit" class="btn primary">수정 저장</button><button id="cancelExtra" class="btn ghost">취소</button></div></div>`}
+function editResponseHtml(o){let rs=responsesFor(o);return `<div class="card" style="margin-top:14px;border-color:#b6b3ff"><h3>교사별 주문 내역 / 담당자 수정</h3><p class="sub">마감·확정 이후에도 담당자는 주문 내용을 변경할 수 있습니다.</p><div class="tablewrap" style="max-height:500px"><table><thead><tr><th>소속</th><th>이름</th><th>주문 음료</th></tr></thead><tbody>${state.members.map(m=>{let selected=rs.find(r=>r.user_id===m.id)?.menu_id||'';return `<tr><td>${esc(m.class_name)}</td><td>${esc(m.name)}</td><td><select class="select" data-response-user="${esc(m.id)}" data-before="${esc(selected)}"><option value="">미응답</option>${o.menus.map(menu=>`<option value="${menu.id}" ${menu.id===selected?'selected':''}>${esc(menu.name)}</option>`).join('')}</select></td></tr>`}).join('')}</tbody></table></div><div class="wraprow" style="margin-top:12px"><button id="saveResponses" class="btn primary">변경 내용 저장</button><button id="cancelExtra" class="btn ghost">닫기</button></div></div>`}
+function bindDashboard(o){
+  $('#finalize').onclick=async()=>{if(!confirm(`신청 ${responsesFor(o).length}명 / 총 ${won(total(o))}\n주문을 확정할까요?`))return;try{await api('finalize_order',{orderId:o.id},true);await loadManagerData();showMessage('주문을 확정했습니다.','ok');renderManager()}catch(e){showMessage(e.message,'bad')}};
+  $('#editOrder').onclick=()=>{readDraft();state.edit=!state.edit;state.editResponse=false;renderManager()};
+  $('#showResponses').onclick=()=>{readDraft();state.editResponse=!state.editResponse;state.edit=false;renderManager()};
+  if($('#cancelExtra'))$('#cancelExtra').onclick=()=>{state.edit=state.editResponse=false;renderManager()};
+  if($('#saveEdit'))$('#saveEdit').onclick=async()=>{let menus=o.menus.map(m=>({id:m.id,name:$(`[data-edit-name="${m.id}"]`).value.trim(),price:Number($(`[data-edit-price="${m.id}"]`).value)}));let deadline=new Date($('#editDeadline').value);if(Number.isNaN(deadline.getTime()))return alert('마감일을 확인해주세요.');
+    try{await api('edit_order',{orderId:o.id,outlet:$('#editOutlet').value,distributionDate:$('#editDist').value,deadline:deadline.toISOString(),menus},true);state.edit=false;await loadManagerData();showMessage('주문 정보를 수정했습니다.','ok');renderManager()}catch(e){showMessage(e.message,'bad')}};
+  if($('#saveResponses'))$('#saveResponses').onclick=async()=>{const changes=$$('[data-response-user]').filter(s=>s.value!==s.dataset.before);if(!changes.length)return alert('변경된 내용이 없습니다.');if(!confirm(`${changes.length}명의 주문을 수정할까요?`))return;
+    let saved=0;try{for(let s of changes){await api('manager_update_response',{orderId:o.id,userId:s.dataset.responseUser,menuId:s.value||null},true);saved++}state.editResponse=false;await loadManagerData();showMessage(`${saved}명의 신청을 수정했습니다. 집계가 업데이트되었습니다.`,'ok');renderManager()}
+    catch(e){showMessage(`${saved}명 수정 후 오류: ${e.message}`,'bad');try{await loadManagerData();renderManager()}catch{}}};
+}
+function downloadCSV(o){if(!o)return;const rows=[['회차',o.round_label],['주문처',o.outlet],['배부일',o.distribution_date],['마감',fmtTime(o.deadline)],[],['소속','이름','음료','금액']];const rs=responsesFor(o);
+  state.members.forEach(m=>{const r=rs.find(v=>v.user_id===m.id),menu=o.menus.find(v=>v.id===r?.menu_id);rows.push([m.class_name,m.name,menu?.name||'미응답',menu?.price||0])});rows.push(['합계','','',total(o)]);
+  const csv='\ufeff'+rows.map(row=>row.map(cell=>'"'+String(cell??'').replaceAll('"','""')+'"').join(',')).join('\r\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});let url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='교사간식_'+o.round_label+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000)}
+$('#tabTeacher').onclick=()=>switchTab('teacher');$('#tabManager').onclick=()=>switchTab('manager');$('#tabSettings').onclick=()=>switchTab('settings');
+$('#refreshBtn').onclick=async()=>{try{if(state.managerPassword&&state.mode==='manager'){await loadManagerData();showMessage('최신 주문 집계를 불러왔습니다.','ok');render()}else await loadBootstrap(false)}catch(e){showMessage(e.message,'bad');render()}};
+async function initialize(){state.account=portalAccount();if(!state.account){showMessage('통합포털에서 로그인한 후 이용해주세요.','warn');$('#accountInfo').textContent='로그인 정보 없음';$('#teacher').innerHTML='<div class="empty"><a class="btn primary" href="index.html">통합포털 로그인</a></div>';return}
+  await loadBootstrap(true);
+  // 담당자 화면은 30초마다 데이터 자동 갱신. 비밀번호는 저장하지 않습니다.
+  setInterval(async()=>{if(document.hidden||state.loading||state.mode!=='manager'||!state.managerPassword||state.edit||state.editResponse||$('#manager')?.contains(document.activeElement))return;try{await loadManagerData();renderManager()}catch(e){showMessage(e.message,'bad');renderManager()}},30000);
+}
+initialize();
+</script>
+</body>
+</html>
