@@ -1,0 +1,2453 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학원 귀가 비상연락망 관리</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                     "Noto Sans KR", Arial, sans-serif;
+        background: #f5f7fa;
+        color: #263238;
+    }
+
+    button,
+    input,
+    select {
+        font: inherit;
+    }
+
+    button {
+        cursor: pointer;
+    }
+
+    .app {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+
+    /* HEADER */
+    .header {
+        background: white;
+        border-radius: 16px;
+        padding: 24px 28px;
+        margin-bottom: 18px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }
+
+    .header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .title-area h1 {
+        margin: 0 0 8px;
+        font-size: 26px;
+    }
+
+    .title-area p {
+        margin: 0;
+        color: #68737d;
+        font-size: 14px;
+    }
+
+    .update-info {
+        background: #f1f5f9;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #52606d;
+        white-space: nowrap;
+    }
+
+    /* NAV */
+    .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 18px;
+    }
+
+    .nav button {
+        border: 1px solid #d7dde3;
+        background: white;
+        color: #45515c;
+        border-radius: 9px;
+        padding: 10px 16px;
+        transition: 0.15s;
+    }
+
+    .nav button:hover {
+        background: #f1f5f9;
+    }
+
+    .nav button.active {
+        background: #374151;
+        border-color: #374151;
+        color: white;
+        font-weight: 600;
+    }
+
+    /* TOOLBAR */
+    .toolbar {
+        background: white;
+        padding: 16px;
+        border-radius: 14px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 240px;
+        position: relative;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 11px 14px;
+        border: 1px solid #d5dbe1;
+        border-radius: 9px;
+        outline: none;
+    }
+
+    .search-box input:focus {
+        border-color: #7c8793;
+    }
+
+    .btn {
+        border: none;
+        border-radius: 9px;
+        padding: 11px 16px;
+        font-weight: 600;
+        transition: 0.15s;
+    }
+
+    .btn-primary {
+        background: #374151;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1f2937;
+    }
+
+    .btn-secondary {
+        background: #e9eef2;
+        color: #34404b;
+    }
+
+    .btn-secondary:hover {
+        background: #dfe5ea;
+    }
+
+    .btn-danger {
+        background: #fbe4e4;
+        color: #b42318;
+    }
+
+    .btn-danger:hover {
+        background: #f8d1d1;
+    }
+
+    .btn-small {
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 7px;
+    }
+
+    /* CONTENT */
+    .content-card {
+        background: white;
+        border-radius: 16px;
+        padding: 22px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 18px;
+    }
+
+    .section-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    .section-title h2 {
+        margin: 0;
+        font-size: 20px;
+    }
+
+    .section-title span {
+        color: #77818b;
+        font-size: 13px;
+    }
+
+    /* FILTER */
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-bottom: 20px;
+    }
+
+    .class-filter {
+        border: 1px solid #d5dbe1;
+        background: white;
+        color: #45515c;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+    }
+
+    .class-filter.active {
+        background: #374151;
+        color: white;
+        border-color: #374151;
+    }
+
+    /* ACADEMY */
+    .academy-section {
+        border: 1px solid #e0e5ea;
+        border-radius: 13px;
+        margin-bottom: 16px;
+        overflow: hidden;
+    }
+
+    .academy-header {
+        background: #f8fafb;
+        padding: 15px 17px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        border-bottom: 1px solid #e0e5ea;
+    }
+
+    .academy-name {
+        font-size: 17px;
+        font-weight: 700;
+    }
+
+    .academy-contact {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        color: #64717d;
+        font-size: 12px;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 760px;
+    }
+
+    th {
+        background: #fafbfc;
+        font-size: 12px;
+        color: #697681;
+        font-weight: 600;
+        padding: 10px 8px;
+        border-bottom: 1px solid #e3e7eb;
+        text-align: center;
+    }
+
+    td {
+        padding: 11px 8px;
+        border-bottom: 1px solid #edf0f2;
+        font-size: 13px;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+
+    .class-name {
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .child-name {
+        font-weight: 600;
+    }
+
+    .time {
+        display: block;
+        color: #596773;
+        font-size: 11px;
+        margin-top: 2px;
+    }
+
+    .empty {
+        text-align: center;
+        padding: 50px 20px;
+        color: #87919a;
+    }
+
+    .empty-icon {
+        font-size: 32px;
+        margin-bottom: 8px;
+    }
+
+    /* MODAL */
+    .modal-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(20, 27, 34, 0.48);
+        z-index: 1000;
+        padding: 20px;
+        overflow-y: auto;
+    }
+
+    .modal-backdrop.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal {
+        width: min(620px, 100%);
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+
+    .modal.large {
+        width: min(800px, 100%);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 20px;
+    }
+
+    .close-btn {
+        width: 34px;
+        height: 34px;
+        border: none;
+        background: #f1f3f5;
+        border-radius: 50%;
+        font-size: 18px;
+        color: #56616b;
+    }
+
+    .form-group {
+        margin-bottom: 17px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #3e4852;
+    }
+
+    .required {
+        color: #c0392b;
+    }
+
+    input[type="text"],
+    input[type="tel"],
+    input[type="time"],
+    select {
+        width: 100%;
+        padding: 11px 12px;
+        border: 1px solid #d2d8de;
+        border-radius: 8px;
+        outline: none;
+        background: white;
+    }
+
+    input:focus,
+    select:focus {
+        border-color: #7a8793;
+    }
+
+    .academy-add-row {
+        display: flex;
+        gap: 8px;
+    }
+
+    .academy-add-row select {
+        flex: 1;
+    }
+
+    .weekday-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+    }
+
+    .weekday-item {
+        border: 1px solid #d7dde3;
+        border-radius: 9px;
+        padding: 9px;
+        background: #fafbfc;
+    }
+
+    .weekday-item label {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-bottom: 7px;
+        font-size: 12px;
+    }
+
+    .weekday-item input[type="time"] {
+        padding: 8px 6px;
+        font-size: 12px;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 22px;
+        padding-top: 16px;
+        border-top: 1px solid #e6e9ec;
+    }
+
+    /* ACADEMY MANAGEMENT */
+    .academy-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .academy-item {
+        border: 1px solid #e0e5ea;
+        border-radius: 10px;
+        padding: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .academy-item-info strong {
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    .academy-item-info span {
+        font-size: 12px;
+        color: #717d87;
+    }
+
+    .academy-item-actions {
+        display: flex;
+        gap: 6px;
+    }
+
+    /* HISTORY */
+    .history-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 15px;
+    }
+
+    .history-table {
+        overflow-x: auto;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #f1f3f5;
+        color: #68737d;
+        font-size: 11px;
+    }
+
+    /* TOAST */
+    .toast {
+        position: fixed;
+        left: 50%;
+        bottom: 25px;
+        transform: translateX(-50%) translateY(20px);
+        background: #27313a;
+        color: white;
+        padding: 12px 18px;
+        border-radius: 9px;
+        font-size: 13px;
+        opacity: 0;
+        pointer-events: none;
+        transition: 0.25s;
+        z-index: 2000;
+    }
+
+    .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    /* MOBILE */
+    @media (max-width: 700px) {
+        .app {
+            padding: 12px;
+        }
+
+        .header {
+            padding: 18px;
+        }
+
+        .header-top {
+            flex-direction: column;
+        }
+
+        .update-info {
+            white-space: normal;
+        }
+
+        .content-card {
+            padding: 15px;
+        }
+
+        .weekday-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .academy-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+        <div class="header-top">
+            <div class="title-area">
+                <h1>학원 귀가 비상연락망</h1>
+                <p>학원별·학급별 학원 귀가 아동 정보를 한눈에 관리합니다.</p>
+            </div>
+
+            <div class="update-info" id="lastUpdated">
+                자료 최종 업데이트: -
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN NAV -->
+    <nav class="nav">
+        <button class="active" data-page="home">전체 현황</button>
+        <button data-page="academy">학원 관리</button>
+        <button data-page="history">이력 관리</button>
+    </nav>
+
+    <!-- HOME PAGE -->
+    <main id="homePage">
+
+        <div class="toolbar">
+            <div class="search-box">
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="아동 이름 또는 학원명을 검색하세요."
+                    oninput="renderHome()"
+                >
+            </div>
+
+            <button class="btn btn-primary" onclick="openChildModal()">
+                + 아동 등록
+            </button>
+
+            <button class="btn btn-secondary" onclick="openAcademyModal()">
+                + 새로운 학원 추가
+            </button>
+        </div>
+
+        <div class="content-card">
+            <div class="section-title">
+                <h2>학급별 조회</h2>
+                <span id="currentFilterText">전체 학급</span>
+            </div>
+
+            <div class="filter-row" id="classFilters"></div>
+        </div>
+
+        <div id="homeContent"></div>
+
+    </main>
+
+    <!-- ACADEMY MANAGEMENT PAGE -->
+    <main id="academyPage" style="display:none;">
+
+        <div class="content-card">
+            <div class="section-title">
+                <div>
+                    <h2>학원 관리</h2>
+                    <span>학원 목록과 연락처를 관리합니다.</span>
+                </div>
+
+                <button class="btn btn-primary" onclick="openAcademyModal()">
+                    + 새로운 학원 추가
+                </button>
+            </div>
+
+            <div class="academy-list" id="academyList"></div>
+        </div>
+
+    </main>
+
+    <!-- HISTORY PAGE -->
+    <main id="historyPage" style="display:none;">
+
+        <div class="content-card">
+            <div class="section-title">
+                <div>
+                    <h2>이력 관리</h2>
+                    <span>현재 학원 귀가 목록에서 제외된 과거 기록입니다.</span>
+                </div>
+            </div>
+
+            <div class="history-filter">
+                <input
+                    type="text"
+                    id="historySearch"
+                    placeholder="아동 이름 또는 학원명 검색"
+                    oninput="renderHistory()"
+                    style="max-width:320px;"
+                >
+            </div>
+
+            <div id="historyContent"></div>
+        </div>
+
+    </main>
+
+</div>
+
+
+<!-- CHILD MODAL -->
+<div class="modal-backdrop" id="childModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="childModalTitle">학원 귀가 아동 등록</h2>
+            <button class="close-btn" onclick="closeModal('childModal')">×</button>
+        </div>
+
+        <input type="hidden" id="editingChildId">
+
+        <div class="form-group">
+            <label>학급 <span class="required">*</span></label>
+            <select id="childClass"></select>
+        </div>
+
+        <div class="form-group">
+            <label>아동 이름 <span class="required">*</span></label>
+            <input
+                type="text"
+                id="childName"
+                placeholder="아동 이름을 입력하세요."
+            >
+        </div>
+
+        <div class="form-group">
+            <label>학원 <span class="required">*</span></label>
+
+            <div class="academy-add-row">
+                <select id="childAcademy"></select>
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onclick="openAcademyModal(true)"
+                >
+                    + 학원 추가
+                </button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>픽업 요일 및 시간</label>
+
+            <div class="weekday-grid">
+
+                <div class="weekday-item">
+                    <label>
+                        <input type="checkbox" id="monCheck">
+                        월
+                    </label>
+                    <input type="time" id="monTime" disabled>
+                </div>
+
+                <div class="weekday-item">
+                    <label>
+                        <input type="checkbox" id="tueCheck">
+                        화
+                    </label>
+                    <input type="time" id="tueTime" disabled>
+                </div>
+
+                <div class="weekday-item">
+                    <label>
+                        <input type="checkbox" id="wedCheck">
+                        수
+                    </label>
+                    <input type="time" id="wedTime" disabled>
+                </div>
+
+                <div class="weekday-item">
+                    <label>
+                        <input type="checkbox" id="thuCheck">
+                        목
+                    </label>
+                    <input type="time" id="thuTime" disabled>
+                </div>
+
+                <div class="weekday-item">
+                    <label>
+                        <input type="checkbox" id="friCheck">
+                        금
+                    </label>
+                    <input type="time" id="friTime" disabled>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button
+                class="btn btn-secondary"
+                onclick="closeModal('childModal')"
+            >
+                취소
+            </button>
+
+            <button
+                class="btn btn-primary"
+                onclick="saveChild()"
+            >
+                저장
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ACADEMY MODAL -->
+<div class="modal-backdrop" id="academyModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="academyModalTitle">새로운 학원 추가</h2>
+            <button class="close-btn" onclick="closeModal('academyModal')">×</button>
+        </div>
+
+        <input type="hidden" id="editingAcademyId">
+
+        <div class="form-group">
+            <label>학원명 <span class="required">*</span></label>
+            <input
+                type="text"
+                id="academyName"
+                placeholder="예: ○○태권도"
+            >
+        </div>
+
+        <div class="form-group">
+            <label>학원 전화번호 <span class="required">*</span></label>
+            <input
+                type="tel"
+                id="academyPhone"
+                placeholder="예: 041-000-0000"
+            >
+        </div>
+
+        <div class="form-group">
+            <label>학원 귀가 담당자 전화번호 <span class="required">*</span></label>
+            <input
+                type="tel"
+                id="academyReturnPhone"
+                placeholder="예: 010-0000-0000"
+            >
+        </div>
+
+        <div class="modal-footer">
+            <button
+                class="btn btn-secondary"
+                onclick="closeModal('academyModal')"
+            >
+                취소
+            </button>
+
+            <button
+                class="btn btn-primary"
+                onclick="saveAcademy()"
+            >
+                저장
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+
+<script>
+/* =========================================================
+   학원 귀가 비상연락망 관리
+   외부 라이브러리 / 서버 / API 없이 동작
+   ========================================================= */
+
+
+/* ---------------------------------------------------------
+   1. 기본 설정
+   --------------------------------------------------------- */
+
+const CLASS_GROUPS = [
+    {
+        age: "1세",
+        classes: ["햇빛반", "달빛반", "별빛반", "풀빛반", "온빛반"]
+    },
+    {
+        age: "2세",
+        classes: ["예빛반", "봄빛반", "꿈빛반", "물빛반"]
+    },
+    {
+        age: "3세",
+        classes: ["새빛반", "한빛반", "은빛반"]
+    },
+    {
+        age: "4세",
+        classes: ["꽃빛반", "윤빛반"]
+    },
+    {
+        age: "5세",
+        classes: ["솔빛반", "들빛반"]
+    }
+];
+
+const ALL_CLASSES = CLASS_GROUPS.flatMap(group => group.classes);
+
+const WEEKDAYS = [
+    { key: "mon", label: "월" },
+    { key: "tue", label: "화" },
+    { key: "wed", label: "수" },
+    { key: "thu", label: "목" },
+    { key: "fri", label: "금" }
+];
+
+let currentClassFilter = "전체";
+
+
+/* ---------------------------------------------------------
+   2. 데이터 저장
+   --------------------------------------------------------- */
+
+let academies = JSON.parse(
+    localStorage.getItem("academyData") || "[]"
+);
+
+let children = JSON.parse(
+    localStorage.getItem("childData") || "[]"
+);
+
+let historyData = JSON.parse(
+    localStorage.getItem("historyData") || "[]"
+);
+
+let lastUpdated = localStorage.getItem("lastUpdated") || "";
+
+
+/* ---------------------------------------------------------
+   3. 초기화
+   --------------------------------------------------------- */
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    initializeDefaultAcademies();
+
+    setupWeekdayControls();
+
+    populateClassSelect();
+
+    populateAcademySelect();
+
+    renderClassFilters();
+
+    renderHome();
+
+    renderAcademies();
+
+    renderHistory();
+
+    updateLastUpdatedDisplay();
+
+    setupNavigation();
+});
+
+
+/* ---------------------------------------------------------
+   4. 기본 학원 목록
+   --------------------------------------------------------- */
+
+/*
+    처음 사용하는 교사가 별도로 학원을 하나씩 등록하지 않아도
+    선택할 수 있도록 자주 사용할 수 있는 기본 목록을 제공합니다.
+
+    전화번호는 실제 정보가 아니므로 비워둡니다.
+    실제 사용 시 학원 관리에서 수정하여 입력하면 됩니다.
+*/
+
+function initializeDefaultAcademies() {
+
+    if (academies.length > 0) {
+        return;
+    }
+
+    const defaultNames = [
+        "태권도",
+        "피아노",
+        "미술",
+        "영어",
+        "음악"
+    ];
+
+    academies = defaultNames.map(name => ({
+        id: createId(),
+        name: name,
+        phone: "",
+        returnPhone: ""
+    }));
+
+    saveAcademies();
+}
+
+
+/* ---------------------------------------------------------
+   5. ID 생성
+   --------------------------------------------------------- */
+
+function createId() {
+    return Date.now().toString(36) +
+           Math.random().toString(36).substring(2, 8);
+}
+
+
+/* ---------------------------------------------------------
+   6. LocalStorage 저장
+   --------------------------------------------------------- */
+
+function saveAcademies() {
+    localStorage.setItem(
+        "academyData",
+        JSON.stringify(academies)
+    );
+}
+
+function saveChildren() {
+    localStorage.setItem(
+        "childData",
+        JSON.stringify(children)
+    );
+}
+
+function saveHistory() {
+    localStorage.setItem(
+        "historyData",
+        JSON.stringify(historyData)
+    );
+}
+
+function updateData() {
+
+    const now = new Date();
+
+    lastUpdated = formatDateTime(now);
+
+    localStorage.setItem(
+        "lastUpdated",
+        lastUpdated
+    );
+
+    updateLastUpdatedDisplay();
+}
+
+function updateLastUpdatedDisplay() {
+
+    const element = document.getElementById("lastUpdated");
+
+    if (!lastUpdated) {
+        element.textContent = "자료 최종 업데이트: 아직 없음";
+    } else {
+        element.textContent =
+            "자료 최종 업데이트: " + lastUpdated;
+    }
+}
+
+
+/* ---------------------------------------------------------
+   7. 날짜 / 시간
+   --------------------------------------------------------- */
+
+function formatDateTime(date) {
+
+    const year = date.getFullYear();
+
+    const month = String(
+        date.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+        date.getDate()
+    ).padStart(2, "0");
+
+    const hours = String(
+        date.getHours()
+    ).padStart(2, "0");
+
+    const minutes = String(
+        date.getMinutes()
+    ).padStart(2, "0");
+
+    return `${year}년 ${month}월 ${day}일 ${hours}:${minutes}`;
+}
+
+function formatDateOnly(date) {
+
+    const year = date.getFullYear();
+
+    const month = String(
+        date.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+        date.getDate()
+    ).padStart(2, "0");
+
+    return `${year}.${month}.${day}`;
+}
+
+
+/* ---------------------------------------------------------
+   8. 네비게이션
+   --------------------------------------------------------- */
+
+function setupNavigation() {
+
+    document.querySelectorAll(".nav button")
+        .forEach(button => {
+
+            button.addEventListener("click", () => {
+
+                document.querySelectorAll(".nav button")
+                    .forEach(btn => {
+                        btn.classList.remove("active");
+                    });
+
+                button.classList.add("active");
+
+                const page = button.dataset.page;
+
+                showPage(page);
+            });
+        });
+}
+
+function showPage(page) {
+
+    document.getElementById("homePage").style.display =
+        page === "home" ? "block" : "none";
+
+    document.getElementById("academyPage").style.display =
+        page === "academy" ? "block" : "none";
+
+    document.getElementById("historyPage").style.display =
+        page === "history" ? "block" : "none";
+
+    if (page === "home") {
+        renderHome();
+    }
+
+    if (page === "academy") {
+        renderAcademies();
+    }
+
+    if (page === "history") {
+        renderHistory();
+    }
+}
+
+
+/* ---------------------------------------------------------
+   9. 학급 선택 목록
+   --------------------------------------------------------- */
+
+function populateClassSelect() {
+
+    const select = document.getElementById("childClass");
+
+    select.innerHTML = "";
+
+    CLASS_GROUPS.forEach(group => {
+
+        const optgroup = document.createElement("optgroup");
+
+        optgroup.label = group.age;
+
+        group.classes.forEach(className => {
+
+            const option = document.createElement("option");
+
+            option.value = className;
+            option.textContent = className;
+
+            optgroup.appendChild(option);
+        });
+
+        select.appendChild(optgroup);
+    });
+}
+
+
+/* ---------------------------------------------------------
+   10. 학원 선택 목록
+   --------------------------------------------------------- */
+
+function populateAcademySelect(selectedId = "") {
+
+    const select = document.getElementById("childAcademy");
+
+    select.innerHTML =
+        '<option value="">학원을 선택하세요.</option>';
+
+    academies
+        .slice()
+        .sort((a, b) =>
+            a.name.localeCompare(
+                b.name,
+                "ko"
+            )
+        )
+        .forEach(academy => {
+
+            const option = document.createElement("option");
+
+            option.value = academy.id;
+            option.textContent = academy.name;
+
+            if (academy.id === selectedId) {
+                option.selected = true;
+            }
+
+            select.appendChild(option);
+        });
+}
+
+
+/* ---------------------------------------------------------
+   11. 학급 필터
+   --------------------------------------------------------- */
+
+function renderClassFilters() {
+
+    const container =
+        document.getElementById("classFilters");
+
+    container.innerHTML = "";
+
+    const allButton =
+        createClassFilterButton(
+            "전체",
+            "전체"
+        );
+
+    container.appendChild(allButton);
+
+    CLASS_GROUPS.forEach(group => {
+
+        group.classes.forEach(className => {
+
+            const button =
+                createClassFilterButton(
+                    className,
+                    className
+                );
+
+            container.appendChild(button);
+        });
+    });
+}
+
+function createClassFilterButton(text, value) {
+
+    const button =
+        document.createElement("button");
+
+    button.className = "class-filter";
+
+    if (currentClassFilter === value) {
+        button.classList.add("active");
+    }
+
+    button.textContent = text;
+
+    button.addEventListener("click", () => {
+
+        currentClassFilter = value;
+
+        renderClassFilters();
+
+        renderHome();
+    });
+
+    return button;
+}
+
+
+/* ---------------------------------------------------------
+   12. 요일 체크박스 / 시간 활성화
+   --------------------------------------------------------- */
+
+function setupWeekdayControls() {
+
+    WEEKDAYS.forEach(day => {
+
+        const checkbox =
+            document.getElementById(
+                day.key + "Check"
+            );
+
+        const time =
+            document.getElementById(
+                day.key + "Time"
+            );
+
+        checkbox.addEventListener("change", () => {
+
+            time.disabled = !checkbox.checked;
+
+            if (!checkbox.checked) {
+                time.value = "";
+            }
+        });
+    });
+}
+
+
+/* ---------------------------------------------------------
+   13. 아동 등록 모달
+   --------------------------------------------------------- */
+
+function openChildModal(childId = null) {
+
+    document.getElementById(
+        "editingChildId"
+    ).value = childId || "";
+
+    document.getElementById(
+        "childModalTitle"
+    ).textContent =
+        childId
+            ? "학원 귀가 아동 수정"
+            : "학원 귀가 아동 등록";
+
+    populateAcademySelect();
+
+    resetChildForm();
+
+    if (childId) {
+
+        const child =
+            children.find(
+                item => item.id === childId
+            );
+
+        if (!child) {
+            return;
+        }
+
+        document.getElementById(
+            "childClass"
+        ).value = child.className;
+
+        document.getElementById(
+            "childName"
+        ).value = child.name;
+
+        populateAcademySelect(
+            child.academyId
+        );
+
+        WEEKDAYS.forEach(day => {
+
+            const checked =
+                Boolean(
+                    child.schedule &&
+                    child.schedule[day.key] &&
+                    child.schedule[day.key].enabled
+                );
+
+            const checkbox =
+                document.getElementById(
+                    day.key + "Check"
+                );
+
+            const time =
+                document.getElementById(
+                    day.key + "Time"
+                );
+
+            checkbox.checked = checked;
+
+            time.disabled = !checked;
+
+            time.value =
+                checked
+                    ? child.schedule[day.key].time
+                    : "";
+        });
+    }
+
+    document.getElementById(
+        "childModal"
+    ).classList.add("show");
+}
+
+function resetChildForm() {
+
+    document.getElementById(
+        "childClass"
+    ).selectedIndex = 0;
+
+    document.getElementById(
+        "childName"
+    ).value = "";
+
+    document.getElementById(
+        "childAcademy"
+    ).value = "";
+
+    WEEKDAYS.forEach(day => {
+
+        document.getElementById(
+            day.key + "Check"
+        ).checked = false;
+
+        document.getElementById(
+            day.key + "Time"
+        ).value = "";
+
+        document.getElementById(
+            day.key + "Time"
+        ).disabled = true;
+    });
+}
+
+
+/* ---------------------------------------------------------
+   14. 아동 저장
+   --------------------------------------------------------- */
+
+function saveChild() {
+
+    const editingId =
+        document.getElementById(
+            "editingChildId"
+        ).value;
+
+    const className =
+        document.getElementById(
+            "childClass"
+        ).value;
+
+    const name =
+        document.getElementById(
+            "childName"
+        ).value.trim();
+
+    const academyId =
+        document.getElementById(
+            "childAcademy"
+        ).value;
+
+    if (!className) {
+        showToast("학급을 선택해주세요.");
+        return;
+    }
+
+    if (!name) {
+        showToast("아동 이름을 입력해주세요.");
+        return;
+    }
+
+    if (!academyId) {
+        showToast("학원을 선택해주세요.");
+        return;
+    }
+
+    const schedule = {};
+
+    let hasSchedule = false;
+
+    WEEKDAYS.forEach(day => {
+
+        const checked =
+            document.getElementById(
+                day.key + "Check"
+            ).checked;
+
+        const time =
+            document.getElementById(
+                day.key + "Time"
+            ).value;
+
+        schedule[day.key] = {
+            enabled: checked,
+            time: checked ? time : ""
+        };
+
+        if (checked) {
+            hasSchedule = true;
+        }
+    });
+
+    if (!hasSchedule) {
+        showToast("픽업 요일을 하나 이상 선택해주세요.");
+        return;
+    }
+
+    if (editingId) {
+
+        const childIndex =
+            children.findIndex(
+                item => item.id === editingId
+            );
+
+        if (childIndex !== -1) {
+
+            children[childIndex] = {
+                ...children[childIndex],
+                className,
+                name,
+                academyId,
+                schedule
+            };
+        }
+
+        showToast("아동 정보가 수정되었습니다.");
+
+    } else {
+
+        children.push({
+            id: createId(),
+            className,
+            name,
+            academyId,
+            schedule,
+            createdAt: formatDateOnly(new Date())
+        });
+
+        showToast("아동이 등록되었습니다.");
+    }
+
+    saveChildren();
+
+    updateData();
+
+    closeModal("childModal");
+
+    renderHome();
+}
+
+
+/* ---------------------------------------------------------
+   15. 학원 추가 모달
+   --------------------------------------------------------- */
+
+let openedFromChildModal = false;
+
+function openAcademyModal(fromChildModal = false, academyId = null) {
+
+    openedFromChildModal = fromChildModal;
+
+    document.getElementById(
+        "editingAcademyId"
+    ).value = academyId || "";
+
+    document.getElementById(
+        "academyModalTitle"
+    ).textContent =
+        academyId
+            ? "학원 정보 수정"
+            : "새로운 학원 추가";
+
+    document.getElementById(
+        "academyName"
+    ).value = "";
+
+    document.getElementById(
+        "academyPhone"
+    ).value = "";
+
+    document.getElementById(
+        "academyReturnPhone"
+    ).value = "";
+
+    if (academyId) {
+
+        const academy =
+            academies.find(
+                item => item.id === academyId
+            );
+
+        if (academy) {
+
+            document.getElementById(
+                "academyName"
+            ).value = academy.name;
+
+            document.getElementById(
+                "academyPhone"
+            ).value = academy.phone;
+
+            document.getElementById(
+                "academyReturnPhone"
+            ).value =
+                academy.returnPhone;
+        }
+    }
+
+    document.getElementById(
+        "academyModal"
+    ).classList.add("show");
+}
+
+
+/* ---------------------------------------------------------
+   16. 학원 저장
+   --------------------------------------------------------- */
+
+function saveAcademy() {
+
+    const editingId =
+        document.getElementById(
+            "editingAcademyId"
+        ).value;
+
+    const name =
+        document.getElementById(
+            "academyName"
+        ).value.trim();
+
+    const phone =
+        document.getElementById(
+            "academyPhone"
+        ).value.trim();
+
+    const returnPhone =
+        document.getElementById(
+            "academyReturnPhone"
+        ).value.trim();
+
+    if (!name) {
+        showToast("학원명을 입력해주세요.");
+        return;
+    }
+
+    if (!phone) {
+        showToast("학원 전화번호를 입력해주세요.");
+        return;
+    }
+
+    if (!returnPhone) {
+        showToast("귀가 담당자 전화번호를 입력해주세요.");
+        return;
+    }
+
+    const duplicate =
+        academies.some(
+            academy =>
+                academy.name === name &&
+                academy.id !== editingId
+        );
+
+    if (duplicate) {
+        showToast("이미 등록된 학원입니다.");
+        return;
+    }
+
+    if (editingId) {
+
+        const index =
+            academies.findIndex(
+                academy =>
+                    academy.id === editingId
+            );
+
+        if (index !== -1) {
+
+            academies[index] = {
+                ...academies[index],
+                name,
+                phone,
+                returnPhone
+            };
+        }
+
+        saveAcademies();
+
+        updateData();
+
+        renderAcademies();
+
+        populateAcademySelect();
+
+        closeModal("academyModal");
+
+        showToast("학원 정보가 수정되었습니다.");
+
+    } else {
+
+        const newAcademy = {
+            id: createId(),
+            name,
+            phone,
+            returnPhone
+        };
+
+        academies.push(newAcademy);
+
+        saveAcademies();
+
+        updateData();
+
+        populateAcademySelect(
+            newAcademy.id
+        );
+
+        closeModal("academyModal");
+
+        if (openedFromChildModal) {
+
+            document.getElementById(
+                "childAcademy"
+            ).value = newAcademy.id;
+
+            document.getElementById(
+                "childModal"
+            ).classList.add("show");
+        }
+
+        renderAcademies();
+
+        showToast("새로운 학원이 추가되었습니다.");
+    }
+}
+
+
+/* ---------------------------------------------------------
+   17. 학원 목록 렌더링
+   --------------------------------------------------------- */
+
+function renderAcademies() {
+
+    const container =
+        document.getElementById(
+            "academyList"
+        );
+
+    if (!academies.length) {
+
+        container.innerHTML = `
+            <div class="empty">
+                <div class="empty-icon">🏫</div>
+                등록된 학원이 없습니다.
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML = "";
+
+    academies
+        .slice()
+        .sort((a, b) =>
+            a.name.localeCompare(
+                b.name,
+                "ko"
+            )
+        )
+        .forEach(academy => {
+
+            const currentChildren =
+                children.filter(
+                    child =>
+                        child.academyId === academy.id
+                );
+
+            const item =
+                document.createElement("div");
+
+            item.className = "academy-item";
+
+            item.innerHTML = `
+                <div class="academy-item-info">
+                    <strong>${escapeHtml(academy.name)}</strong>
+                    <span>
+                        학원 ${escapeHtml(academy.phone || "전화번호 미등록")}
+                        · 귀가 담당자 ${escapeHtml(academy.returnPhone || "미등록")}
+                        · 현재 ${currentChildren.length}명
+                    </span>
+                </div>
+
+                <div class="academy-item-actions">
+                    <button
+                        class="btn btn-secondary btn-small"
+                        onclick="openAcademyModal(false, '${academy.id}')"
+                    >
+                        수정
+                    </button>
+
+                    <button
+                        class="btn btn-danger btn-small"
+                        onclick="deleteAcademy('${academy.id}')"
+                    >
+                        삭제
+                    </button>
+                </div>
+            `;
+
+            container.appendChild(item);
+        });
+}
+
+
+/* ---------------------------------------------------------
+   18. 학원 삭제
+   --------------------------------------------------------- */
+
+function deleteAcademy(academyId) {
+
+    const academy =
+        academies.find(
+            item => item.id === academyId
+        );
+
+    if (!academy) {
+        return;
+    }
+
+    const used =
+        children.some(
+            child =>
+                child.academyId === academyId
+        );
+
+    if (used) {
+
+        alert(
+            "현재 등록된 아동이 있는 학원은 삭제할 수 없습니다.\n\n" +
+            "아동 정보를 먼저 수정하거나 삭제한 후 학원을 삭제해주세요."
+        );
+
+        return;
+    }
+
+    const confirmed =
+        confirm(
+            `"${academy.name}" 학원을 삭제하시겠습니까?`
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    academies =
+        academies.filter(
+            item => item.id !== academyId
+        );
+
+    saveAcademies();
+
+    updateData();
+
+    renderAcademies();
+
+    populateAcademySelect();
+
+    showToast("학원이 삭제되었습니다.");
+}
+
+
+/* ---------------------------------------------------------
+   19. 메인 화면 렌더링
+   --------------------------------------------------------- */
+
+function renderHome() {
+
+    const container =
+        document.getElementById(
+            "homeContent"
+        );
+
+    const search =
+        document.getElementById(
+            "searchInput"
+        ).value
+        .trim()
+        .toLowerCase();
+
+    document.getElementById(
+        "currentFilterText"
+    ).textContent =
+        currentClassFilter === "전체"
+            ? "전체 학급"
+            : currentClassFilter;
+
+    let filteredChildren =
+        children.filter(child => {
+
+            const classMatch =
+                currentClassFilter === "전체" ||
+                child.className === currentClassFilter;
+
+            if (!classMatch) {
+                return false;
+            }
+
+            if (!search) {
+                return true;
+            }
+
+            const academy =
+                academies.find(
+                    item =>
+                        item.id === child.academyId
+                );
+
+            const academyName =
+                academy
+                    ? academy.name.toLowerCase()
+                    : "";
+
+            return (
+                child.name.toLowerCase().includes(search) ||
+                academyName.includes(search)
+            );
+        });
+
+    if (!filteredChildren.length) {
+
+        container.innerHTML = `
+            <div class="content-card empty">
+                <div class="empty-icon">📋</div>
+                현재 조건에 해당하는 학원 귀가 아동이 없습니다.
+            </div>
+        `;
+
+        return;
+    }
+
+    const academyMap = {};
+
+    filteredChildren.forEach(child => {
+
+        if (!academyMap[child.academyId]) {
+            academyMap[child.academyId] = [];
+        }
+
+        academyMap[child.academyId].push(child);
+    });
+
+    container.innerHTML = "";
+
+    Object.keys(academyMap)
+        .sort((a, b) => {
+
+            const academyA =
+                academies.find(
+                    academy => academy.id === a
+                );
+
+            const academyB =
+                academies.find(
+                    academy => academy.id === b
+                );
+
+            return (
+                (academyA?.name || "")
+                    .localeCompare(
+                        academyB?.name || "",
+                        "ko"
+                    )
+            );
+        })
+        .forEach(academyId => {
+
+            const academy =
+                academies.find(
+                    item =>
+                        item.id === academyId
+                );
+
+            if (!academy) {
+                return;
+            }
+
+            const academyChildren =
+                academyMap[academyId];
+
+            container.appendChild(
+                createAcademySection(
+                    academy,
+                    academyChildren
+                )
+            );
+        });
+}
+
+
+/* ---------------------------------------------------------
+   20. 학원별 표 생성
+   --------------------------------------------------------- */
+
+function createAcademySection(
+    academy,
+    academyChildren
+) {
+
+    const section =
+        document.createElement("section");
+
+    section.className =
+        "content-card academy-section";
+
+    const header =
+        document.createElement("div");
+
+    header.className =
+        "academy-header";
+
+    header.innerHTML = `
+        <div>
+            <div class="academy-name">
+                ${escapeHtml(academy.name)}
+            </div>
+        </div>
+
+        <div class="academy-contact">
+            <span>
+                ☎ 학원 ${escapeHtml(academy.phone || "미등록")}
+            </span>
+
+            <span>
+                ☎ 귀가 담당자 ${escapeHtml(academy.returnPhone || "미등록")}
+            </span>
+        </div>
+    `;
+
+    section.appendChild(header);
+
+    const tableWrap =
+        document.createElement("div");
+
+    tableWrap.className =
+        "table-wrap";
+
+    const table =
+        document.createElement("table");
+
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>학급</th>
+                <th>아동</th>
+                <th>월</th>
+                <th>화</th>
+                <th>수</th>
+                <th>목</th>
+                <th>금</th>
+                <th>관리</th>
+            </tr>
+        </thead>
+    `;
+
+    const tbody =
+        document.createElement("tbody");
+
+    academyChildren
+        .slice()
+        .sort((a, b) => {
+
+            const classCompare =
+                ALL_CLASSES.indexOf(a.className) -
+                ALL_CLASSES.indexOf(b.className);
+
+            if (classCompare !== 0) {
+                return classCompare;
+            }
+
+            return a.name.localeCompare(
+                b.name,
+                "ko"
+            );
+        })
+        .forEach(child => {
+
+            const row =
+                document.createElement("tr");
+
+            let html = `
+                <td class="class-name">
+                    ${escapeHtml(child.className)}
+                </td>
+
+                <td class="child-name">
+                    ${escapeHtml(child.name)}
+                </td>
+            `;
+
+            WEEKDAYS.forEach(day => {
+
+                const info =
+                    child.schedule?.[day.key];
+
+                if (
+                    info &&
+                    info.enabled
+                ) {
+
+                    html += `
+                        <td>
+                            ✓
+                            <span class="time">
+                                ${escapeHtml(info.time || "시간 미입력")}
+                            </span>
+                        </td>
+                    `;
+
+                } else {
+
+                    html += `
+                        <td>-</td>
+                    `;
+                }
+            });
+
+            html += `
+                <td>
+                    <button
+                        class="btn btn-secondary btn-small"
+                        onclick="openChildModal('${child.id}')"
+                    >
+                        수정
+                    </button>
+
+                    <button
+                        class="btn btn-danger btn-small"
+                        onclick="archiveChild('${child.id}')"
+                    >
+                        삭제
+                    </button>
+                </td>
+            `;
+
+            row.innerHTML = html;
+
+            tbody.appendChild(row);
+        });
+
+    table.appendChild(tbody);
+
+    tableWrap.appendChild(table);
+
+    section.appendChild(tableWrap);
+
+    return section;
+}
+
+
+/* ---------------------------------------------------------
+   21. 아동 삭제 → 이력 이동
+   --------------------------------------------------------- */
+
+function archiveChild(childId) {
+
+    const child =
+        children.find(
+            item => item.id === childId
+        );
+
+    if (!child) {
+        return;
+    }
+
+    const academy =
+        academies.find(
+            item =>
+                item.id === child.academyId
+        );
+
+    const confirmed =
+        confirm(
+            `${child.name} 아동을 현재 학원 귀가 목록에서 제외하시겠습니까?\n\n` +
+            "삭제된 정보는 이력 관리에서 확인할 수 있습니다."
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    const archived = {
+        ...child,
+        academyName:
+            academy
+                ? academy.name
+                : "삭제된 학원",
+        archivedAt:
+            formatDateOnly(new Date())
+    };
+
+    historyData.push(archived);
+
+    children =
+        children.filter(
+            item =>
+                item.id !== childId
+        );
+
+    saveChildren();
+
+    saveHistory();
+
+    updateData();
+
+    renderHome();
+
+    renderHistory();
+
+    showToast(
+        "현재 목록에서 제외되었으며 이력에 보관되었습니다."
+    );
+}
+
+
+/* ---------------------------------------------------------
+   22. 이력 관리
+   --------------------------------------------------------- */
+
+function renderHistory() {
+
+    const container =
+        document.getElementById(
+            "historyContent"
+        );
+
+    const search =
+        document.getElementById(
+            "historySearch"
+        )?.value
+        .trim()
+        .toLowerCase() || "";
+
+    let data =
+        historyData.filter(item => {
+
+            if (!search) {
+                return true;
+            }
+
+            return (
+                item.name
+                    .toLowerCase()
+                    .includes(search) ||
+                item.academyName
+                    .toLowerCase()
+                    .includes(search)
+            );
+        });
+
+    if (!data.length) {
+
+        container.innerHTML = `
+            <div class="empty">
+                <div class="empty-icon">🗂️</div>
+                보관된 이력이 없습니다.
+            </div>
+        `;
+
+        return;
+    }
+
+    data =
+        data.slice().sort((a, b) => {
+
+            return b.archivedAt.localeCompare(
+                a.archivedAt
+            );
+        });
+
+    const wrap =
+        document.createElement("div");
+
+    wrap.className =
+        "history-table";
+
+    const table =
+        document.createElement("table");
+
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>아동</th>
+                <th>학급</th>
+                <th>학원</th>
+                <th>요일</th>
+                <th>픽업 시간</th>
+                <th>제외일</th>
+                <th>상태</th>
+            </tr>
+        </thead>
+    `;
+
+    const tbody =
+        document.createElement("tbody");
+
+    data.forEach(item => {
+
+        const row =
+            document.createElement("tr");
+
+        const schedule =
+            getScheduleSummary(
+                item.schedule
+            );
+
+        row.innerHTML = `
+            <td>
+                <strong>
+                    ${escapeHtml(item.name)}
+                </strong>
+            </td>
+
+            <td>
+                ${escapeHtml(item.className)}
+            </td>
+
+            <td>
+                ${escapeHtml(item.academyName)}
+            </td>
+
+            <td>
+                ${escapeHtml(schedule.days)}
+            </td>
+
+            <td>
+                ${escapeHtml(schedule.times)}
+            </td>
+
+            <td>
+                ${escapeHtml(item.archivedAt)}
+            </td>
+
+            <td>
+                <span class="status-badge">
+                    과거 기록
+                </span>
+            </td>
+        `;
+
+        tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+
+    wrap.appendChild(table);
+
+    container.innerHTML = "";
+
+    container.appendChild(wrap);
+}
+
+
+/* ---------------------------------------------------------
+   23. 일정 요약
+   --------------------------------------------------------- */
+
+function getScheduleSummary(schedule) {
+
+    const days = [];
+    const times = [];
+
+    WEEKDAYS.forEach(day => {
+
+        const info =
+            schedule?.[day.key];
+
+        if (
+            info &&
+            info.enabled
+        ) {
+
+            days.push(day.label);
+
+            times.push(
+                `${day.label} ${info.time || "-"}`
+            );
+        }
+    });
+
+    return {
+        days: days.join(" · "),
+        times: times.join(" / ")
+    };
+}
+
+
+/* ---------------------------------------------------------
+   24. 모달 닫기
+   --------------------------------------------------------- */
+
+function closeModal(id) {
+
+    document.getElementById(
+        id
+    ).classList.remove("show");
+
+    if (id === "academyModal") {
+
+        openedFromChildModal = false;
+    }
+}
+
+
+/* ---------------------------------------------------------
+   25. 모달 바깥 클릭으로 닫기
+   --------------------------------------------------------- */
+
+document.querySelectorAll(".modal-backdrop")
+    .forEach(backdrop => {
+
+        backdrop.addEventListener(
+            "click",
+            event => {
+
+                if (
+                    event.target === backdrop
+                ) {
+                    closeModal(
+                        backdrop.id
+                    );
+                }
+            }
+        );
+    });
+
+
+/* ---------------------------------------------------------
+   26. HTML 안전 처리
+   --------------------------------------------------------- */
+
+function escapeHtml(value) {
+
+    if (value === null ||
+        value === undefined) {
+
+        return "";
+    }
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+/* ---------------------------------------------------------
+   27. 알림 메시지
+   --------------------------------------------------------- */
+
+let toastTimer = null;
+
+function showToast(message) {
+
+    const toast =
+        document.getElementById(
+            "toast"
+        );
+
+    toast.textContent = message;
+
+    toast.classList.add("show");
+
+    clearTimeout(toastTimer);
+
+    toastTimer =
+        setTimeout(() => {
+
+            toast.classList.remove(
+                "show"
+            );
+
+        }, 2500);
+}
+
+
+/* ---------------------------------------------------------
+   28. ESC 키로 모달 닫기
+   --------------------------------------------------------- */
+
+document.addEventListener(
+    "keydown",
+    event => {
+
+        if (event.key !== "Escape") {
+            return;
+        }
+
+        document.querySelectorAll(
+            ".modal-backdrop.show"
+        ).forEach(modal => {
+
+            closeModal(modal.id);
+        });
+    }
+);
+
+</script>
+
+</body>
+</html>
