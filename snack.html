@@ -154,6 +154,10 @@ function mySummary(o){const list=o?.my_entries||[];if(!list.length)return '<div 
 }
 function renderTeacher(){
   const root=$('#teacher');if(!S.user){root.innerHTML='<div class="empty">통합포털 로그인 정보를 확인하고 있습니다.</div>';return;}
+  if(S.user.name==='김혜인'&&S.user.class_name==='관리자'){
+    root.innerHTML='<div class="card"><h2>관리자용 계정 안내</h2><div class="note info">관리자 / 김혜인 계정은 간식 신청 대상자 명단과 전체 인원 집계에서 제외되어 있습니다. 간식 신청은 꿈빛반 / 김혜인 계정으로 로그인해 주세요. 담당자 관리와 관리자 설정은 이 계정에서 계속 이용할 수 있습니다.</div></div>';
+    return;
+  }
   const o=activeOrder();const linked=o?S.surveys.find(s=>s.order_id===o.id&&isOpen(s)):null;
   const s=linked||S.surveys.find(s=>!s.order_id&&isOpen(s))||null;
   if(!o&&!s){root.innerHTML='<div class="card"><div class="empty"><h3>현재 진행 중인 간식 신청이나 식수조사가 없습니다.</h3></div></div>';return;}
