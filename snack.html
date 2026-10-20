@@ -84,6 +84,21 @@
   #print-sheet .report-info>div{padding:7px 9px}
   #print-sheet .report-items th,#print-sheet .report-items td{padding:6px 7px;font-size:10px}
 }
+/* 회차별 간식 배부 확인: 간단한 개별 체크 및 일괄 체크 */
+.delivery-tabs{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 12px}
+.delivery-tabs button{border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-weight:800;font-size:13px;background:#fff;color:#45546e}
+.delivery-tabs button.active{background:#eef2ff;border-color:#9b98f3;color:#4338ca}
+.delivery-table{min-width:560px}
+.delivery-table .delivery-check-cell{width:42px;text-align:center}
+.delivery-table input[type="checkbox"],.delivery-all-wrap input[type="checkbox"]{height:19px;width:19px;cursor:pointer;accent-color:var(--p);vertical-align:middle}
+.delivery-table .delivery-menu{font-size:12px;color:#64748b}
+.delivery-table tr.delivered-row{background:#f5fcf7}
+.delivery-all-wrap{display:flex;align-items:center;gap:9px;font-weight:800;cursor:pointer}
+.delivery-summary{margin:10px 0 16px}
+.delivery-summary .stat strong{font-size:24px}
+.delivery-bulk-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 14px;background:#f8fafc;border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0}
+.delivery-table-wrap{border-radius:0 0 12px 12px}
+@media(max-width:740px){.delivery-table{min-width:490px}.delivery-tabs button{font-size:12px;padding:8px 10px}.delivery-bulk-header{align-items:flex-start}}
 </style></head>
 <body>
 <header class="top"><div class="top-in"><div class="brand">☕ 교사 간식 주문 도우미</div><div class="wraprow"><button id="refresh" class="btn second sm">↻ 새로고침</button><a href="index.html" class="btn ghost sm">⌂ 통합포털 홈</a></div></div></header>
@@ -98,6 +113,8 @@ const SUPABASE_URL='https://vohcugxfwxdvkbcpjcgl.supabase.co';
 const SUPABASE_PUBLIC_KEY='sb_publishable_Q0cXaglzBaz9Py2oct_NTQ_vMHsUeSQ';
 const API_URL=SUPABASE_URL+'/functions/v1/snack-api';
 const GROUPS=['사무실','영아보조','누리보조·연장반','조리실','보건실·환경·소장님'];
+const DELIVERY_CLASSES={'만 1세':['햇빛반','달빛반','별빛반','풀빛반','온빛반'],'만 2세':['예빛반','봄빛반','물빛반','꿈빛반'],'만 3세':['한빛반','은빛반','새빛반'],'만 4세':['윤빛반','꽃빛반'],'만 5세':['들빛반','솔빛반']};
+const DELIVERY_DIVISIONS=['전체',...Object.keys(DELIVERY_CLASSES),'기타 직군'];
 const $=(s,root=document)=>root.querySelector(s),$$=(s,root=document)=>[...root.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>(Number(n)||0).toLocaleString('ko-KR')+'원';
@@ -109,7 +126,7 @@ const localDT=v=>{const d=new Date(v);if(Number.isNaN(d.getTime()))return'';cons
 const newId=()=>crypto.randomUUID?.()||('id_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));
 const newSection=()=>({id:newId(),title:'',items:[{id:newId(),name:'',price:''}]});
 const blankCatalog=()=>[newSection()];
-const S={account:null,user:null,isAdmin:false,managerConfigured:false,orders:[],surveys:[],staff:[],people:[],extraStaff:[],submissions:[],mealResponses:[],managerPw:'',mode:'teacher',loading:false,orderId:null,surveyId:null,applyType:'self',otherGroup:GROUPS[0],targetKey:null,mealType:'self',mealGroup:GROUPS[0],mealTargetKey:null,menuSelection:{},menuTouched:false,mealAnswer:'yes',newCatalog:blankCatalog(),editCatalog:null,editingOrder:false,editingMeal:false,entryEditKey:null,mealEditKey:null,managerView:'current',settingsView:'password',adminExtra:[],adminOrders:[],adminSurveys:[],adminLoaded:false,mealAnswer:'',newMealEnabled:false,staffListGroup:'',staffListQuery:''};
+const S={account:null,user:null,isAdmin:false,managerConfigured:false,orders:[],surveys:[],staff:[],people:[],extraStaff:[],submissions:[],mealResponses:[],managerPw:'',mode:'teacher',loading:false,orderId:null,surveyId:null,applyType:'self',otherGroup:GROUPS[0],targetKey:null,mealType:'self',mealGroup:GROUPS[0],mealTargetKey:null,menuSelection:{},menuTouched:false,mealAnswer:'yes',newCatalog:blankCatalog(),editCatalog:null,editingOrder:false,editingMeal:false,entryEditKey:null,mealEditKey:null,managerView:'current',settingsView:'password',adminExtra:[],adminOrders:[],adminSurveys:[],adminLoaded:false,mealAnswer:'',newMealEnabled:false,staffListGroup:'',staffListQuery:'',distributions:[],deliveryOrderId:null,deliveryDivision:'전체',deliveryGroup:'',deliveryQuery:'',deliveryBusy:false};
 function portalAccount(){for(const k of ['libraryCurrentUser','materialsCurrentUser','consumablesCurrentUser','childRightsCurrentUser']){try{const v=JSON.parse(localStorage.getItem(k)||'null');if(v?.id&&typeof v.password==='string'&&v.password)return v}catch{}}return null}
 function notify(message='',kind='info'){$('#message').innerHTML=message?`<div class="note ${kind}">${esc(message)}</div>`:'';}
 async function api(action,payload={},manager=false){if(!S.account)throw Error('통합포털에 다시 로그인해주세요.');const req={action,credential:{id:S.account.id,password:S.account.password},...payload};if(manager)req.managerPassword=S.managerPw;
@@ -129,7 +146,7 @@ async function bootstrap(silent=false){if(S.loading)return;S.loading=true;try{co
     $('#account').textContent=`로그인: ${S.user.name} / ${S.user.class_name}`;$('#tabSettings').classList.toggle('hidden',!S.isAdmin);
     if(S.managerPw&&S.mode==='manager')await loadManager();if(S.isAdmin&&S.mode==='settings')await loadAdmin();if(!silent)notify('최신 정보를 불러왔습니다.','ok');render();
   }catch(e){notify(e.message,'bad');if(!S.user)$('#teacher').innerHTML='<div class="empty"><a class="btn primary" href="index.html">통합포털로 이동</a></div>'}finally{S.loading=false}}
-async function loadManager(){if(!S.managerPw)return;try{const r=await api('manager_data',{},true);S.orders=r.orders||[];S.surveys=r.surveys||[];S.people=r.people||[];S.extraStaff=r.extraStaff||[];S.submissions=r.submissions||[];S.mealResponses=r.mealResponses||[];if(!S.orders.some(o=>o.id===S.orderId))S.orderId=S.orders[0]?.id||null;if(!S.surveys.some(o=>o.id===S.surveyId))S.surveyId=S.surveys[0]?.id||null;}catch(e){if(/비밀번호|잠겼|설정해야/.test(e.message))S.managerPw='';throw e;}}
+async function loadManager(){if(!S.managerPw)return;try{const r=await api('manager_data',{},true);S.orders=r.orders||[];S.surveys=r.surveys||[];S.people=r.people||[];S.extraStaff=r.extraStaff||[];S.submissions=r.submissions||[];S.mealResponses=r.mealResponses||[];S.distributions=r.distributions||[];if(!S.orders.some(o=>o.id===S.deliveryOrderId))S.deliveryOrderId=S.orders[0]?.id||null;if(!S.orders.some(o=>o.id===S.orderId))S.orderId=S.orders[0]?.id||null;if(!S.surveys.some(o=>o.id===S.surveyId))S.surveyId=S.surveys[0]?.id||null;}catch(e){if(/비밀번호|잠겼|설정해야/.test(e.message))S.managerPw='';throw e;}}
 async function afterWrite(message,manager=false){if(manager)await loadManager();if(S.isAdmin&&S.mode==='settings')await loadAdmin();await bootstrap(true);notify(message,'ok');}
 function switchTab(mode){if(mode==='settings'&&!S.isAdmin)return;S.mode=mode;if(mode==='settings'&&S.isAdmin){loadAdmin().then(()=>render()).catch(e=>notify(e.message,'bad'));}render();}
 function render(){for(const tab of ['teacher','manager','settings']){$('#'+tab).classList.toggle('hidden',S.mode!==tab);$('#tab'+tab[0].toUpperCase()+tab.slice(1)).classList.toggle('active',S.mode===tab);}if(S.mode==='teacher')renderTeacher();if(S.mode==='manager')renderManager();if(S.mode==='settings')renderSettings();}
@@ -383,6 +400,81 @@ function bindPrintTab(o){
     window.print();
   };
 }
+// 각 주문 회차의 실제 신청 완료자만 배부 대상으로 표시합니다.
+// 배부는 사람당 한 번만 체크하며, 메뉴 항목 수와 관계없이 사람 단위로 기록합니다.
+function deliveryOrder(){return S.orders.find(o=>o.id===S.deliveryOrderId)||orderSelected()}
+function deliveryCandidates(order){
+  if(!order)return [];
+  const people=new Map(S.people.map(p=>[p.key,p]));
+  return S.submissions.filter(r=>r.order_id===order.id&&r.status==='ordered'&&people.has(r.target_key))
+    .map(r=>({key:r.target_key,name:people.get(r.target_key).name,group:people.get(r.target_key).group,selections:r.selections}))
+    .sort((a,b)=>String(a.group).localeCompare(String(b.group),'ko')||a.name.localeCompare(b.name,'ko'));
+}
+function deliveryInDivision(person){
+  if(S.deliveryDivision==='전체')return true;
+  if(S.deliveryDivision==='기타 직군')return GROUPS.includes(person.group)&&(!S.deliveryGroup||S.deliveryGroup===person.group);
+  const classrooms=DELIVERY_CLASSES[S.deliveryDivision]||[];
+  const normalized=String(person.group||'').replace(/\s+/g,'').replace(/반$/,'');
+  if(!classrooms.some(c=>c.replace(/반$/,'')===normalized))return false;
+  return !S.deliveryGroup||S.deliveryGroup.replace(/반$/,'')===normalized;
+}
+function deliveryVisible(order){const query=S.deliveryQuery.trim().toLocaleLowerCase('ko');return deliveryCandidates(order).filter(p=>deliveryInDivision(p)&&(!query||p.name.toLocaleLowerCase('ko').includes(query)||String(p.group).toLocaleLowerCase('ko').includes(query)));}
+function deliveryHtml(){
+  const o=deliveryOrder();
+  if(!o)return '<div class="card"><h2>📦 배부 확인</h2><div class="note info">주문을 생성하면 배부 대상자가 표시됩니다.</div></div>';
+  const all=deliveryCandidates(o),done=new Set(S.distributions.filter(x=>x.order_id===o.id).map(x=>x.target_key));
+  const visible=deliveryVisible(o),totalDone=all.filter(p=>done.has(p.key)).length,viewDone=visible.filter(p=>done.has(p.key)).length;
+  const second=S.deliveryDivision==='기타 직군'?GROUPS:(DELIVERY_CLASSES[S.deliveryDivision]||[]);
+  const every=visible.length>0&&visible.every(p=>done.has(p.key));
+  return `<div class="card"><div class="row between" style="gap:12px;flex-wrap:wrap"><div><h2 style="margin:0 0 4px">📦 간식 배부 확인</h2><p class="muted small" style="margin:0">수령한 사람만 체크하세요. 체크·해제 즉시 공동 저장됩니다.</p></div><button type="button" class="btn second sm" id="refreshDelivery">↻ 배부 현황 새로고침</button></div>
+    <div class="field" style="margin-top:16px"><label class="label" for="deliveryOrderSelector">배부 확인할 간식 회차</label><select class="select" id="deliveryOrderSelector">${S.orders.map(q=>`<option value="${esc(q.id)}" ${q.id===o.id?'selected':''}>${esc(q.round_label)} · ${esc(q.outlet)} · ${dateFmt(q.distribution_date)}</option>`).join('')}</select></div>
+    <div class="note info">선택한 회차: <b>${esc(o.round_label)} · ${esc(o.outlet)}</b><br>간식 신청 마감 또는 주문 확정 후에도 배부를 확인할 수 있습니다. 다른 회차의 체크 내역과 섞이지 않습니다.</div>
+    <div class="grid3 delivery-summary"><div class="stat"><small>배부 대상</small><strong>${all.length}명</strong></div><div class="stat"><small>배부 완료</small><strong>${totalDone}명</strong></div><div class="stat pending"><small>미배부</small><strong>${all.length-totalDone}명</strong></div></div>
+    <h3>소속별 조회</h3><div class="delivery-tabs">${DELIVERY_DIVISIONS.map(v=>`<button type="button" data-delivery-division="${esc(v)}" class="${S.deliveryDivision===v?'active':''}">${esc(v)}</button>`).join('')}</div>
+    ${S.deliveryDivision==='전체'?'':`<div class="delivery-tabs"><button type="button" data-delivery-group="" class="${S.deliveryGroup===''?'active':''}">전체 ${S.deliveryDivision==='기타 직군'?'소속':'반'}</button>${second.map(g=>`<button type="button" data-delivery-group="${esc(g)}" class="${S.deliveryGroup===g?'active':''}">${esc(g)}</button>`).join('')}</div>`}
+    <div class="field" style="max-width:460px"><label class="label" for="deliverySearch">이름 검색 (선택)</label><input class="input" id="deliverySearch" placeholder="찾을 교직원 이름" value="${esc(S.deliveryQuery)}" autocomplete="off"></div>
+    <div class="delivery-bulk-header"><label class="delivery-all-wrap" for="deliverySelectVisible"><input type="checkbox" id="deliverySelectVisible" ${every?'checked':''} ${visible.length?'':'disabled'}><span>현재 조회 중인 ${visible.length}명 전체 배부 완료</span></label><span class="muted small">조회 중 ${viewDone}명 완료 / ${visible.length-viewDone}명 미배부</span></div>
+    <div class="tablewrap delivery-table-wrap"><table class="delivery-table"><thead><tr><th class="delivery-check-cell">확인</th><th>소속</th><th>교직원</th><th>신청한 간식</th><th>배부 상태</th></tr></thead><tbody>${visible.map(p=>`<tr class="${done.has(p.key)?'delivered-row':''}"><td class="delivery-check-cell"><input type="checkbox" data-delivery-key="${esc(p.key)}" aria-label="${esc(p.name)} 배부 완료" ${done.has(p.key)?'checked':''}></td><td>${esc(p.group)}</td><td><strong>${esc(p.name)}</strong></td><td class="delivery-menu">${esc(menuNames(o,p.selections))}</td><td>${done.has(p.key)?'<span class="tag green">배부 완료</span>':'<span class="tag gray">미배부</span>'}</td></tr>`).join('')||'<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">선택한 조건의 간식 신청자가 없습니다.</td></tr>'}</tbody></table></div>
+    <p class="muted small" style="margin-top:12px">※ 위쪽 전체 선택은 <b>현재 조회 중인 명단에만</b> 적용됩니다. 연차·신청 안 함·미신청자는 배부 대상에 표시되지 않습니다.</p>
+  </div>`;
+}
+function bindDeliveryTab(){
+  const selector=$('#deliveryOrderSelector');if(!selector)return;
+  selector.onchange=()=>{S.deliveryOrderId=selector.value;S.deliveryDivision='전체';S.deliveryGroup='';S.deliveryQuery='';renderManager()};
+  $$('[data-delivery-division]').forEach(b=>b.onclick=()=>{S.deliveryDivision=b.dataset.deliveryDivision;S.deliveryGroup='';S.deliveryQuery='';renderManager()});
+  $$('[data-delivery-group]').forEach(b=>b.onclick=()=>{S.deliveryGroup=b.dataset.deliveryGroup;S.deliveryQuery='';renderManager()});
+  const query=$('#deliverySearch');if(query)query.oninput=()=>{const pos=query.selectionStart;S.deliveryQuery=query.value;renderManager();const next=$('#deliverySearch');next?.focus();try{next?.setSelectionRange(pos,pos)}catch{}};
+  const refresh=$('#refreshDelivery');if(refresh)refresh.onclick=async()=>{if(S.deliveryBusy)return;S.deliveryBusy=true;refresh.disabled=true;try{await loadManager();renderManager();notify('배부 현황을 새로고침했습니다.','ok')}catch(e){notify(e.message,'bad');refresh.disabled=false}finally{S.deliveryBusy=false}};
+  async function saveDelivery(keys,delivered){
+    if(S.deliveryBusy||!keys.length)return;
+    S.deliveryBusy=true;
+    $$('[data-delivery-key]').forEach(el=>el.disabled=true);
+    const master=$('#deliverySelectVisible');if(master)master.disabled=true;
+    try{
+      const order=deliveryOrder();await api('manager_set_distributions',{orderId:order.id,targetKeys:keys,delivered},true);
+      const changed=new Set(keys);
+      S.distributions=S.distributions.filter(d=>!(d.order_id===order.id&&changed.has(d.target_key)));
+      if(delivered)S.distributions.push(...keys.map(k=>({order_id:order.id,target_key:k,delivered_at:new Date().toISOString()})));
+      notify(delivered?`${keys.length}명의 간식을 배부 완료로 표시했습니다.`:`${keys.length}명의 배부 표시를 취소했습니다.`,'ok');
+      renderManager();
+    }catch(e){notify(e.message,'bad');renderManager()}
+    finally{S.deliveryBusy=false}
+  }
+  $$('[data-delivery-key]').forEach(input=>input.onchange=()=>saveDelivery([input.dataset.deliveryKey],input.checked));
+  const all=$('#deliverySelectVisible');if(all){
+    const o=deliveryOrder(),visible=deliveryVisible(o),done=new Set(S.distributions.filter(x=>x.order_id===o.id).map(x=>x.target_key));
+    const checkedVisible=visible.filter(p=>done.has(p.key));
+    all.indeterminate=checkedVisible.length>0&&checkedVisible.length<visible.length;
+    all.onchange=()=>{
+      const wanted=all.checked;
+      const keys=visible.filter(p=>wanted?!done.has(p.key):done.has(p.key)).map(p=>p.key);
+      if(!keys.length){renderManager();return}
+      if(!confirm(`현재 조회 중인 ${keys.length}명을 ${wanted?'배부 완료':'미배부'}로 일괄 변경할까요?\n다른 반과 다른 주문 회차에는 영향을 주지 않습니다.`)){renderManager();return}
+      saveDelivery(keys,wanted);
+    };
+  }
+}
+
 function renderManager(){const root=$('#manager');if(!S.user){root.innerHTML='<div class="empty">로그인 정보를 확인하고 있습니다.</div>';return;}
   if(!S.managerConfigured){root.innerHTML='<div class="card"><div class="empty"><h3>담당자 비밀번호 설정 전입니다.</h3><p>통합포털 관리자가 관리자 설정에서 숫자 4자리 비밀번호를 먼저 설정해주세요.</p></div></div>';return;}
   if(!S.managerPw){root.innerHTML='<div class="card" style="max-width:530px;margin:auto"><h2>🔐 담당자 로그인</h2><p class="muted small">관리자가 설정한 숫자 4자리 비밀번호를 입력해주세요.</p><input class="input" id="managerLoginPw" type="password" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="비밀번호 4자리"><button id="managerLogin" class="btn primary full" style="margin-top:11px">담당자 관리 열기</button></div>';
@@ -393,10 +485,11 @@ function renderManager(){const root=$('#manager');if(!S.user){root.innerHTML='<d
   <div class="card"><h2>④ 주문 현황 및 집계</h2>${o?`${orderStats(o)}<div class="divider"></div><div class="section-head"><h3>신청·제외 현황</h3><span class="muted small">신청 완료·연차·신청 안 함만 표시</span></div><div class="tablewrap" style="max-height:340px"><table><thead><tr><th>소속</th><th>이름</th><th>상태</th><th>신청 교사</th><th>주문 내역</th><th>관리</th></tr></thead><tbody>${managerSubmissionRows(o)}</tbody></table></div>${missingStaffHtml(o)}${S.entryEditKey?managerEntryEditor(o):''}`:'<div class="empty">아직 주문이 없습니다.</div>'}</div>
   <div class="card"><h2>⑤ 지난 주문 내역</h2><div class="tablewrap"><table><thead><tr><th>회차</th><th>주문처</th><th>배부일</th><th>상태</th><th>보기</th></tr></thead><tbody>${S.orders.map(q=>`<tr><td>${esc(q.round_label)}</td><td>${esc(q.outlet)}</td><td>${dateFmt(q.distribution_date)}</td><td>${q.status==='finalized'?'확정':'접수'}</td><td><button class="btn second sm" data-open-order="${q.id}">열기</button></td></tr>`).join('')||'<tr><td colspan="5">주문 회차가 없습니다.</td></tr>'}</tbody></table></div></div>
   ${managerMealHtml()}
-  ${managerPrintHtml(o)}`;
+  ${managerPrintHtml(o)}
+   ${deliveryHtml()}`;
   const directCards=$$(':scope > .card',root);
-  const views=[['current','현재 주문'],['create','새 주문 만들기'],['stats','신청 현황·집계'],['print','집계표 출력'],['meal','식수조사 관리'],['history','지난 주문']];
-  const mapped={current:directCards[0],create:directCards[1],stats:directCards[2],history:directCards[3],meal:directCards[4],print:directCards[5]};
+  const views=[['current','현재 주문'],['create','새 주문 만들기'],['stats','신청 현황·집계'],['delivery','배부 확인'],['print','집계표 출력'],['meal','식수조사 관리'],['history','지난 주문']];
+  const mapped={current:directCards[0],create:directCards[1],stats:directCards[2],history:directCards[3],meal:directCards[4],print:directCards[5],delivery:directCards[6]};
   const subnav=document.createElement('nav');subnav.className='subtabs';subnav.setAttribute('aria-label','담당자 세부 메뉴');
   subnav.innerHTML=views.map(([id,title])=>`<button type="button" data-manager-view="${id}" class="${S.managerView===id?'active':''}">${title}</button>`).join('');
   root.insertBefore(subnav,directCards[0]||null);
@@ -404,10 +497,10 @@ function renderManager(){const root=$('#manager');if(!S.user){root.innerHTML='<d
     if(mapped[view])pane.appendChild(mapped[view]);root.appendChild(pane);}
   $$('[data-manager-view]',subnav).forEach(b=>b.onclick=()=>{S.managerView=b.dataset.managerView;S.entryEditKey=null;S.mealEditKey=null;renderManager()});
   const checkbox=$('#newMealEnabled');if(checkbox)checkbox.onchange=()=>{S.newMealEnabled=checkbox.checked;$('#newLinkedMealFields')?.classList.toggle('hidden',!checkbox.checked)};
-  $('#lockManager').onclick=()=>{S.managerPw='';S.people=[];S.submissions=[];S.mealResponses=[];S.extraStaff=[];S.editingOrder=false;S.entryEditKey=null;renderManager();notify('담당자 화면을 잠갔습니다.','info')};
+  $('#lockManager').onclick=()=>{S.managerPw='';S.people=[];S.submissions=[];S.mealResponses=[];S.distributions=[];S.extraStaff=[];S.editingOrder=false;S.entryEditKey=null;renderManager();notify('담당자 화면을 잠갔습니다.','info')};
   if(o)bindCurrentOrder(o);drawCatalog('newCatalog');
   $('#createNewOrder').onclick=createNewOrder;
-  if(o)bindOrdersDashboard(o);bindManagerMeal(s);bindPrintTab(o);
+  if(o)bindOrdersDashboard(o);bindManagerMeal(s);bindPrintTab(o);bindDeliveryTab();
 }
 async function encodeImage(file){if(!file)return null;if(!file.type.startsWith('image/'))throw Error('이미지 파일만 등록해주세요.');
   const bitmap=await createImageBitmap(file),limit=1800,scale=Math.min(1,limit/Math.max(bitmap.width,bitmap.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));const ctx=canvas.getContext('2d');ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close?.();
@@ -424,7 +517,7 @@ function bindCurrentOrder(o){
   if($('#deletePhotoBtn'))$('#deletePhotoBtn').onclick=async()=>{if(!confirm('등록된 메뉴판 사진을 삭제할까요?'))return;try{await api('manager_delete_image',{orderId:o.id},true);await afterWrite('메뉴판 사진을 삭제했습니다.',true)}catch(e){notify(e.message,'bad')}};
 }
 async function createNewOrder(){const btn=$('#createNewOrder');btn.disabled=true;try{const outlet=$('#newOutlet').value,distributionDate=$('#newDist').value,rawDeadline=$('#newDeadline').value,photo=$('#newOrderPhoto').files?.[0];const catalog=sanitizedCatalog('newCatalog');const mealSurvey=S.newMealEnabled?{surveyDate:$('#newLinkedMealDate').value,deadline:new Date($('#newLinkedMealDeadline').value).toISOString(),lunchMenu:$('#newLinkedMealMenu').value.trim()}:null;if(mealSurvey&&!mealSurvey.lunchMenu)throw Error('식수조사 점심 메뉴를 입력해주세요.');if(!outlet.trim()||!distributionDate||!rawDeadline)throw Error('주문처·배부일·마감시간을 모두 입력해주세요.');const d=new Date(rawDeadline);if(Number.isNaN(d.getTime()))throw Error('마감시간을 확인해주세요.');if(!confirm('새 간식 신청을 시작할까요?')){btn.disabled=false;return;}
-    const r=await api('create_order',{outlet,distributionDate,deadline:d.toISOString(),catalog,mealSurvey},true);S.orderId=r.orderId;S.surveyId=r.surveyId||S.surveyId;S.managerView='current';S.newMealEnabled=false;
+    const r=await api('create_order',{outlet,distributionDate,deadline:d.toISOString(),catalog,mealSurvey},true);S.orderId=r.orderId;S.surveyId=r.surveyId||S.surveyId;S.deliveryOrderId=r.orderId;S.managerView='current';S.newMealEnabled=false;
     let photoError=null;if(photo){try{await uploadImage(r.orderId,photo)}catch(e){photoError=e.message;}}
     S.newCatalog=blankCatalog();await afterWrite(photoError?'주문이 생성되었지만 사진 등록에 실패했습니다. 기존 주문 관리에서 다시 등록해주세요.':'새 간식 신청을 시작했습니다.',true);
     if(photoError)notify(photoError,'warn');
